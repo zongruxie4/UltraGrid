@@ -35,9 +35,8 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <memory>
-#include <iostream>
 #include <string>
+#include <cinttypes>                               // for PRIu32
 #include <condition_variable>
 #include <memory>
 #include <mutex>
@@ -374,8 +373,8 @@ bool state_video_compress_jpegxs::parse_fmt(char *fmt) {
                         }
                         encoder.quantization = num;
                 } else if (IS_KEY_PREFIX(tok, "slice_height")) {
-                        if (num <= 0 || (num & ( (1 << encoder.ndecomp_v) - 1 )) != 0) {
-                                MSG(ERROR, "Invalid slice_height value '%s' (must be a multiple of 2^decomp_v).\n", val);
+                        if (num <= 0) {
+                                MSG(ERROR, "Invalid slice_height value '%s' (must be positive).\n", val);
                                 return false;
                         }
                         encoder.slice_height = num;
@@ -403,6 +402,11 @@ bool state_video_compress_jpegxs::parse_fmt(char *fmt) {
                         return false;
                 }
                 fmt = nullptr;
+        }
+
+        if ((encoder.slice_height & ( (1 << encoder.ndecomp_v) - 1 )) != 0) {
+                MSG(ERROR, "Invalid slice_height value '%" PRIu32 "' (must be a multiple of 2^decomp_v).\n", encoder.slice_height);
+                return false;
         }
 
         return true;

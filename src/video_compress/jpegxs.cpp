@@ -339,71 +339,65 @@ bool state_video_compress_jpegxs::parse_fmt(char *fmt) {
         char *tok, *save_ptr = NULL;
 
         while ((tok = strtok_r(fmt, ":", &save_ptr)) != nullptr) {
+                const char *const val = strchr(tok, '=') + 1;
+                const int num = val != nullptr ? atoi(val) : -1;
                 if (IS_KEY_PREFIX(tok, "bpp")) {
-                        const char *bpp = strchr(tok, '=') + 1;
                         int num = 0, den = 1;
-                        if (sscanf(bpp, "%d/%d", &num, &den) < 1 || num <= 0 || den <= 0) {
-                                MSG(ERROR, "Invalid bpp value '%s' (must be a positive integer or fraction, e.g., 2 or 3/4).\n", tok);
+                        if (sscanf(val, "%d/%d", &num, &den) < 1 || num <= 0 || den <= 0) {
+                                MSG(ERROR, "Invalid bpp value '%s' (must be a positive integer or fraction, e.g., 2 or 3/4).\n", val);
                                 return false;
                         }
                         encoder.bpp_numerator   = num;
                         encoder.bpp_denominator = den;
                 } else if (IS_KEY_PREFIX(tok, "pool_size")) {
-                        const int ps = atoi(strchr(tok, '=') + 1);
-                        if (ps <= 0) {
-                                MSG(ERROR, "Invalid pool size value '%s' (must be a positive integer).\n", tok);
+                        if (num <= 0) {
+                                MSG(ERROR, "Invalid pool size value '%s' (must be a positive integer).\n", val);
                                 return false;
                         }
-                        pool_size = ps;
+                        pool_size = num;
                 } else if (IS_KEY_PREFIX(tok, "decomp_v")) {
-                        const int v = atoi(strchr(tok, '=') + 1);
-                        if (v <= 0 || v > 2) {
-                                MSG(ERROR, "Invalid decomp_v value '%s' (must be 0, 1 or 2).\n", tok);
+                        if (num <= 0 ||num > 2) {
+                                MSG(ERROR, "Invalid decomp_v value '%s' (must be 0, 1 or 2).\n", val);
                                 return false;
                         }
-                        encoder.ndecomp_v = v;
+                        encoder.ndecomp_v = num;
                 } else if (IS_KEY_PREFIX(tok, "decomp_h")) {
-                        const int h = atoi(strchr(tok, '=') + 1);
-                        if (h < 1 || h > 5) {
-                                MSG(ERROR, "Invalid decomp_h value '%s' (must be 1, 2, 3, 4 or 5).\n", tok);
+                        if (num < 1 || num > 5) {
+                                MSG(ERROR, "Invalid decomp_h value '%s' (must be 1, 2, 3, 4 or 5).\n", val);
                                 return false;
                         }
-                        encoder.ndecomp_h = h;
+                        encoder.ndecomp_h = num;
                 } else if (IS_KEY_PREFIX(tok, "quantization")) {
-                        const int q = atoi(strchr(tok, '=') + 1);
-                        if (q != 0 && q != 1) {
-                                MSG(ERROR, "Invalid quantization method '%s' (must be 0 - deadzone, or 1 - uniform).\n", tok);
+                        if (num != 0 && num != 1) {
+                                MSG(ERROR, "Invalid quantization method '%s' (must be 0 - deadzone, or 1 - uniform).\n", val);
                                 return false;
                         }
-                        encoder.quantization = q;
+                        encoder.quantization = num;
                 } else if (IS_KEY_PREFIX(tok, "slice_height")) {
-                        const int sh = atoi(strchr(tok, '=') + 1);
-                        if (sh <= 0 || (sh & ( (1 << encoder.ndecomp_v) - 1 )) != 0) {
-                                MSG(ERROR, "Invalid slice_height value '%s' (must be a multiple of 2^decomp_v).\n", tok);
+                        if (num <= 0 || (num & ( (1 << encoder.ndecomp_v) - 1 )) != 0) {
+                                MSG(ERROR, "Invalid slice_height value '%s' (must be a multiple of 2^decomp_v).\n", val);
                                 return false;
                         }
-                        encoder.slice_height = sh;
+                        encoder.slice_height = num;
                 } else if (IS_KEY_PREFIX(tok, "rc")) {
-                        const int rc = atoi(strchr(tok, '=') + 1);
-                        if (rc < 0 || rc > 3) {
-                                MSG(ERROR, "Invalid rc mode '%s' (must be 0 - CBR budget per precinct, 1 - CBR budget per precinct with padding movement, 2 - CBR budget per slice, or 3 - CBR budget per slice with max rate size).\n", tok);
+                        if (num < 0 || num > 3) {
+                                MSG(ERROR, "Invalid rc mode '%s' (must be 0 - CBR budget per precinct, 1 - CBR budget per precinct with padding movement, 2 - CBR budget per slice, or 3 - CBR budget per slice with max rate size).\n", val);
                                 return false;
                         }
-                        encoder.rate_control_mode = rc;
+                        encoder.rate_control_mode = num;
                 } else if (IS_KEY_PREFIX(tok, "threads")) {
-                        const int threads = atoi(strchr(tok, '=') + 1);
+                        const int threads = atoi(val);
                         if (threads < 0) {
                                 MSG(ERROR, "Invalid number of threads '%s' (must be a positive value or 0 which means lowest possible number of threads is created).\n", tok);
                                 return false;
                         }
                         encoder.threads_num = threads;
                 } else if (IS_KEY_PREFIX(tok, "verbose")) {
-                        const int vb = atoi(strchr(tok, '=') + 1);
-                        if (vb < VERBOSE_NONE || vb > VERBOSE_INFO_FULL) {
+                        if (num < VERBOSE_NONE || num > VERBOSE_INFO_FULL) {
                                 MSG(ERROR, "Invalid verbose messages mode '%s' (must be between %d and %d).\n", tok, VERBOSE_NONE, VERBOSE_INFO_FULL);
                                 return false;
                         }
-                        encoder.verbose = vb;
+                        encoder.verbose = num;
                 } else {
                         MSG(ERROR, "ERROR: Trailing configuration parameter: %s\n", tok);
                         return false;

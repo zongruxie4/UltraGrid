@@ -41,6 +41,7 @@
 
 #include "debug.h"
 #include "lib_common.h"
+#include "utils/misc.h"                            // for get_cpu_core_count
 #include "video.h"
 #include "video_decompress.h"
 #include "jpegxs/jpegxs_conv.h"
@@ -79,7 +80,7 @@ static void *jpegxs_decompress_init(void) {
 static bool configure_with(struct state_decompress_jpegxs *s, unsigned char *bitstream_buffer, size_t codestream_size)
 {
         s->decoder.verbose = VERBOSE_NONE;
-        s->decoder.threads_num = 10;
+        s->decoder.threads_num = get_cpu_core_count();
         s->decoder.use_cpu_flags = CPU_FLAGS_ALL;
         s->decoder.proxy_mode = proxy_mode_full;
 

@@ -48,6 +48,7 @@
 
 #include "debug.h"
 #include "lib_common.h"
+#include "utils/misc.h"                            // for get_cpu_core_count
 #include "video.h"
 #include "video_compress.h"
 #include "utils/video_frame_pool.h"
@@ -131,6 +132,7 @@ state_video_compress_jpegxs::state_video_compress_jpegxs(struct module *parent, 
 
         encoder.bpp_numerator = 3;
         encoder.verbose = VERBOSE_NONE;
+        encoder.threads_num = get_cpu_core_count();
 
         if(opts && opts[0] != '\0') {
                 char *fmt = strdup(opts);

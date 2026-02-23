@@ -1825,8 +1825,10 @@ setparam_jxs(AVCodecContext * /* codec_ctx */, struct setparam_param *param)
         if (pd->log2_chroma_w == 0 && pd->log2_chroma_h == 0 &&
             (pd->flags & AV_PIX_FMT_FLAG_RGB) == 0) {
                 MSG(ERROR,
-                    "JPEG XS is going to to encode YUV 444 is discouraged "
+                    "JPEG XS is going to encode YUV 444, which is discouraged "
                     "- use jpegxs encoder directly!\n");
+                MSG(NOTICE, "Alternatively, consider adding '-c lavc..." TBOLD(
+                                ":subsampling=422") "' to your command...\n");
         }
 
         unsigned decomp_v = 0;

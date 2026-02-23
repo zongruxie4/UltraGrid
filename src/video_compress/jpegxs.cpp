@@ -43,6 +43,7 @@
 #include <mutex>
 #include <thread>
 #include <vector>
+#include <svt-jpegxs/SvtJpegxs.h>                  // for SvtJxsErrorType
 #include <svt-jpegxs/SvtJpegxsEnc.h>
 #include <svt-jpegxs/SvtJpegxsImageBufferTools.h>
 
@@ -341,71 +342,71 @@ bool state_video_compress_jpegxs::parse_fmt(char *fmt) {
                 if (IS_KEY_PREFIX(tok, "bpp")) {
                         const char *bpp = strchr(tok, '=') + 1;
                         int num = 0, den = 1;
-                        if (strspn(bpp, "0123456789/") == strlen(bpp) && (sscanf(bpp, "%d/%d", &num, &den) == 2 || sscanf(bpp, "%d", &num)) && num > 0 && den > 0) {
-                                encoder.bpp_numerator = num;
-                                encoder.bpp_denominator = den;
-                        } else {
-                                log_msg(LOG_LEVEL_WARNING, MOD_NAME "Invalid bits per pixel value '%s' (must be a positive integer or fraction, e.g., 2 or 3/4). Using default 3.\n", tok);
+                        if (sscanf(bpp, "%d/%d", &num, &den) < 1 || num <= 0 || den <= 0) {
+                                MSG(ERROR, "Invalid bpp value '%s' (must be a positive integer or fraction, e.g., 2 or 3/4).\n", tok);
+                                return false;
                         }
+                        encoder.bpp_numerator   = num;
+                        encoder.bpp_denominator = den;
                 } else if (IS_KEY_PREFIX(tok, "pool_size")) {
                         const int ps = atoi(strchr(tok, '=') + 1);
-                        if (0 <= ps) {
-                                pool_size = ps;
-                        } else {
-                                log_msg(LOG_LEVEL_WARNING, MOD_NAME "Invalid pool size value '%s' (must be a positive integer). Using default 5.\n", tok);
+                        if (ps <= 0) {
+                                MSG(ERROR, "Invalid pool size value '%s' (must be a positive integer).\n", tok);
+                                return false;
                         }
+                        pool_size = ps;
                 } else if (IS_KEY_PREFIX(tok, "decomp_v")) {
                         const int v = atoi(strchr(tok, '=') + 1);
-                        if (0 <= v && v <= 2) {
-                                encoder.ndecomp_v = v;
-                        } else {
-                                log_msg(LOG_LEVEL_WARNING, MOD_NAME "Invalid vertical decomposition value '%s' (must be 0, 1 or 2). Using default 2.\n", tok);
+                        if (v <= 0 || v > 2) {
+                                MSG(ERROR, "Invalid decomp_v value '%s' (must be 0, 1 or 2).\n", tok);
+                                return false;
                         }
+                        encoder.ndecomp_v = v;
                 } else if (IS_KEY_PREFIX(tok, "decomp_h")) {
                         const int h = atoi(strchr(tok, '=') + 1);
-                        if (1 <= h && h <= 5) {
-                                encoder.ndecomp_h = h;
-                        } else {
-                                log_msg(LOG_LEVEL_WARNING, MOD_NAME "Invalid horizontal decomposition value '%s' (must be 1, 2, 3, 4 or 5). Using default 5.\n", tok);
-                        } 
+                        if (h < 1 || h > 5) {
+                                MSG(ERROR, "Invalid decomp_h value '%s' (must be 1, 2, 3, 4 or 5).\n", tok);
+                                return false;
+                        }
+                        encoder.ndecomp_h = h;
                 } else if (IS_KEY_PREFIX(tok, "quantization")) {
                         const int q = atoi(strchr(tok, '=') + 1);
-                        if (q == 0 || q == 1) {
-                                encoder.quantization = q;
-                        } else {
-                                log_msg(LOG_LEVEL_WARNING, MOD_NAME "Invalid quantization method '%s' (must be 0 - deadzone, or 1 - uniform). Using default 0.\n", tok);
+                        if (q != 0 && q != 1) {
+                                MSG(ERROR, "Invalid quantization method '%s' (must be 0 - deadzone, or 1 - uniform).\n", tok);
+                                return false;
                         }
+                        encoder.quantization = q;
                 } else if (IS_KEY_PREFIX(tok, "slice_height")) {
                         const int sh = atoi(strchr(tok, '=') + 1);
-                        if (sh > 0 && (sh & ( (1 << encoder.ndecomp_v) - 1 )) == 0) {
-                                encoder.slice_height = sh;
-                        } else {
-                                log_msg(LOG_LEVEL_WARNING, MOD_NAME "Invalid slice height value '%s' (must be a multiple of 2^decomp_v). Using default 16.\n", tok);
+                        if (sh <= 0 || (sh & ( (1 << encoder.ndecomp_v) - 1 )) != 0) {
+                                MSG(ERROR, "Invalid slice_height value '%s' (must be a multiple of 2^decomp_v).\n", tok);
+                                return false;
                         }
+                        encoder.slice_height = sh;
                 } else if (IS_KEY_PREFIX(tok, "rc")) {
                         const int rc = atoi(strchr(tok, '=') + 1);
-                        if (0 <= rc && rc <= 3) {
-                                encoder.rate_control_mode = rc;
-                        } else {
-                                log_msg(LOG_LEVEL_WARNING, MOD_NAME "Invalid rate control mode '%s' (must be 0 - CBR budget per precinct, 1 - CBR budget per precinct with padding movement, 2 - CBR budget per slice, or 3 - CBR budget per slice with max rate size). Using default 0.\n", tok);
+                        if (rc < 0 || rc > 3) {
+                                MSG(ERROR, "Invalid rc mode '%s' (must be 0 - CBR budget per precinct, 1 - CBR budget per precinct with padding movement, 2 - CBR budget per slice, or 3 - CBR budget per slice with max rate size).\n", tok);
+                                return false;
                         }
+                        encoder.rate_control_mode = rc;
                 } else if (IS_KEY_PREFIX(tok, "threads")) {
                         const int threads = atoi(strchr(tok, '=') + 1);
-                        int max_threads = thread::hardware_concurrency();
-                        if (0 <= threads && threads <= max_threads) {
-                                encoder.threads_num = threads;
-                        } else {
-                                log_msg(LOG_LEVEL_WARNING, MOD_NAME "Invalid number of threads '%s' (must be between 0 and %d). Using default 0, which means lowest possible number of threads is created.\n", tok, max_threads);
+                        if (threads < 0) {
+                                MSG(ERROR, "Invalid number of threads '%s' (must be a positive value or 0 which means lowest possible number of threads is created).\n", tok);
+                                return false;
                         }
+                        encoder.threads_num = threads;
                 } else if (IS_KEY_PREFIX(tok, "verbose")) {
                         const int vb = atoi(strchr(tok, '=') + 1);
-                        if (0 <= vb && vb <= 6) {
-                                encoder.verbose = vb;
-                        } else {
-                                log_msg(LOG_LEVEL_WARNING, MOD_NAME "Invalid verbose messages mode '%s' (must be between 0 and 6). Using default 0 (no messages).\n", tok);
+                        if (vb < VERBOSE_NONE || vb > VERBOSE_INFO_FULL) {
+                                MSG(ERROR, "Invalid verbose messages mode '%s' (must be between %d and %d).\n", tok, VERBOSE_NONE, VERBOSE_INFO_FULL);
+                                return false;
                         }
+                        encoder.verbose = vb;
                 } else {
-                        log_msg(LOG_LEVEL_WARNING, MOD_NAME "WARNING: Trailing configuration parameter: %s\n", tok);
+                        MSG(ERROR, "ERROR: Trailing configuration parameter: %s\n", tok);
+                        return false;
                 }
                 fmt = nullptr;
         }

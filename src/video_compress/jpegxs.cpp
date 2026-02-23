@@ -35,11 +35,13 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <string>
+#include <cassert>                                 // for assert
 #include <cinttypes>                               // for PRIu32
+#include <climits>                                 // for LLONG_MIN
 #include <condition_variable>
 #include <memory>
 #include <mutex>
+#include <string>
 #include <thread>
 #include <vector>
 #include <svt-jpegxs/SvtJpegxs.h>                  // for SvtJxsErrorType
@@ -88,6 +90,8 @@ struct state_video_compress_jpegxs {
         svt_jpeg_xs_image_config_t image_config{};
         svt_jpeg_xs_frame_pool_t *frame_pool{};
         int pool_size = DEFAULT_POOL_SIZE;
+
+        long long req_bitrate = -1;
 
         bool configured = 0;
         bool reconfiguring = 0;
@@ -278,6 +282,23 @@ ColourFormat subsampling_to_jpegxs(int ug_subs) {
         }
 }
 
+static void
+set_bitrate(svt_jpeg_xs_encoder_api_t *encoder, long long req_bitrate,
+            const struct video_desc *desc)
+{
+        long long numerator   = req_bitrate;
+        long long denominator = desc->width * desc->height * desc->fps;
+        // reduce numbers to fit uint32_t if num or den is larger
+        while (numerator > UINT32_MAX || denominator > UINT32_MAX) {
+                numerator /= 1024;
+                denominator /= 1024;
+        }
+        assert(numerator > 0);
+        assert(denominator > 0);
+        encoder->bpp_numerator   = numerator;
+        encoder->bpp_denominator = denominator;
+}
+
 static bool configure_with(struct state_video_compress_jpegxs *s, struct video_desc desc)
 {
         const struct uv_to_jpegxs_conversion *conv = get_uv_to_jpegxs_conversion(desc.color_spec);
@@ -305,6 +326,10 @@ static bool configure_with(struct state_video_compress_jpegxs *s, struct video_d
         if (!s->frame_pool) {
                 log_msg(LOG_LEVEL_ERROR, MOD_NAME "Failed to allocate JPEG XS frame pool\n");
                 return false;
+        }
+
+        if (s->req_bitrate != -1) {
+                set_bitrate(&s->encoder, s->req_bitrate, &desc);
         }
 
         err = svt_jpeg_xs_encoder_init(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &s->encoder);
@@ -342,7 +367,13 @@ bool state_video_compress_jpegxs::parse_fmt(char *fmt) {
         while ((tok = strtok_r(fmt, ":", &save_ptr)) != nullptr) {
                 const char *const val = strchr(tok, '=') + 1;
                 const int num = val != nullptr ? atoi(val) : -1;
-                if (IS_KEY_PREFIX(tok, "bpp")) {
+                if (IS_KEY_PREFIX(tok, "bitrate")) {
+                        req_bitrate = unit_evaluate(val, nullptr);
+                        if (req_bitrate == LLONG_MIN) {
+                                MSG(ERROR, "Invalid value for bitrate: %s\n", val);
+                                 return false;
+                        }
+                } else if (IS_KEY_PREFIX(tok, "bpp")) {
                         int num = 0, den = 1;
                         if (sscanf(val, "%d/%d", &num, &den) < 1 || num <= 0 || den <= 0) {
                                 MSG(ERROR, "Invalid bpp value '%s' (must be a positive integer or fraction, e.g., 2 or 3/4).\n", val);
@@ -423,6 +454,9 @@ static const struct {
         bool is_boolean;
         const char *placeholder;
 } usage_opts[] = {
+        {"Bit rate", "bitrate", "bitrate", "\t\tbitrate to be used "
+                "(eg. 50.5M)\n", ":bitrate=", false, "50.5M"
+        },
         {"Bits per pixel", "bpp", "bpp",
                 "\t\tTarget bits-per-pixel ratio for the encoder. May be given as an\n"
                 "\t\tinteger (e.g., 2) or as a fraction (e.g., 3/4). Controls the\n"
@@ -485,7 +519,7 @@ static void *jpegxs_compress_init(struct module *parent, const char *opts) {
         if (opts && strcmp(opts, "help") == 0) {
                 color_printf(TBOLD("JPEG XS") " compression usage:\n");
                 color_printf("\t" TBOLD(
-                        TRED("-c jpegxs") "[:bpp=<ratio>][:decomp_v=<0-2>][:decomp_h=<1-5>]"
+                        TRED("-c jpegxs") "[:bitrate=<br>|:bpp=<ratio>][:decomp_v=<0-2>][:decomp_h=<1-5>]"
                                           "[:quantization=<0-1>][:slice_height=<n>][:rc=<mode>]"
                                           "[:threads=<num_threads>][:pool_size=<n>][:verbose=<n>]") "\n");
                 color_printf("\t" TBOLD(TRED("-c jpegxs") ":help") "\n");

@@ -1,16 +1,6 @@
 /* Crc - 32 BIT ANSI X3.66 CRC checksum files */
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#include "config_unix.h"
-#include "config_win32.h"
-#endif // HAVE_CONFIG_H
-
 #include <stdio.h>
 #include "crc.h"
-
-#ifdef __TURBOC__
- #pragma warn -cln
-#endif
 
 /**********************************************************************\
 |* Demonstration program to compute the 32-bit CRC used as the frame  *|

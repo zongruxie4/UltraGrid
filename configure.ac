@@ -2408,7 +2408,7 @@ AC_ARG_ENABLE(jpegxs,
    [jpegxs_req=$build_default]
 )
 
-PKG_CHECK_MODULES([JPEGXS], [SvtJpegxs >= 0.10],
+PKG_CHECK_MODULES([JPEGXS], [SvtJpegxs >= 0.9],
     [FOUND_JPEGXS_DEP=yes],
     [FOUND_JPEGXS_DEP=no]
 )

@@ -159,7 +159,7 @@ static bool configure_with(struct state_decompress_jpegxs *s, unsigned char *bit
         s->decoder.verbose = VERBOSE_NONE;
         s->decoder.threads_num = get_cpu_core_count();
         s->decoder.use_cpu_flags = CPU_FLAGS_ALL;
-        s->decoder.proxy_mode = proxy_mode_full;
+        // s->decoder.proxy_mode = proxy_mode_full;
 
         SvtJxsErrorType_t err = svt_jpeg_xs_decoder_init(SVT_JPEGXS_API_VER_MAJOR, SVT_JPEGXS_API_VER_MINOR, &s->decoder, bitstream_buffer, codestream_size, &s->image_config);
         if (err != SvtJxsErrorNone) {

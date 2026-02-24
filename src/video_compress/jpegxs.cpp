@@ -50,12 +50,14 @@
 
 #include "debug.h"
 #include "lib_common.h"
+#include "types.h"                                 // for video_desc, tile
 #include "utils/misc.h"                            // for get_cpu_core_count
 #include "video.h"
 #include "video_compress.h"
 #include "utils/video_frame_pool.h"
 #include "utils/synchronized_queue.h"
 #include "jpegxs/jpegxs_conv.h"
+#include "video_frame.h"                           // for video_desc_from_frame
 
 #define DEFAULT_POOL_SIZE 5
 #define MOD_NAME "[JPEG XS enc.] "
@@ -206,6 +208,9 @@ while (true) {
                 continue;
         }
 
+        enc_input.user_prv_ctx_ptr = malloc(VF_METADATA_SIZE);
+        vf_store_metadata(frame.get(), enc_input.user_prv_ctx_ptr);
+
         struct tile *in_tile = vf_get_tile(frame.get(), 0);
         s->convert_to_planar((const uint8_t *) in_tile->data, in_tile->width, in_tile->height, &enc_input.image);
 
@@ -255,7 +260,10 @@ while (true) {
         s->frames_received++;
 
         shared_ptr<video_frame> out_frame = s->pool.get_frame();
-        
+
+        vf_restore_metadata(out_frame.get(), enc_output.user_prv_ctx_ptr);
+        free(enc_output.user_prv_ctx_ptr);
+
         struct tile *out_tile = vf_get_tile(out_frame.get(), 0);
         size_t enc_size = enc_output.bitstream.used_size;
         if (enc_size > out_tile->data_len) {

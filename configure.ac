@@ -2428,6 +2428,8 @@ else
         jpegxs=no
 fi
 
+ENSURE_FEATURE_PRESENT([${jpegxs_req?}], [${jpegxs?}], [SVT-JPEG-XS not found])
+
 # -------------------------------------------------------------------------------------------------
 # GPUJPEG
 

@@ -73,6 +73,9 @@ using std::atomic;
 namespace {
 struct state_video_compress_jpegxs;
 
+int jxs_poison_pill_obj = 0;
+#define JXS_POISON_PILL ((void *) &jxs_poison_pill_obj)
+
 struct state_video_compress_jpegxs {
         state_video_compress_jpegxs(struct module *parent, const char *opts);
 
@@ -95,7 +98,6 @@ struct state_video_compress_jpegxs {
 
         bool configured = 0;
         bool reconfiguring = 0;
-        bool stop = 0;
 
         video_desc saved_desc;
 
@@ -159,9 +161,9 @@ while (true) {
                 s->out_queue.push(frame);
         {
                 unique_lock<mutex> lock(s->mtx);
-                s->stop = true;
                 svt_jpeg_xs_frame_t enc_input;
                 svt_jpeg_xs_frame_pool_get(s->frame_pool, &enc_input, /*blocking*/ 1);
+                enc_input.user_prv_ctx_ptr = JXS_POISON_PILL;
                 svt_jpeg_xs_encoder_send_picture(&s->encoder, &enc_input, /*blocking*/ 1);
                 s->frames_sent++;
         }
@@ -221,10 +223,10 @@ static void jpegxs_worker_get(state_video_compress_jpegxs *s) {
 {
         unique_lock<mutex> lock(s->mtx);
         s->cv_configured.wait(lock, [&]{
-                return s->configured || s->stop;
+                return s->configured;
         });
 
-        if (!s->configured && s->stop) {
+        if (!s->configured) {
                 return;
         }
 }
@@ -232,9 +234,6 @@ while (true) {
 {
         unique_lock<mutex> lock(s->mtx);
         if (s->frames_received == s->frames_sent) {
-                if (s->stop) {
-                        return;
-                }
                 if (s->reconfiguring) {
                         s->cv_drained.notify_one();
                         s->cv_reconfiguring.wait(lock, [&]{
@@ -249,6 +248,9 @@ while (true) {
         if (err != SvtJxsErrorNone) {
                 log_msg(LOG_LEVEL_ERROR, MOD_NAME "Failed to get encoded packet, error code: %x\n", err);
                 continue;
+        }
+        if (enc_output.user_prv_ctx_ptr == JXS_POISON_PILL) {
+                break;
         }
         s->frames_received++;
 

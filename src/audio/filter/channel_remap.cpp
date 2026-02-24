@@ -3,7 +3,7 @@
  * @author Martin Piatka     <piatka@cesnet.cz>
  */
 /*
- * Copyright (c) 2024 CESNET, z. s. p. o.
+ * Copyright (c) 2024-2026 CESNET, z. s. p. o.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,13 +45,11 @@
 #include "audio/types.h"
 #include "audio/utils.h"
 #include "lib_common.h"
-#include "utils/misc.h"
-#include "utils/string_view_utils.hpp"
 
 #define MOD_NAME "[Remap filter] "
 
 struct state_channel_remap{
-        state_channel_remap(struct module *mod) : mod(MODULE_CLASS_DATA, mod, this) {  }
+        explicit state_channel_remap(struct module *mod) : mod(MODULE_CLASS_DATA, mod, this) {  }
 
         module_raii mod;
 
@@ -62,7 +60,7 @@ struct state_channel_remap{
         struct channel_map channel_map;
 
         std::vector<char> out_buffer;
-        struct audio_frame out_frame = {};
+        audio_frame out_frame = {};
 };
 
 static void usage(){

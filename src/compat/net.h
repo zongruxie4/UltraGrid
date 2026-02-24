@@ -45,6 +45,7 @@
 #ifdef _WIN32
 #include <winsock2.h>
 typedef SOCKET fd_t;
+#define CLOSESOCKET closesocket
 #else
 #include <arpa/inet.h>      // for htonl, ntohl
 #include <netdb.h>          // for getaddrinfo
@@ -52,6 +53,7 @@ typedef SOCKET fd_t;
 #include <sys/socket.h>     // for sockaddr, sockaddr_storage
 typedef int fd_t;
 #define INVALID_SOCKET (-1)
+#define CLOSESOCKET close
 #endif
 // IWYU pragma: end_exports
 

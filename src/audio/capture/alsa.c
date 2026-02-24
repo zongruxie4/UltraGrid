@@ -47,8 +47,6 @@
 /* Use the newer ALSA API */
 #define ALSA_PCM_NEW_HW_PARAMS_API
 
-#include "config_unix.h"
-
 #include "host.h"
 
 #include "alsa_common.h"

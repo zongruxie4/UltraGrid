@@ -3718,9 +3718,10 @@ rgbp12le_to_r12l(unsigned char *out_data, int out_pitch,
 }
 
 ALWAYS_INLINE static inline void
-gbrpXXle_to_rg48(unsigned char *out_data, int out_pitch,
+rgbpXXle_to_rg48(unsigned char *out_data, int out_pitch,
                  const unsigned char *const *in_data, const int *in_linesize,
-                 int width, int height, unsigned int in_depth)
+                 int width, int height, unsigned int in_depth, int rind,
+                 int gind, int bind)
 {
         assert((uintptr_t) out_data % 2 == 0);
         assert((uintptr_t) in_data[0] % 2 == 0);
@@ -3728,9 +3729,9 @@ gbrpXXle_to_rg48(unsigned char *out_data, int out_pitch,
         assert((uintptr_t) in_data[2] % 2 == 0);
 
         for (ptrdiff_t y = 0; y < height; ++y) {
-                const uint16_t *src_g = (const void *) (in_data[0] + (in_linesize[0] * y));
-                const uint16_t *src_b = (const void *) (in_data[1] + (in_linesize[1] * y));
-                const uint16_t *src_r = (const void *) (in_data[2] + (in_linesize[2] * y));
+                const uint16_t *src_r = (const void *) (in_data[rind] + (in_linesize[rind] * y));
+                const uint16_t *src_g = (const void *) (in_data[gind] + (in_linesize[gind] * y));
+                const uint16_t *src_b = (const void *) (in_data[bind] + (in_linesize[bind] * y));
                 uint16_t *dst = (void *) (out_data + (y * out_pitch));
 
                 OPTIMIZED_FOR (int x = 0; x < width; ++x) {
@@ -3746,8 +3747,8 @@ gbrp10le_to_rg48(unsigned char *out_data, int out_pitch,
                  const unsigned char *const *in_data, const int *in_linesize,
                  int width, int height)
 {
-        gbrpXXle_to_rg48(out_data, out_pitch, in_data, in_linesize, width,
-                         height, DEPTH10);
+        rgbpXXle_to_rg48(out_data, out_pitch, in_data, in_linesize, width,
+                         height, DEPTH10, 2, 0, 1);
 }
 
 void
@@ -3755,8 +3756,8 @@ gbrp12le_to_rg48(unsigned char *out_data, int out_pitch,
                  const unsigned char *const *in_data, const int *in_linesize,
                  int width, int height)
 {
-        gbrpXXle_to_rg48(out_data, out_pitch, in_data, in_linesize, width,
-                         height, DEPTH12);
+        rgbpXXle_to_rg48(out_data, out_pitch, in_data, in_linesize, width,
+                         height, DEPTH12, 2, 0, 1);
 }
 
 void
@@ -3764,24 +3765,34 @@ gbrp16le_to_rg48(unsigned char *out_data, int out_pitch,
                  const unsigned char *const *in_data, const int *in_linesize,
                  int width, int height)
 {
-        gbrpXXle_to_rg48(out_data, out_pitch, in_data, in_linesize, width,
-                         height, DEPTH16);
+        rgbpXXle_to_rg48(out_data, out_pitch, in_data, in_linesize, width,
+                         height, DEPTH16, 2, 0, 1);
+}
+
+void
+rgbp12le_to_rg48(unsigned char *out_data, int out_pitch,
+                 const unsigned char *const *in_data, const int *in_linesize,
+                 int width, int height)
+{
+        rgbpXXle_to_rg48(out_data, out_pitch, in_data, in_linesize, width,
+                         height, DEPTH12, 0, 1, 2);
 }
 
 ALWAYS_INLINE
 static inline void
 gbrpXXle_to_r10k(unsigned char *out_data, int out_pitch,
                  const unsigned char *const *in_data, const int *in_linesize,
-                 const int width, const int height, const unsigned int in_depth)
+                 const int width, const int height, const unsigned int in_depth,
+                 int rind, int gind, int bind)
 {
         assert((uintptr_t) in_linesize[0] % 2 == 0);
         assert((uintptr_t) in_linesize[1] % 2 == 0);
         assert((uintptr_t) in_linesize[2] % 2 == 0);
 
         for (size_t y = 0; y < (size_t) height; ++y) {
-                const uint16_t *src_g = (const void *) (in_data[0] + (in_linesize[0] * y));
-                const uint16_t *src_b = (const void *) (in_data[1] + (in_linesize[1] * y));
-                const uint16_t *src_r = (const void *) (in_data[2] + (in_linesize[2] * y));
+                const uint16_t *src_r = (const void *) (in_data[rind] + (in_linesize[rind] * y));
+                const uint16_t *src_g = (const void *) (in_data[gind] + (in_linesize[gind] * y));
+                const uint16_t *src_b = (const void *) (in_data[bind] + (in_linesize[bind] * y));
                 unsigned char *dst = out_data + (y * out_pitch);
 
                 OPTIMIZED_FOR (int x = 0; x < width; ++x) {
@@ -3799,7 +3810,7 @@ gbrp10le_to_r10k(unsigned char *out_data, int out_pitch,
                  int width, int height)
 {
         gbrpXXle_to_r10k(out_data, out_pitch, in_data, in_linesize, width,
-                         height, DEPTH10);
+                         height, DEPTH10, 2, 0, 1);
 }
 
 void
@@ -3808,7 +3819,7 @@ gbrp12le_to_r10k(unsigned char *out_data, int out_pitch,
                  int width, int height)
 {
         gbrpXXle_to_r10k(out_data, out_pitch, in_data, in_linesize, width,
-                         height, DEPTH12);
+                         height, DEPTH12, 2, 0, 1);
 }
 
 void
@@ -3817,8 +3828,16 @@ gbrp16le_to_r10k(unsigned char *out_data, int out_pitch,
                  int width, int height)
 {
         gbrpXXle_to_r10k(out_data, out_pitch, in_data, in_linesize, width,
-                         height, DEPTH16);
+                         height, DEPTH16, 2, 0, 1);
 }
 
+void
+rgbp10le_to_r10k(unsigned char *out_data, int out_pitch,
+                 const unsigned char *const *in_data, const int *in_linesize,
+                 int width, int height)
+{
+        gbrpXXle_to_r10k(out_data, out_pitch, in_data, in_linesize, width,
+                         height, DEPTH10, 0, 1, 2);
+}
 
 /* vim: set expandtab sw=8: */

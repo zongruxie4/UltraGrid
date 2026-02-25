@@ -63,7 +63,7 @@ struct state_decompress_jpegxs {
         
         bool configured = 0;
 
-        void (*convert_from_planar)(const svt_jpeg_xs_image_buffer_t *src, int width, int height, uint8_t *dst) = nullptr;
+        const struct jpegxs_to_uv_conversion *convert_from_planar;
 
         struct video_desc desc{};
         int rshift, gshift, bshift;
@@ -131,12 +131,11 @@ static int jpegxs_decompress_reconfigure(void *state, struct video_desc desc,
         }
 
         if (s->out_codec != VIDEO_CODEC_NONE) {
-                const struct jpegxs_to_uv_conversion *conv = get_jpegxs_to_uv_conversion(s->out_codec);
-                if (!conv || !conv->convert) {
+                s->convert_from_planar = get_jpegxs_to_uv_conversion(s->out_codec);
+                if (!s->convert_from_planar) {
                         log_msg(LOG_LEVEL_ERROR, MOD_NAME "Unsupported codec: %s\n", get_codec_name(s->out_codec));
                         return false;
                 }
-                s->convert_from_planar = conv->convert;
         }
 
         if (s->configured) {
@@ -222,7 +221,7 @@ static decompress_status jpegxs_decompress(void *state, unsigned char *dst, unsi
                 return DECODER_NO_FRAME;
         }
 
-        s->convert_from_planar(&dec_output.image, s->image_config.width, s->image_config.height, dst);
+        jpegxs_to_uv_convert(s->convert_from_planar, &dec_output.image, s->image_config.width, s->image_config.height, dst);
         svt_jpeg_xs_frame_pool_release(s->frame_pool, &dec_output);
         return DECODER_GOT_FRAME;
 }

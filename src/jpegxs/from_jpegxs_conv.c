@@ -191,6 +191,12 @@ rgbp12le_to_rg48(const svt_jpeg_xs_image_buffer_t *src, int width, int height,
         }
 }
 
+struct jpegxs_to_uv_conversion {
+        ColourFormat_t src;
+        codec_t dst;
+        void (*convert)(const svt_jpeg_xs_image_buffer_t *src, int width, int height, uint8_t *dst);
+};
+
 static const struct jpegxs_to_uv_conversion jpegxs_to_uv_conversions[] = {
         { COLOUR_FORMAT_PLANAR_YUV422, UYVY, yuv422p_to_uyvy },
         { COLOUR_FORMAT_PLANAR_YUV422, YUYV, yuv422p_to_yuyv },
@@ -213,4 +219,11 @@ const struct jpegxs_to_uv_conversion *get_jpegxs_to_uv_conversion(codec_t codec)
         }
 
         return NULL;
+}
+
+void jpegxs_to_uv_convert(const struct jpegxs_to_uv_conversion   *conv,
+                          const svt_jpeg_xs_image_buffer_t *src, int width,
+                          int height, uint8_t *dst)
+{
+        conv->convert(src, width, height, dst);
 }

@@ -2399,7 +2399,7 @@ typedef void av_to_uv_convert_f(struct av_conv_data d);
 typedef av_to_uv_convert_f *av_to_uv_convert_fp;
 
 struct av_to_uv_convert_state {
-        av_to_uv_convert_fp convert;
+        const struct av_to_uv_conversion *conversion;
         codec_t src_pixfmt; ///< after av_to_uv conversion (intermediate);
                             ///< VC_NONE if no further conversion needed
         codec_t dst_pixfmt;
@@ -2544,8 +2544,8 @@ static const struct av_to_uv_conversion av_to_uv_conversions[] = {
 static const struct av_to_uv_conversion *av_to_uv_conversions_end = av_to_uv_conversions + AV_TO_UV_CONVERSION_COUNT;
 
 static QSORT_S_COMP_DEFINE(compare_convs, a, b, orig_c) {
-        const struct av_to_uv_conversion *conv_a = a;
-        const struct av_to_uv_conversion *conv_b = b;
+        const struct av_to_uv_conversion *conv_a = *(const struct av_to_uv_conversion *const *) a;
+        const struct av_to_uv_conversion *conv_b = *(const struct av_to_uv_conversion *const *) b;
         const struct pixfmt_desc *src_desc = orig_c;
         struct pixfmt_desc desc_a = get_pixfmt_desc(conv_a->uv_codec);
         struct pixfmt_desc desc_b = get_pixfmt_desc(conv_b->uv_codec);
@@ -2567,24 +2567,24 @@ static QSORT_S_COMP_DEFINE(compare_codecs, a, b, orig_c)
 }
 
 static decoder_t get_av_and_uv_conversion(enum AVPixelFormat av_codec, codec_t uv_codec,
-                codec_t *intermediate_c, av_to_uv_convert_fp *av_convert) {
-        struct av_to_uv_conversion convs[AV_TO_UV_CONVERSION_COUNT];
+                codec_t *intermediate_c, const struct av_to_uv_conversion **conversion) {
+        const struct av_to_uv_conversion *convs[AV_TO_UV_CONVERSION_COUNT];
         size_t convs_count = 0;
         for (const struct av_to_uv_conversion *c = av_to_uv_conversions; c < av_to_uv_conversions_end; c++) {
                 if (c->av_codec == av_codec) {
-                        memcpy(convs + convs_count++, c, sizeof av_to_uv_conversions[0]);
+                        convs[convs_count++] = c;
                 }
         }
         struct pixfmt_desc src_desc = av_pixfmt_get_desc(av_codec);
-        qsort_s(convs, convs_count, sizeof convs[0], compare_convs, &src_desc);
+        qsort_s((const void **) convs, convs_count, sizeof convs[0], compare_convs, &src_desc);
         for (size_t i = 0; i < convs_count; ++i) {
-                decoder_t dec = get_decoder_from_to(convs[i].uv_codec, uv_codec);
+                decoder_t dec = get_decoder_from_to(convs[i]->uv_codec, uv_codec);
                 if (dec != NULL) {
-                        if (av_convert) {
-                                *av_convert = convs[i].convert;
+                        if (conversion) {
+                                *conversion = convs[i];
                         }
                         if (intermediate_c) {
-                                *intermediate_c = convs[i].uv_codec;
+                                *intermediate_c = convs[i]->uv_codec;
                         }
                         return dec;
                 }
@@ -2674,22 +2674,22 @@ get_av_to_uv_conversion_int(int av_codec, codec_t uv_codec)
                         conversions < av_to_uv_conversions_end; conversions++) {
                 if (conversions->av_codec == av_codec &&
                                 conversions->uv_codec == uv_codec) {
-                        ret->convert = conversions->convert;
+                        ret->conversion = conversions;
                         watch_pixfmt_degrade(MOD_NAME, av_pixfmt_get_desc(av_codec), get_pixfmt_desc(uv_codec));
                         return ret;
                 }
         }
 
-        av_to_uv_convert_fp av_convert = NULL;
+        const struct av_to_uv_conversion *conversion = NULL;
         codec_t intermediate = VC_NONE;
         decoder_t dec = get_av_and_uv_conversion(av_codec, uv_codec,
-                &intermediate, &av_convert);
+                &intermediate, &conversion);
         if (!dec) {
                 free(ret);
                 return NULL;
         }
         ret->dec = dec;
-        ret->convert = av_convert;
+        ret->conversion = conversion;
         ret->src_pixfmt = intermediate;
 
         const struct pixfmt_desc interm_desc = get_pixfmt_desc(intermediate);
@@ -2713,7 +2713,7 @@ get_av_to_uv_conversion(int av_codec, codec_t uv_codec)
                 return NULL;
         }
         MSG(VERBOSE, "converting %s to %s over %s\n",
-            av_get_pix_fmt_name(av_codec), get_codec_name(ret->dst_pixfmt),
+            av_get_pix_fmt_name(av_codec), get_codec_name(ret->conversion->uv_codec),
             get_codec_name(ret->src_pixfmt));
         return ret;
 }
@@ -2761,19 +2761,19 @@ static enum AVPixelFormat get_ug_codec_to_av(const enum AVPixelFormat *fmt, code
                                 return *fmt_it;
                         }
                 } else { // probe
-                        struct av_to_uv_conversion usable_convs[sizeof av_to_uv_conversions / sizeof av_to_uv_conversions[0]];
+                        const struct av_to_uv_conversion *usable_convs[sizeof av_to_uv_conversions / sizeof av_to_uv_conversions[0]];
                         int usable_convs_count = 0;
                         for (const struct av_to_uv_conversion *c = av_to_uv_conversions; c < av_to_uv_conversions_end; c++) {
                                 if (c->av_codec == *fmt_it) {
-                                        memcpy(usable_convs + usable_convs_count++, c, sizeof av_to_uv_conversions[0]);
+                                        usable_convs[usable_convs_count++] =  c;
                                 }
                         }
                         if (usable_convs_count == 0) {
                                 continue;
                         }
                         struct pixfmt_desc src_desc = av_pixfmt_get_desc(*fmt_it);
-                        qsort_s(usable_convs, usable_convs_count, sizeof usable_convs[0], compare_convs, &src_desc);
-                        *ugc = usable_convs[0].uv_codec;
+                        qsort_s((const void **) usable_convs, usable_convs_count, sizeof usable_convs[0], compare_convs, &src_desc);
+                        *ugc = usable_convs[0]->uv_codec;
                         return AV_PIX_FMT_NONE;
                 }
         }
@@ -2854,7 +2854,7 @@ pick_av_convertible_to_ug(codec_t color_spec, av_to_uv_convert_t **av_conv)
         for (const struct av_to_uv_conversion *c = av_to_uv_conversions; c < av_to_uv_conversions_end; c++) {
                 if (c->uv_codec == color_spec) { // pick any (first usable)
                         memset(*av_conv, 0, sizeof **av_conv);
-                        (*av_conv)->convert = c->convert;
+                        (*av_conv)->conversion = c;
                         return c->av_codec;
                 }
         }
@@ -2878,10 +2878,10 @@ do_av_to_uv_convert(const av_to_uv_convert_t *s, char *__restrict dst_buffer,
         unsigned char *dec_input = inf->data[0];
         size_t src_linesize = inf->linesize[0];
         unsigned char *tmp = NULL;
-        if (s->convert) {
+        if (s->conversion) {
                 DEBUG_TIMER_START(lavd_av_to_uv);
                 if (!s->dec) {
-                        s->convert((struct av_conv_data){
+                        s->conversion->convert((struct av_conv_data){
                             dst_buffer,
                             inf,
                             pitch,
@@ -2896,7 +2896,7 @@ do_av_to_uv_convert(const av_to_uv_convert_t *s, char *__restrict dst_buffer,
                 dec_input = tmp = malloc(
                     vc_get_datalen(inf->width, inf->height, s->src_pixfmt) +
                     MAX_PADDING);
-                s->convert((struct av_conv_data){
+                s->conversion->convert((struct av_conv_data){
                     (char *) dec_input,
                     inf,
                     src_linesize,

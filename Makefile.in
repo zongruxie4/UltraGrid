@@ -136,6 +136,7 @@ COMMON_OBJS     = \
 		src/crypto/md5.o \
 		src/crypto/random.o \
 		src/export.o \
+		src/from_planar.o \
 		src/ihdtv/ihdtv.o \
 		src/lib_common.o \
 		src/module.o \

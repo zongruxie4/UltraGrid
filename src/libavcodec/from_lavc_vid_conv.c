@@ -64,6 +64,7 @@
 #include "config.h"       // for HWACC_VDPAU
 #endif
 #include "debug.h"
+#include "from_planar.h"                         // for gbrp10le_to_r10k
 #include "host.h"
 #include "hwaccel_vdpau.h"
 #include "hwaccel_drm.h"

@@ -42,7 +42,7 @@
 #include <svt-jpegxs/SvtJpegxs.h>
 #include <string.h>
 
-#include "pixfmt_conv.h"           // for rgbp12le_to_r12l
+#include "from_planar.h"           // for rgbp12le_to_r12l
 #include "types.h"
 #include "video_codec.h"
 

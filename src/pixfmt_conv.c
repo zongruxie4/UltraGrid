@@ -3717,4 +3717,108 @@ rgbp12le_to_r12l(unsigned char *out_data, int out_pitch,
                          height, DEPTH12, 0, 1, 2);
 }
 
+ALWAYS_INLINE static inline void
+gbrpXXle_to_rg48(unsigned char *out_data, int out_pitch,
+                 const unsigned char *const *in_data, const int *in_linesize,
+                 int width, int height, unsigned int in_depth)
+{
+        assert((uintptr_t) out_data % 2 == 0);
+        assert((uintptr_t) in_data[0] % 2 == 0);
+        assert((uintptr_t) in_data[1] % 2 == 0);
+        assert((uintptr_t) in_data[2] % 2 == 0);
+
+        for (ptrdiff_t y = 0; y < height; ++y) {
+                const uint16_t *src_g = (const void *) (in_data[0] + (in_linesize[0] * y));
+                const uint16_t *src_b = (const void *) (in_data[1] + (in_linesize[1] * y));
+                const uint16_t *src_r = (const void *) (in_data[2] + (in_linesize[2] * y));
+                uint16_t *dst = (void *) (out_data + (y * out_pitch));
+
+                OPTIMIZED_FOR (int x = 0; x < width; ++x) {
+                        *dst++ = *src_r++ << (16U - in_depth);
+                        *dst++ = *src_g++ << (16U - in_depth);
+                        *dst++ = *src_b++ << (16U - in_depth);
+                }
+        }
+}
+
+void
+gbrp10le_to_rg48(unsigned char *out_data, int out_pitch,
+                 const unsigned char *const *in_data, const int *in_linesize,
+                 int width, int height)
+{
+        gbrpXXle_to_rg48(out_data, out_pitch, in_data, in_linesize, width,
+                         height, DEPTH10);
+}
+
+void
+gbrp12le_to_rg48(unsigned char *out_data, int out_pitch,
+                 const unsigned char *const *in_data, const int *in_linesize,
+                 int width, int height)
+{
+        gbrpXXle_to_rg48(out_data, out_pitch, in_data, in_linesize, width,
+                         height, DEPTH12);
+}
+
+void
+gbrp16le_to_rg48(unsigned char *out_data, int out_pitch,
+                 const unsigned char *const *in_data, const int *in_linesize,
+                 int width, int height)
+{
+        gbrpXXle_to_rg48(out_data, out_pitch, in_data, in_linesize, width,
+                         height, DEPTH16);
+}
+
+ALWAYS_INLINE
+static inline void
+gbrpXXle_to_r10k(unsigned char *out_data, int out_pitch,
+                 const unsigned char *const *in_data, const int *in_linesize,
+                 const int width, const int height, const unsigned int in_depth)
+{
+        assert((uintptr_t) in_linesize[0] % 2 == 0);
+        assert((uintptr_t) in_linesize[1] % 2 == 0);
+        assert((uintptr_t) in_linesize[2] % 2 == 0);
+
+        for (size_t y = 0; y < (size_t) height; ++y) {
+                const uint16_t *src_g = (const void *) (in_data[0] + (in_linesize[0] * y));
+                const uint16_t *src_b = (const void *) (in_data[1] + (in_linesize[1] * y));
+                const uint16_t *src_r = (const void *) (in_data[2] + (in_linesize[2] * y));
+                unsigned char *dst = out_data + (y * out_pitch);
+
+                OPTIMIZED_FOR (int x = 0; x < width; ++x) {
+                        *dst++ = *src_r >> (in_depth - 8U);
+                        *dst++ = ((*src_r++ >> (in_depth - 10U)) & 0x3U) << 6U | *src_g >> (in_depth - 6U);
+                        *dst++ = ((*src_g++ >> (in_depth - 10U)) & 0xFU) << 4U | *src_b >> (in_depth - 4U);
+                        *dst++ = ((*src_b++ >> (in_depth - 10U)) & 0x3FU) << 2U | 0x3U;
+                }
+        }
+}
+
+void
+gbrp10le_to_r10k(unsigned char *out_data, int out_pitch,
+                 const unsigned char *const *in_data, const int *in_linesize,
+                 int width, int height)
+{
+        gbrpXXle_to_r10k(out_data, out_pitch, in_data, in_linesize, width,
+                         height, DEPTH10);
+}
+
+void
+gbrp12le_to_r10k(unsigned char *out_data, int out_pitch,
+                 const unsigned char *const *in_data, const int *in_linesize,
+                 int width, int height)
+{
+        gbrpXXle_to_r10k(out_data, out_pitch, in_data, in_linesize, width,
+                         height, DEPTH12);
+}
+
+void
+gbrp16le_to_r10k(unsigned char *out_data, int out_pitch,
+                 const unsigned char *const *in_data, const int *in_linesize,
+                 int width, int height)
+{
+        gbrpXXle_to_r10k(out_data, out_pitch, in_data, in_linesize, width,
+                         height, DEPTH16);
+}
+
+
 /* vim: set expandtab sw=8: */

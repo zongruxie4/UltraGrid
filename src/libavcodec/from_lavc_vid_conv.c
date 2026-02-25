@@ -277,46 +277,30 @@ gbrap_to_rgb(struct av_conv_data d)
         gbrap_to_rgb_rgba(d, 3);
 }
 
-#if defined __GNUC__
-static inline void gbrpXXle_to_r10k(struct av_conv_data d, unsigned int in_depth)
-        __attribute__((always_inline));
-#endif
-static inline void
-gbrpXXle_to_r10k(struct av_conv_data d, unsigned int in_depth)
+static void
+av_gbrp10le_to_r10k(struct av_conv_data d)
 {
-        const int width = d.in_frame->width;
-        const int height = d.in_frame->height;
-        const AVFrame *frame = d.in_frame;
-
-        assert((uintptr_t) frame->linesize[0] % 2 == 0);
-        assert((uintptr_t) frame->linesize[1] % 2 == 0);
-        assert((uintptr_t) frame->linesize[2] % 2 == 0);
-
-        for (int y = 0; y < height; ++y) {
-                uint16_t *src_g = (uint16_t *)(void *) (frame->data[0] + frame->linesize[0] * y);
-                uint16_t *src_b = (uint16_t *)(void *) (frame->data[1] + frame->linesize[1] * y);
-                uint16_t *src_r = (uint16_t *)(void *) (frame->data[2] + frame->linesize[2] * y);
-                unsigned char *dst = (unsigned char *) d.dst_buffer + y * d.pitch;
-
-                OPTIMIZED_FOR (int x = 0; x < width; ++x) {
-                        *dst++ = *src_r >> (in_depth - 8U);
-                        *dst++ = ((*src_r++ >> (in_depth - 10U)) & 0x3U) << 6U | *src_g >> (in_depth - 6U);
-                        *dst++ = ((*src_g++ >> (in_depth - 10U)) & 0xFU) << 4U | *src_b >> (in_depth - 4U);
-                        *dst++ = ((*src_b++ >> (in_depth - 10U)) & 0x3FU) << 2U | 0x3U;
-                }
-        }
+        gbrp10le_to_r10k((unsigned char *) d.dst_buffer, (int) d.pitch,
+                         (const unsigned char *const *) d.in_frame->data,
+                         d.in_frame->linesize, d.in_frame->width,
+                         d.in_frame->height);
 }
 
 static void
-gbrp10le_to_r10k(struct av_conv_data d)
+av_gbrp12le_to_r10k(struct av_conv_data d)
 {
-        gbrpXXle_to_r10k(d, DEPTH10);
+        gbrp12le_to_r10k((unsigned char *) d.dst_buffer, (int) d.pitch,
+                         (const unsigned char *const *) d.in_frame->data,
+                         d.in_frame->linesize, d.in_frame->width,
+                         d.in_frame->height);
 }
-
 static void
-gbrp16le_to_r10k(struct av_conv_data d)
+av_gbrp16le_to_r10k(struct av_conv_data d)
 {
-        gbrpXXle_to_r10k(d, DEPTH16);
+        gbrp16le_to_r10k((unsigned char *) d.dst_buffer, (int) d.pitch,
+                         (const unsigned char *const *) d.in_frame->data,
+                         d.in_frame->linesize, d.in_frame->width,
+                         d.in_frame->height);
 }
 
 #if defined __GNUC__
@@ -636,12 +620,6 @@ av_gbrp16le_to_r12l(struct av_conv_data d)
 }
 
 static void
-gbrp12le_to_r10k(struct av_conv_data d)
-{
-        gbrpXXle_to_r10k(d, DEPTH12);
-}
-
-static void
 gbrp12le_to_rgb(struct av_conv_data d)
 {
         gbrpXXle_to_rgb(d, DEPTH12);
@@ -665,52 +643,31 @@ gbrp16le_to_rgba(struct av_conv_data d)
         gbrpXXle_to_rgba(d, DEPTH16);
 }
 
-#if defined __GNUC__
-static inline void gbrpXXle_to_rg48(struct av_conv_data d, unsigned int in_depth)
-        __attribute__((always_inline));
-#endif
-static inline void
-gbrpXXle_to_rg48(struct av_conv_data d, unsigned int in_depth)
+static void
+av_gbrp10le_to_rg48(struct av_conv_data d)
 {
-        const int width = d.in_frame->width;
-        const int height = d.in_frame->height;
-        const AVFrame *frame = d.in_frame;
-
-        assert((uintptr_t) d.dst_buffer % 2 == 0);
-        assert((uintptr_t) frame->data[0] % 2 == 0);
-        assert((uintptr_t) frame->data[1] % 2 == 0);
-        assert((uintptr_t) frame->data[2] % 2 == 0);
-
-        for (ptrdiff_t y = 0; y < height; ++y) {
-                uint16_t *src_g = (void *) (frame->data[0] + frame->linesize[0] * y);
-                uint16_t *src_b = (void *) (frame->data[1] + frame->linesize[1] * y);
-                uint16_t *src_r = (void *) (frame->data[2] + frame->linesize[2] * y);
-                uint16_t *dst = (void *) (d.dst_buffer + y * d.pitch);
-
-                OPTIMIZED_FOR (int x = 0; x < width; ++x) {
-                        *dst++ = *src_r++ << (16U - in_depth);
-                        *dst++ = *src_g++ << (16U - in_depth);
-                        *dst++ = *src_b++ << (16U - in_depth);
-                }
-        }
+        gbrp10le_to_rg48((unsigned char *) d.dst_buffer, (int) d.pitch,
+                         (const unsigned char *const *) d.in_frame->data,
+                         d.in_frame->linesize, d.in_frame->width,
+                         d.in_frame->height);
 }
 
 static void
-gbrp10le_to_rg48(struct av_conv_data d)
+av_gbrp12le_to_rg48(struct av_conv_data d)
 {
-        gbrpXXle_to_rg48(d, DEPTH10);
+        gbrp12le_to_rg48((unsigned char *) d.dst_buffer, (int) d.pitch,
+                         (const unsigned char *const *) d.in_frame->data,
+                         d.in_frame->linesize, d.in_frame->width,
+                         d.in_frame->height);
 }
 
 static void
-gbrp12le_to_rg48(struct av_conv_data d)
+av_gbrp16le_to_rg48(struct av_conv_data d)
 {
-        gbrpXXle_to_rg48(d, DEPTH12);
-}
-
-static void
-gbrp16le_to_rg48(struct av_conv_data d)
-{
-        gbrpXXle_to_rg48(d, DEPTH16);
+        gbrp16le_to_rg48((unsigned char *) d.dst_buffer, (int) d.pitch,
+                         (const unsigned char *const *) d.in_frame->data,
+                         d.in_frame->linesize, d.in_frame->width,
+                         d.in_frame->height);
 }
 
 static void
@@ -2564,18 +2521,18 @@ static const struct av_to_uv_conversion av_to_uv_conversions[] = {
         {AV_PIX_FMT_GBRP, RGBA, gbrp_to_rgba},
         {AV_PIX_FMT_RGB24, UYVY, rgb24_to_uyvy},
         {AV_PIX_FMT_RGB24, RGBA, rgb24_to_rgb32},
-        {AV_PIX_FMT_GBRP10LE, R10k, gbrp10le_to_r10k},
+        {AV_PIX_FMT_GBRP10LE, R10k, av_gbrp10le_to_r10k},
         {AV_PIX_FMT_GBRP10LE, RGB, gbrp10le_to_rgb},
         {AV_PIX_FMT_GBRP10LE, RGBA, gbrp10le_to_rgba},
-        {AV_PIX_FMT_GBRP10LE, RG48, gbrp10le_to_rg48},
+        {AV_PIX_FMT_GBRP10LE, RG48, av_gbrp10le_to_rg48},
         {AV_PIX_FMT_GBRP12LE, R12L, av_gbrp12le_to_r12l},
-        {AV_PIX_FMT_GBRP12LE, R10k, gbrp12le_to_r10k},
+        {AV_PIX_FMT_GBRP12LE, R10k, av_gbrp12le_to_r10k},
         {AV_PIX_FMT_GBRP12LE, RGB, gbrp12le_to_rgb},
         {AV_PIX_FMT_GBRP12LE, RGBA, gbrp12le_to_rgba},
-        {AV_PIX_FMT_GBRP12LE, RG48, gbrp12le_to_rg48},
+        {AV_PIX_FMT_GBRP12LE, RG48, av_gbrp12le_to_rg48},
         {AV_PIX_FMT_GBRP16LE, R12L, av_gbrp16le_to_r12l},
-        {AV_PIX_FMT_GBRP16LE, R10k, gbrp16le_to_r10k},
-        {AV_PIX_FMT_GBRP16LE, RG48, gbrp16le_to_rg48},
+        {AV_PIX_FMT_GBRP16LE, R10k, av_gbrp16le_to_r10k},
+        {AV_PIX_FMT_GBRP16LE, RG48, av_gbrp16le_to_rg48},
         {AV_PIX_FMT_GBRP12LE, RGB, gbrp16le_to_rgb},
         {AV_PIX_FMT_GBRP12LE, RGBA, gbrp16le_to_rgba},
         {AV_PIX_FMT_RGB48LE, R12L, rgb48le_to_r12l},

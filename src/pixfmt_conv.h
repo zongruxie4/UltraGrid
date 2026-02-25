@@ -130,6 +130,12 @@ typedef void decode_planar_func_t(unsigned char *out_data, int out_pitch,
 decode_planar_func_t gbrp12le_to_r12l;
 decode_planar_func_t gbrp16le_to_r12l;
 decode_planar_func_t rgbp12le_to_r12l;
+decode_planar_func_t gbrp10le_to_rg48;
+decode_planar_func_t gbrp12le_to_rg48;
+decode_planar_func_t gbrp16le_to_rg48;
+decode_planar_func_t gbrp10le_to_r10k;
+decode_planar_func_t gbrp12le_to_r10k;
+decode_planar_func_t gbrp16le_to_r10k;
 
 #ifdef __cplusplus
 }

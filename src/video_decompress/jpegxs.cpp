@@ -153,7 +153,7 @@ static decompress_status jpegxs_probe_internal_codec(struct state_decompress_jpe
         SvtJxsErrorType_t err = svt_jpeg_xs_decoder_get_single_frame_size(buffer, buffer_size, &s->image_config, &size, 0);
         if (err != SvtJxsErrorNone) {
                 log_msg(LOG_LEVEL_ERROR, MOD_NAME "Failed to get frame size from bitstream, error code: %x\n", err);
-                abort();
+                return DECODER_NO_FRAME;
         }
         assert(buffer_size == size);
 
@@ -219,6 +219,7 @@ static decompress_status jpegxs_decompress(void *state, unsigned char *dst, unsi
         svt_jpeg_xs_frame_t dec_output;
         err = svt_jpeg_xs_decoder_get_frame(&s->decoder, &dec_output, 1 /*blocking*/);
         if (err != SvtJxsErrorNone) {
+                svt_jpeg_xs_frame_pool_release(s->frame_pool, &dec_output);
                 log_msg(LOG_LEVEL_ERROR, MOD_NAME "Failed to get encoded packet, error code: %x\n", err);
                 return DECODER_NO_FRAME;
         }

@@ -190,6 +190,7 @@ void jpegxs_to_uv_convert(const struct jpegxs_to_uv_conversion   *conv,
         const int in_linesize[3] = { (int) src->stride[0] * conv->in_bpp,
                                      (int) src->stride[1] * conv->in_bpp,
                                      (int) src->stride[2] * conv->in_bpp };
-        conv->convert_external(dst, vc_get_linesize(width, conv->dst), in_data,
-                         in_linesize, width, height);
+        decode_planar_parallel(conv->convert_external, dst,
+                               vc_get_linesize(width, conv->dst), in_data,
+                               in_linesize, width, height);
 }

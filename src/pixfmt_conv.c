@@ -60,11 +60,14 @@
 #include <string.h>          // for memcpy
 
 #include "color_space.h"
+#include "compat/c23.h"
 #include "compat/endian.h"   // BYTE_ORDER, BIG_ENDIAN
 #include "compat/qsort_s.h"
 #include "debug.h"
 #include "utils/macros.h" // to_fourcc, OPTIMEZED_FOR, CLAMP
+#include "utils/misc.h"   // get_cpu_core_count
 #include "video_codec.h"
+#include "utils/worker.h" // task_run_parallel
 
 #ifdef __SSE3__
 #include "pmmintrin.h"
@@ -3838,6 +3841,60 @@ rgbp10le_to_r10k(unsigned char *out_data, int out_pitch,
 {
         gbrpXXle_to_r10k(out_data, out_pitch, in_data, in_linesize, width,
                          height, DEPTH10, 0, 1, 2);
+}
+
+struct convert_task_data {
+        decode_planar_func_t *convert;
+        int                   width;
+        int                   height;
+        const unsigned char  *in_data[3];
+        int                   in_linesize[3];
+        unsigned char        *out_data;
+        int                   pitch;
+};
+
+static void *
+convert_task(void *arg)
+{
+        struct convert_task_data *d = arg;
+        d->convert(d->out_data, d->pitch, d->in_data, d->in_linesize, d->width,
+                   d->height);
+        return nullptr;
+}
+
+// destiled from av_to_uv_convert
+void decode_planar_parallel(decode_planar_func_t *dec, unsigned char *out_data, int out_pitch,
+                                  const unsigned char *const *in_data,
+                                  const int *in_linesize, int width,
+                                  int height)
+{
+        const unsigned cpu_count = get_cpu_core_count();
+
+        struct convert_task_data d[cpu_count];
+        for (size_t i = 0; i < cpu_count; ++i) {
+                unsigned row_height = (height / cpu_count) & ~1; // needs to be even
+                d[i].convert   = dec;
+                d[i].pitch = out_pitch;
+                d[i].out_data  = out_data + (i * row_height * out_pitch);
+                memcpy(&d[i].in_linesize, in_linesize, sizeof d[i].in_linesize);
+
+                for (unsigned plane = 0; plane < countof(d[0].in_data); ++plane) {
+                        if (in_data[plane] == NULL) {
+                                break;
+                        }
+                        const int chroma_subs_log2 = 0;
+                        d[i].in_data[plane] =
+                            in_data[plane] +
+                            ((i * row_height * in_linesize[plane]) >>
+                             (plane == 0 ? 0 : chroma_subs_log2));
+                }
+                if (i == cpu_count - 1) {
+                        row_height = height - (row_height * (cpu_count - 1));
+                }
+                d[i].width = width;
+                d[i].height = (int) row_height;
+        }
+        task_run_parallel(convert_task, (int) cpu_count, d, sizeof d[0], NULL);
 }
 
 /* vim: set expandtab sw=8: */

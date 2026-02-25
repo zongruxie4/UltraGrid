@@ -41,6 +41,7 @@
 
 #include "debug.h"
 #include "lib_common.h"
+#include "utils/debug.h"                           // for DEBUG_TIMER_*
 #include "utils/misc.h"                            // for get_cpu_core_count
 #include "video.h"
 #include "video_decompress.h"
@@ -208,6 +209,7 @@ static decompress_status jpegxs_decompress(void *state, unsigned char *dst, unsi
         }
         dec_input.bitstream = bitstream;
 
+        DEBUG_TIMER_START(jpegxs_decompress);
         err = svt_jpeg_xs_decoder_send_frame(&s->decoder, &dec_input, 1 /*blocking*/);
         if (err != SvtJxsErrorNone) {
                 log_msg(LOG_LEVEL_ERROR, MOD_NAME "Failed to send frame to decoder, error code: %x\n", err);
@@ -220,8 +222,11 @@ static decompress_status jpegxs_decompress(void *state, unsigned char *dst, unsi
                 log_msg(LOG_LEVEL_ERROR, MOD_NAME "Failed to get encoded packet, error code: %x\n", err);
                 return DECODER_NO_FRAME;
         }
+        DEBUG_TIMER_STOP(jpegxs_decompress);
 
+        DEBUG_TIMER_START(jpegxs_dconvert);
         jpegxs_to_uv_convert(s->convert_from_planar, &dec_output.image, s->image_config.width, s->image_config.height, dst);
+        DEBUG_TIMER_STOP(jpegxs_dconvert);
         svt_jpeg_xs_frame_pool_release(s->frame_pool, &dec_output);
         return DECODER_GOT_FRAME;
 }

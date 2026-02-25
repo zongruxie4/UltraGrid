@@ -185,12 +185,17 @@ void jpegxs_to_uv_convert(const struct jpegxs_to_uv_conversion   *conv,
                 return;
         }
         assert (conv->convert_external);
-        unsigned char const *in_data[3] = { src->data_yuv[0], src->data_yuv[1],
-                                            src->data_yuv[2] };
-        const int in_linesize[3] = { (int) src->stride[0] * conv->in_bpp,
-                                     (int) src->stride[1] * conv->in_bpp,
-                                     (int) src->stride[2] * conv->in_bpp };
-        decode_planar_parallel(conv->convert_external, dst,
-                               vc_get_linesize(width, conv->dst), in_data,
-                               in_linesize, width, height);
+        struct from_planar_data d = {
+                .width          = width,
+                .height         = height,
+                .out_data       = dst,
+                .out_pitch      = vc_get_linesize(width, conv->dst),
+                .in_data[0]     = src->data_yuv[0],
+                .in_data[1]     = src->data_yuv[1],
+                .in_data[2]     = src->data_yuv[2],
+                .in_linesize[0] = src->stride[0] * conv->in_bpp,
+                .in_linesize[1] = src->stride[1] * conv->in_bpp,
+                .in_linesize[2] = src->stride[2] * conv->in_bpp,
+        };
+        decode_planar_parallel(conv->convert_external, d);
 }

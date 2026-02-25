@@ -278,30 +278,41 @@ gbrap_to_rgb(struct av_conv_data d)
         gbrap_to_rgb_rgba(d, 3);
 }
 
+static struct from_planar_data
+av_data_to_from_planar(struct av_conv_data d)
+{
+        static_assert(countof(d.in_frame->data) >= 4, "");
+        return (struct from_planar_data) {
+                .width          = d.in_frame->width,
+                .height         = d.in_frame->height,
+                .out_data       = (unsigned char *) d.dst_buffer,
+                .out_pitch      = d.pitch,
+                .in_data[0]     = d.in_frame->data[0],
+                .in_data[1]     = d.in_frame->data[1],
+                .in_data[2]     = d.in_frame->data[2],
+                .in_data[3]     = d.in_frame->data[3],
+                .in_linesize[0] = d.in_frame->linesize[0],
+                .in_linesize[1] = d.in_frame->linesize[1],
+                .in_linesize[2] = d.in_frame->linesize[2],
+                .in_linesize[3] = d.in_frame->linesize[3],
+        };
+}
+
 static void
 av_gbrp10le_to_r10k(struct av_conv_data d)
 {
-        gbrp10le_to_r10k((unsigned char *) d.dst_buffer, (int) d.pitch,
-                         (const unsigned char *const *) d.in_frame->data,
-                         d.in_frame->linesize, d.in_frame->width,
-                         d.in_frame->height);
+        gbrp10le_to_r10k(av_data_to_from_planar(d));
 }
 
 static void
 av_gbrp12le_to_r10k(struct av_conv_data d)
 {
-        gbrp12le_to_r10k((unsigned char *) d.dst_buffer, (int) d.pitch,
-                         (const unsigned char *const *) d.in_frame->data,
-                         d.in_frame->linesize, d.in_frame->width,
-                         d.in_frame->height);
+        gbrp12le_to_r10k(av_data_to_from_planar(d));
 }
 static void
 av_gbrp16le_to_r10k(struct av_conv_data d)
 {
-        gbrp16le_to_r10k((unsigned char *) d.dst_buffer, (int) d.pitch,
-                         (const unsigned char *const *) d.in_frame->data,
-                         d.in_frame->linesize, d.in_frame->width,
-                         d.in_frame->height);
+        gbrp16le_to_r10k(av_data_to_from_planar(d));
 }
 
 #if defined __GNUC__
@@ -605,19 +616,13 @@ gbrp10le_to_rgba(struct av_conv_data d)
 static void
 av_gbrp12le_to_r12l(struct av_conv_data d)
 {
-        gbrp12le_to_r12l((unsigned char *) d.dst_buffer, (int) d.pitch,
-                         (const unsigned char *const *) d.in_frame->data,
-                         d.in_frame->linesize, d.in_frame->width,
-                         d.in_frame->height);
+        gbrp12le_to_r12l(av_data_to_from_planar(d));
 }
 
 static void
 av_gbrp16le_to_r12l(struct av_conv_data d)
 {
-        gbrp16le_to_r12l((unsigned char *) d.dst_buffer, (int) d.pitch,
-                         (const unsigned char *const *) d.in_frame->data,
-                         d.in_frame->linesize, d.in_frame->width,
-                         d.in_frame->height);
+        gbrp16le_to_r12l(av_data_to_from_planar(d));
 }
 
 static void
@@ -647,28 +652,19 @@ gbrp16le_to_rgba(struct av_conv_data d)
 static void
 av_gbrp10le_to_rg48(struct av_conv_data d)
 {
-        gbrp10le_to_rg48((unsigned char *) d.dst_buffer, (int) d.pitch,
-                         (const unsigned char *const *) d.in_frame->data,
-                         d.in_frame->linesize, d.in_frame->width,
-                         d.in_frame->height);
+        gbrp10le_to_rg48(av_data_to_from_planar(d));
 }
 
 static void
 av_gbrp12le_to_rg48(struct av_conv_data d)
 {
-        gbrp12le_to_rg48((unsigned char *) d.dst_buffer, (int) d.pitch,
-                         (const unsigned char *const *) d.in_frame->data,
-                         d.in_frame->linesize, d.in_frame->width,
-                         d.in_frame->height);
+        gbrp12le_to_rg48(av_data_to_from_planar(d));
 }
 
 static void
 av_gbrp16le_to_rg48(struct av_conv_data d)
 {
-        gbrp16le_to_rg48((unsigned char *) d.dst_buffer, (int) d.pitch,
-                         (const unsigned char *const *) d.in_frame->data,
-                         d.in_frame->linesize, d.in_frame->width,
-                         d.in_frame->height);
+        gbrp16le_to_rg48(av_data_to_from_planar(d));
 }
 
 static void

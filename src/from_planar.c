@@ -55,28 +55,25 @@
 #endif
 
 static void
-gbrpXXle_to_r12l(unsigned char *const restrict out_data, const int out_pitch,
-                 const unsigned char *const restrict *const restrict in_data,
-                 const int *const restrict in_linesize, const int width,
-                 const int height, const int in_depth, int rind, int gind, int bind)
+gbrpXXle_to_r12l(struct from_planar_data d, const int in_depth, int rind, int gind, int bind)
 {
-        assert((uintptr_t) in_linesize[0] % 2 == 0);
-        assert((uintptr_t) in_linesize[1] % 2 == 0);
-        assert((uintptr_t) in_linesize[2] % 2 == 0);
+        assert((uintptr_t) d.in_linesize[0] % 2 == 0);
+        assert((uintptr_t) d.in_linesize[1] % 2 == 0);
+        assert((uintptr_t) d.in_linesize[2] % 2 == 0);
 
 #define S(x) ((x) >> (in_depth - 12))
         // clang-format off
-        for (size_t y = 0; y < (size_t) height; ++y) {
-                const uint16_t *src_r = (const void *) (in_data[rind] + (in_linesize[rind] * y));
-                const uint16_t *src_g = (const void *) (in_data[gind] + (in_linesize[gind] * y));
-                const uint16_t *src_b = (const void *) (in_data[bind] + (in_linesize[bind] * y));
+        for (size_t y = 0; y < d.height; ++y) {
+                const uint16_t *src_r = (const void *) (d.in_data[rind] + (d.in_linesize[rind] * y));
+                const uint16_t *src_g = (const void *) (d.in_data[gind] + (d.in_linesize[gind] * y));
+                const uint16_t *src_b = (const void *) (d.in_data[bind] + (d.in_linesize[bind] * y));
                 unsigned char *dst =
-                    (unsigned char *) out_data + (y * out_pitch);
+                    (unsigned char *) d.out_data + (y * d.out_pitch);
 
-                for (int x = 0; x < width; x += 8) {
+                for (unsigned x = 0; x < d.width; x += 8) {
                         uint16_t tmpbuf[3][8];
-                        if (x + 8 >= width) {
-                                size_t remains = sizeof(uint16_t) * (width - x);
+                        if (x + 8 >= d.width) {
+                                size_t remains = sizeof(uint16_t) * (d.width - x);
                                 memcpy(tmpbuf[0], src_r, remains);
                                 memcpy(tmpbuf[1], src_g, remains);
                                 memcpy(tmpbuf[2], src_b, remains);
@@ -136,50 +133,38 @@ gbrpXXle_to_r12l(unsigned char *const restrict out_data, const int out_pitch,
  * @endcode
  */
 void
-gbrp12le_to_r12l(unsigned char *out_data, int out_pitch,
-                 const unsigned char *const *in_data, const int *in_linesize,
-                 int width, int height)
+gbrp12le_to_r12l(struct from_planar_data d)
 {
-        gbrpXXle_to_r12l(out_data, out_pitch, in_data, in_linesize, width,
-                         height, DEPTH12, 2, 0, 1);
+        gbrpXXle_to_r12l(d, DEPTH12, 2, 0, 1);
 }
 
 void
-gbrp16le_to_r12l(unsigned char *out_data, int out_pitch,
-                 const unsigned char *const *in_data, const int *in_linesize,
-                 int width, int height)
+gbrp16le_to_r12l(struct from_planar_data d)
 {
-        gbrpXXle_to_r12l(out_data, out_pitch, in_data, in_linesize, width,
-                         height, DEPTH16, 2, 0, 1);
+        gbrpXXle_to_r12l(d, DEPTH16, 2, 0, 1);
 }
 
 void
-rgbp12le_to_r12l(unsigned char *out_data, int out_pitch,
-                 const unsigned char *const *in_data, const int *in_linesize,
-                 int width, int height)
+rgbp12le_to_r12l(struct from_planar_data d)
 {
-        gbrpXXle_to_r12l(out_data, out_pitch, in_data, in_linesize, width,
-                         height, DEPTH12, 0, 1, 2);
+        gbrpXXle_to_r12l(d, DEPTH12, 0, 1, 2);
 }
 
 static void
-rgbpXXle_to_rg48(unsigned char *out_data, int out_pitch,
-                 const unsigned char *const *in_data, const int *in_linesize,
-                 int width, int height, unsigned int in_depth, int rind,
-                 int gind, int bind)
+rgbpXXle_to_rg48(struct from_planar_data d, const int in_depth, int rind, int gind, int bind)
 {
-        assert((uintptr_t) out_data % 2 == 0);
-        assert((uintptr_t) in_data[0] % 2 == 0);
-        assert((uintptr_t) in_data[1] % 2 == 0);
-        assert((uintptr_t) in_data[2] % 2 == 0);
+        assert((uintptr_t) d.out_data % 2 == 0);
+        assert((uintptr_t) d.in_data[0] % 2 == 0);
+        assert((uintptr_t) d.in_data[1] % 2 == 0);
+        assert((uintptr_t) d.in_data[2] % 2 == 0);
 
-        for (ptrdiff_t y = 0; y < height; ++y) {
-                const uint16_t *src_r = (const void *) (in_data[rind] + (in_linesize[rind] * y));
-                const uint16_t *src_g = (const void *) (in_data[gind] + (in_linesize[gind] * y));
-                const uint16_t *src_b = (const void *) (in_data[bind] + (in_linesize[bind] * y));
-                uint16_t *dst = (void *) (out_data + (y * out_pitch));
+        for (ptrdiff_t y = 0; y < d.height; ++y) {
+                const uint16_t *src_r = (const void *) (d.in_data[rind] + (d.in_linesize[rind] * y));
+                const uint16_t *src_g = (const void *) (d.in_data[gind] + (d.in_linesize[gind] * y));
+                const uint16_t *src_b = (const void *) (d.in_data[bind] + (d.in_linesize[bind] * y));
+                uint16_t *dst = (void *) (d.out_data + (y * d.out_pitch));
 
-                for (int x = 0; x < width; ++x) {
+                for (unsigned x = 0; x < d.width; ++x) {
                         *dst++ = *src_r++ << (16U - in_depth);
                         *dst++ = *src_g++ << (16U - in_depth);
                         *dst++ = *src_b++ << (16U - in_depth);
@@ -188,59 +173,45 @@ rgbpXXle_to_rg48(unsigned char *out_data, int out_pitch,
 }
 
 void
-gbrp10le_to_rg48(unsigned char *out_data, int out_pitch,
-                 const unsigned char *const *in_data, const int *in_linesize,
-                 int width, int height)
+gbrp10le_to_rg48(struct from_planar_data d)
 {
-        rgbpXXle_to_rg48(out_data, out_pitch, in_data, in_linesize, width,
-                         height, DEPTH10, 2, 0, 1);
+        rgbpXXle_to_rg48(d, DEPTH10, 2, 0, 1);
 }
 
 void
-gbrp12le_to_rg48(unsigned char *out_data, int out_pitch,
-                 const unsigned char *const *in_data, const int *in_linesize,
-                 int width, int height)
+gbrp12le_to_rg48(struct from_planar_data d)
 {
-        rgbpXXle_to_rg48(out_data, out_pitch, in_data, in_linesize, width,
-                         height, DEPTH12, 2, 0, 1);
+        rgbpXXle_to_rg48(d, DEPTH12, 2, 0, 1);
 }
 
 void
-gbrp16le_to_rg48(unsigned char *out_data, int out_pitch,
-                 const unsigned char *const *in_data, const int *in_linesize,
-                 int width, int height)
+gbrp16le_to_rg48(struct from_planar_data d)
 {
-        rgbpXXle_to_rg48(out_data, out_pitch, in_data, in_linesize, width,
-                         height, DEPTH16, 2, 0, 1);
+        rgbpXXle_to_rg48(d, DEPTH16, 2, 0, 1);
 }
 
 void
-rgbp12le_to_rg48(unsigned char *out_data, int out_pitch,
-                 const unsigned char *const *in_data, const int *in_linesize,
-                 int width, int height)
+rgbp12le_to_rg48(struct from_planar_data d)
 {
-        rgbpXXle_to_rg48(out_data, out_pitch, in_data, in_linesize, width,
-                         height, DEPTH12, 0, 1, 2);
+        rgbpXXle_to_rg48(d, DEPTH12, 0, 1, 2);
 }
 
 static void
-gbrpXXle_to_r10k(unsigned char *out_data, int out_pitch,
-                 const unsigned char *const *in_data, const int *in_linesize,
-                 const int width, const int height, const unsigned int in_depth,
+gbrpXXle_to_r10k(struct from_planar_data d, const unsigned int in_depth,
                  int rind, int gind, int bind)
 {
         // __builtin_trap();
-        assert((uintptr_t) in_linesize[0] % 2 == 0);
-        assert((uintptr_t) in_linesize[1] % 2 == 0);
-        assert((uintptr_t) in_linesize[2] % 2 == 0);
+        assert((uintptr_t) d.in_linesize[0] % 2 == 0);
+        assert((uintptr_t) d.in_linesize[1] % 2 == 0);
+        assert((uintptr_t) d.in_linesize[2] % 2 == 0);
 
-        for (size_t y = 0; y < (size_t) height; ++y) {
-                const uint16_t *src_r = (const void *) (in_data[rind] + (in_linesize[rind] * y));
-                const uint16_t *src_g = (const void *) (in_data[gind] + (in_linesize[gind] * y));
-                const uint16_t *src_b = (const void *) (in_data[bind] + (in_linesize[bind] * y));
-                unsigned char *dst = out_data + (y * out_pitch);
+        for (size_t y = 0; y < d.height; ++y) {
+                const uint16_t *src_r = (const void *) (d.in_data[rind] + (d.in_linesize[rind] * y));
+                const uint16_t *src_g = (const void *) (d.in_data[gind] + (d.in_linesize[gind] * y));
+                const uint16_t *src_b = (const void *) (d.in_data[bind] + (d.in_linesize[bind] * y));
+                unsigned char *dst = d.out_data + (y * d.out_pitch);
 
-                for (int x = 0; x < width; ++x) {
+                for (unsigned x = 0; x < d.width; ++x) {
                         *dst++ = *src_r >> (in_depth - 8U);
                         *dst++ = ((*src_r++ >> (in_depth - 10U)) & 0x3U) << 6U | *src_g >> (in_depth - 6U);
                         *dst++ = ((*src_g++ >> (in_depth - 10U)) & 0xFU) << 4U | *src_b >> (in_depth - 4U);
@@ -250,92 +221,66 @@ gbrpXXle_to_r10k(unsigned char *out_data, int out_pitch,
 }
 
 void
-gbrp10le_to_r10k(unsigned char *out_data, int out_pitch,
-                 const unsigned char *const *in_data, const int *in_linesize,
-                 int width, int height)
+gbrp10le_to_r10k(struct from_planar_data d)
 {
-        gbrpXXle_to_r10k(out_data, out_pitch, in_data, in_linesize, width,
-                         height, DEPTH10, 2, 0, 1);
+        gbrpXXle_to_r10k(d, DEPTH10, 2, 0, 1);
 }
 
 void
-gbrp12le_to_r10k(unsigned char *out_data, int out_pitch,
-                 const unsigned char *const *in_data, const int *in_linesize,
-                 int width, int height)
+gbrp12le_to_r10k(struct from_planar_data d)
 {
-        gbrpXXle_to_r10k(out_data, out_pitch, in_data, in_linesize, width,
-                         height, DEPTH12, 2, 0, 1);
+        gbrpXXle_to_r10k(d, DEPTH12, 2, 0, 1);
 }
 
 void
-gbrp16le_to_r10k(unsigned char *out_data, int out_pitch,
-                 const unsigned char *const *in_data, const int *in_linesize,
-                 int width, int height)
+gbrp16le_to_r10k(struct from_planar_data d)
 {
-        gbrpXXle_to_r10k(out_data, out_pitch, in_data, in_linesize, width,
-                         height, DEPTH16, 2, 0, 1);
+        gbrpXXle_to_r10k(d, DEPTH16, 2, 0, 1);
 }
 
 void
-rgbp10le_to_r10k(unsigned char *out_data, int out_pitch,
-                 const unsigned char *const *in_data, const int *in_linesize,
-                 int width, int height)
+rgbp10le_to_r10k(struct from_planar_data d)
 {
-        gbrpXXle_to_r10k(out_data, out_pitch, in_data, in_linesize, width,
-                         height, DEPTH10, 0, 1, 2);
+        gbrpXXle_to_r10k(d, DEPTH10, 0, 1, 2);
 }
 
 struct convert_task_data {
         decode_planar_func_t *convert;
-        int                   width;
-        int                   height;
-        const unsigned char  *in_data[3];
-        int                   in_linesize[3];
-        unsigned char        *out_data;
-        int                   pitch;
+        struct from_planar_data d;
 };
 
 static void *
 convert_task(void *arg)
 {
         struct convert_task_data *d = arg;
-        d->convert(d->out_data, d->pitch, d->in_data, d->in_linesize, d->width,
-                   d->height);
+        d->convert(d->d);
         return nullptr;
 }
 
 // destiled from av_to_uv_convert
-void decode_planar_parallel(decode_planar_func_t *dec, unsigned char *out_data, int out_pitch,
-                                  const unsigned char *const *in_data,
-                                  const int *in_linesize, int width,
-                                  int height)
+void decode_planar_parallel(decode_planar_func_t *dec, const struct from_planar_data d)
 {
         const unsigned cpu_count = get_cpu_core_count();
 
-        struct convert_task_data d[cpu_count];
+        struct convert_task_data data[cpu_count];
         for (size_t i = 0; i < cpu_count; ++i) {
-                unsigned row_height = (height / cpu_count) & ~1; // needs to be even
-                d[i].convert   = dec;
-                d[i].pitch = out_pitch;
-                d[i].out_data  = out_data + (i * row_height * out_pitch);
-                memcpy(&d[i].in_linesize, in_linesize, sizeof d[i].in_linesize);
+                unsigned row_height = (d.height / cpu_count) & ~1; // needs to be even
+                data[i].convert     = dec;
+                data[i].d           = d;
+                data[i].d.out_data  = d.out_data + (i * row_height * d.out_pitch);
 
-                for (unsigned plane = 0; plane < countof(d[0].in_data); ++plane) {
-                        if (in_data[plane] == NULL) {
-                                break;
-                        }
+                for (unsigned plane = 0; plane < countof(d.in_data); ++plane) {
                         const int chroma_subs_log2 = 0;
-                        d[i].in_data[plane] =
-                            in_data[plane] +
-                            ((i * row_height * in_linesize[plane]) >>
+                        data[i].d.in_data[plane] =
+                            d.in_data[plane] +
+                            ((i * row_height * d.in_linesize[plane]) >>
                              (plane == 0 ? 0 : chroma_subs_log2));
                 }
                 if (i == cpu_count - 1) {
-                        row_height = height - (row_height * (cpu_count - 1));
+                        row_height = d.height - (row_height * (cpu_count - 1));
                 }
-                d[i].width = width;
-                d[i].height = (int) row_height;
+                data[i].d.height = row_height;
         }
-        task_run_parallel(convert_task, (int) cpu_count, d, sizeof d[0], NULL);
+        task_run_parallel(convert_task, (int) cpu_count, data, sizeof data[0], NULL);
 }
 

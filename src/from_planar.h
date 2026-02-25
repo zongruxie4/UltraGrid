@@ -42,15 +42,19 @@
 extern "C" {
 #endif // __cplusplus
 
+#define FROM_PLANAR_MAX_COMP 4
+
+struct from_planar_data {
+        unsigned width;
+        unsigned height;
+        unsigned char *__restrict out_data;
+        unsigned out_pitch;
+        const unsigned char *__restrict in_data[FROM_PLANAR_MAX_COMP];
+        unsigned in_linesize[FROM_PLANAR_MAX_COMP];
+};
 
 /// functions to decode whole buffer of packed data to planar or packed
-typedef void decode_planar_func_t(unsigned char *out_data, int out_pitch,
-#ifdef __cplusplus
-                                  const unsigned char *const *in_data, const int *in_linesize,
-#else
-                                  const unsigned char *const in_data[static 3], const int in_linesize[static 3],
-#endif
-                                  int width, int height);
+typedef void         decode_planar_func_t(struct from_planar_data d);
 decode_planar_func_t gbrp12le_to_r12l;
 decode_planar_func_t gbrp16le_to_r12l;
 decode_planar_func_t rgbp12le_to_r12l;
@@ -62,9 +66,8 @@ decode_planar_func_t gbrp10le_to_r10k;
 decode_planar_func_t gbrp12le_to_r10k;
 decode_planar_func_t gbrp16le_to_r10k;
 decode_planar_func_t rgbp10le_to_r10k;
-void decode_planar_parallel(decode_planar_func_t *dec, unsigned char *out_data,
-                            int out_pitch, const unsigned char *const *in_data,
-                            const int *in_linesize, int width, int height);
+void                 decode_planar_parallel(decode_planar_func_t   *dec,
+                                            struct from_planar_data d);
 #ifdef __cplusplus
 }
 #endif // __cplusplus

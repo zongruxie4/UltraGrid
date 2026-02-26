@@ -121,6 +121,8 @@ struct av_conv_data {
         // CS_DFL and 1 always
         enum colorspace cs_coeffs;
         int             lmt_rng; // 0 for full-range src YCbCr, 1 otherwise
+
+        decode_planar_func_t *from_planar_func;
 };
 
 static void
@@ -278,11 +280,11 @@ gbrap_to_rgb(struct av_conv_data d)
         gbrap_to_rgb_rgba(d, 3);
 }
 
-static struct from_planar_data
-av_data_to_from_planar(struct av_conv_data d)
+static void
+from_planar_conversion(struct av_conv_data d)
 {
         static_assert(countof(d.in_frame->data) >= 4, "");
-        return (struct from_planar_data) {
+        struct from_planar_data fpd = {
                 .width          = d.in_frame->width,
                 .height         = d.in_frame->height,
                 .out_data       = (unsigned char *) d.dst_buffer,
@@ -296,23 +298,8 @@ av_data_to_from_planar(struct av_conv_data d)
                 .in_linesize[2] = d.in_frame->linesize[2],
                 .in_linesize[3] = d.in_frame->linesize[3],
         };
-}
-
-static void
-av_gbrp10le_to_r10k(struct av_conv_data d)
-{
-        gbrp10le_to_r10k(av_data_to_from_planar(d));
-}
-
-static void
-av_gbrp12le_to_r10k(struct av_conv_data d)
-{
-        gbrp12le_to_r10k(av_data_to_from_planar(d));
-}
-static void
-av_gbrp16le_to_r10k(struct av_conv_data d)
-{
-        gbrp16le_to_r10k(av_data_to_from_planar(d));
+        assert(d.from_planar_func != nullptr);
+        d.from_planar_func(fpd);
 }
 
 #if defined __GNUC__
@@ -614,18 +601,6 @@ gbrp10le_to_rgba(struct av_conv_data d)
 }
 
 static void
-av_gbrp12le_to_r12l(struct av_conv_data d)
-{
-        gbrp12le_to_r12l(av_data_to_from_planar(d));
-}
-
-static void
-av_gbrp16le_to_r12l(struct av_conv_data d)
-{
-        gbrp16le_to_r12l(av_data_to_from_planar(d));
-}
-
-static void
 gbrp12le_to_rgb(struct av_conv_data d)
 {
         gbrpXXle_to_rgb(d, DEPTH12);
@@ -647,24 +622,6 @@ static void
 gbrp16le_to_rgba(struct av_conv_data d)
 {
         gbrpXXle_to_rgba(d, DEPTH16);
-}
-
-static void
-av_gbrp10le_to_rg48(struct av_conv_data d)
-{
-        gbrp10le_to_rg48(av_data_to_from_planar(d));
-}
-
-static void
-av_gbrp12le_to_rg48(struct av_conv_data d)
-{
-        gbrp12le_to_rg48(av_data_to_from_planar(d));
-}
-
-static void
-av_gbrp16le_to_rg48(struct av_conv_data d)
-{
-        gbrp16le_to_rg48(av_data_to_from_planar(d));
 }
 
 static void
@@ -2411,137 +2368,142 @@ struct av_to_uv_conversion {
         enum AVPixelFormat av_codec;
         codec_t uv_codec;
         av_to_uv_convert_fp convert;
+        decode_planar_func_t *from_planar_func; ///< if convert is from_planar_conversion
 };
 
 static const struct av_to_uv_conversion av_to_uv_conversions[] = {
         // 10-bit YUV
-        {AV_PIX_FMT_YUV420P10LE, v210, yuv420p10le_to_v210},
-        {AV_PIX_FMT_YUV420P10LE, UYVY, yuv420p10le_to_uyvy},
-        {AV_PIX_FMT_YUV420P10LE, RGB, yuv420p10le_to_rgb24},
-        {AV_PIX_FMT_YUV420P10LE, RGBA, yuv420p10le_to_rgb32},
-        {AV_PIX_FMT_YUV420P10LE, R10k, yuv420p10le_to_rgb30},
-        {AV_PIX_FMT_YUV422P10LE, v210, yuv422p10le_to_v210},
-        {AV_PIX_FMT_YUV422P10LE, UYVY, yuv422p10le_to_uyvy},
-        {AV_PIX_FMT_YUV422P10LE, RGB, yuv422p10le_to_rgb24},
-        {AV_PIX_FMT_YUV422P10LE, RGBA, yuv422p10le_to_rgb32},
-        {AV_PIX_FMT_YUV422P10LE, R10k, yuv422p10le_to_rgb30},
-        {AV_PIX_FMT_YUV444P10LE, v210, yuv444p10le_to_v210},
-        {AV_PIX_FMT_YUV444P10LE, UYVY, yuv444p10le_to_uyvy},
-        {AV_PIX_FMT_YUV444P10LE, R10k, yuv444p10le_to_r10k},
-        {AV_PIX_FMT_YUV444P10LE, RGB, yuv444p10le_to_rgb24},
-        {AV_PIX_FMT_YUV444P10LE, RGBA, yuv444p10le_to_rgb32},
-        {AV_PIX_FMT_YUV444P10LE, R12L, yuv444p10le_to_r12l},
-        {AV_PIX_FMT_YUV444P10LE, RG48, yuv444p10le_to_rg48},
-        {AV_PIX_FMT_YUV444P10LE, Y416, yuv444p10le_to_y416},
+        { AV_PIX_FMT_YUV420P10LE, v210,      yuv420p10le_to_v210,          nullptr },
+        { AV_PIX_FMT_YUV420P10LE, UYVY,      yuv420p10le_to_uyvy,          nullptr },
+        { AV_PIX_FMT_YUV420P10LE, RGB,       yuv420p10le_to_rgb24,         nullptr },
+        { AV_PIX_FMT_YUV420P10LE, RGBA,      yuv420p10le_to_rgb32,         nullptr },
+        { AV_PIX_FMT_YUV420P10LE, R10k,      yuv420p10le_to_rgb30,         nullptr },
+        { AV_PIX_FMT_YUV422P10LE, v210,      yuv422p10le_to_v210,          nullptr },
+        { AV_PIX_FMT_YUV422P10LE, UYVY,      yuv422p10le_to_uyvy,          nullptr },
+        { AV_PIX_FMT_YUV422P10LE, RGB,       yuv422p10le_to_rgb24,         nullptr },
+        { AV_PIX_FMT_YUV422P10LE, RGBA,      yuv422p10le_to_rgb32,         nullptr },
+        { AV_PIX_FMT_YUV422P10LE, R10k,      yuv422p10le_to_rgb30,         nullptr },
+        { AV_PIX_FMT_YUV444P10LE, v210,      yuv444p10le_to_v210,          nullptr },
+        { AV_PIX_FMT_YUV444P10LE, UYVY,      yuv444p10le_to_uyvy,          nullptr },
+        { AV_PIX_FMT_YUV444P10LE, R10k,      yuv444p10le_to_r10k,          nullptr },
+        { AV_PIX_FMT_YUV444P10LE, RGB,       yuv444p10le_to_rgb24,         nullptr },
+        { AV_PIX_FMT_YUV444P10LE, RGBA,      yuv444p10le_to_rgb32,         nullptr },
+        { AV_PIX_FMT_YUV444P10LE, R12L,      yuv444p10le_to_r12l,          nullptr },
+        { AV_PIX_FMT_YUV444P10LE, RG48,      yuv444p10le_to_rg48,          nullptr },
+        { AV_PIX_FMT_YUV444P10LE, Y416,      yuv444p10le_to_y416,          nullptr },
 #if P210_PRESENT
-        {AV_PIX_FMT_P210LE, v210, p210le_to_v210},
-        {AV_PIX_FMT_P210LE, UYVY, p210le_to_uyvy},
+        { AV_PIX_FMT_P210LE,      v210,      p210le_to_v210,               nullptr },
+        { AV_PIX_FMT_P210LE,      UYVY,      p210le_to_uyvy,               nullptr },
 #endif
 #if XV3X_PRESENT
-        {AV_PIX_FMT_XV30,   UYVY, xv30_to_uyvy},
-        {AV_PIX_FMT_XV30,   v210, xv30_to_v210},
-        {AV_PIX_FMT_XV30,   Y416, xv30_to_y416},
-        {AV_PIX_FMT_Y212,   UYVY, y210_to_uyvy},
-        {AV_PIX_FMT_Y212,   v210, y210_to_v210},
-        {AV_PIX_FMT_Y212,   Y416, y210_to_y416},
-        {AV_PIX_FMT_Y212,   Y216, memcpy_data},
+        { AV_PIX_FMT_XV30,        UYVY,      xv30_to_uyvy,                 nullptr },
+        { AV_PIX_FMT_XV30,        v210,      xv30_to_v210,                 nullptr },
+        { AV_PIX_FMT_XV30,        Y416,      xv30_to_y416,                 nullptr },
+        { AV_PIX_FMT_Y212,        UYVY,      y210_to_uyvy,                 nullptr },
+        { AV_PIX_FMT_Y212,        v210,      y210_to_v210,                 nullptr },
+        { AV_PIX_FMT_Y212,        Y416,      y210_to_y416,                 nullptr },
+        { AV_PIX_FMT_Y212,        Y216,      memcpy_data,                  nullptr },
 #endif
 #if Y210_PRESENT
-        {AV_PIX_FMT_Y210,   UYVY, y210_to_uyvy},
-        {AV_PIX_FMT_Y210,   v210, y210_to_v210},
-        {AV_PIX_FMT_Y210,   Y416, y210_to_y416},
-        {AV_PIX_FMT_Y210,   Y216, memcpy_data},
+        { AV_PIX_FMT_Y210,        UYVY,      y210_to_uyvy,                 nullptr },
+        { AV_PIX_FMT_Y210,        v210,      y210_to_v210,                 nullptr },
+        { AV_PIX_FMT_Y210,        Y416,      y210_to_y416,                 nullptr },
+        { AV_PIX_FMT_Y210,        Y216,      memcpy_data,                  nullptr },
 #endif
-        {AV_PIX_FMT_P010LE, v210, p010le_to_v210},
-        {AV_PIX_FMT_P010LE, UYVY, p010le_to_uyvy},
+        { AV_PIX_FMT_P010LE,      v210,      p010le_to_v210,               nullptr },
+        { AV_PIX_FMT_P010LE,      UYVY,      p010le_to_uyvy,               nullptr },
         // 8-bit YUV
-        {AV_PIX_FMT_YUV420P, v210, yuv420p_to_v210},
-        {AV_PIX_FMT_YUV420P, UYVY, yuv420p_to_uyvy},
-        {AV_PIX_FMT_YUV420P, RGB, yuv420p_to_rgb24},
-        {AV_PIX_FMT_YUV420P, RGBA, yuv420p_to_rgb32},
-        {AV_PIX_FMT_YUV422P, v210, yuv422p_to_v210},
-        {AV_PIX_FMT_YUV422P, UYVY, yuv422p_to_uyvy},
-        {AV_PIX_FMT_YUV422P, RGB, yuv422p_to_rgb24},
-        {AV_PIX_FMT_YUV422P, RGBA, yuv422p_to_rgb32},
-        {AV_PIX_FMT_YUV444P, v210, yuv444p_to_v210},
-        {AV_PIX_FMT_YUV444P, UYVY, yuv444p_to_uyvy},
-        {AV_PIX_FMT_YUV444P, RGB, yuv444p_to_rgb24},
-        {AV_PIX_FMT_YUV444P, RGBA, yuv444p_to_rgb32},
-        // 8-bit YUV - this should be supposedly full range JPEG but lavd decoder doesn't honor
-        // GPUJPEG's SPIFF header indicating YUV BT.709 limited range. The YUVJ pixel formats
+        { AV_PIX_FMT_YUV420P,     v210,      yuv420p_to_v210,              nullptr },
+        { AV_PIX_FMT_YUV420P,     UYVY,      yuv420p_to_uyvy,              nullptr },
+        { AV_PIX_FMT_YUV420P,     RGB,       yuv420p_to_rgb24,             nullptr },
+        { AV_PIX_FMT_YUV420P,     RGBA,      yuv420p_to_rgb32,             nullptr },
+        { AV_PIX_FMT_YUV422P,     v210,      yuv422p_to_v210,              nullptr },
+        { AV_PIX_FMT_YUV422P,     UYVY,      yuv422p_to_uyvy,              nullptr },
+        { AV_PIX_FMT_YUV422P,     RGB,       yuv422p_to_rgb24,             nullptr },
+        { AV_PIX_FMT_YUV422P,     RGBA,      yuv422p_to_rgb32,             nullptr },
+        { AV_PIX_FMT_YUV444P,     v210,      yuv444p_to_v210,              nullptr },
+        { AV_PIX_FMT_YUV444P,     UYVY,      yuv444p_to_uyvy,              nullptr },
+        { AV_PIX_FMT_YUV444P,     RGB,       yuv444p_to_rgb24,             nullptr },
+        { AV_PIX_FMT_YUV444P,     RGBA,      yuv444p_to_rgb32,             nullptr },
+        // 8-bit YUV - this should be supposedly full range JPEG but lavd
+        // decoder doesn't honor
+        // GPUJPEG's SPIFF header indicating YUV BT.709 limited range. The YUVJ
+        // pixel formats
         // are detected only for GPUJPEG generated JPEGs.
-        {AV_PIX_FMT_YUVJ420P, v210, yuv420p_to_v210},
-        {AV_PIX_FMT_YUVJ420P, UYVY, yuv420p_to_uyvy},
-        {AV_PIX_FMT_YUVJ420P, RGB, yuv420p_to_rgb24},
-        {AV_PIX_FMT_YUVJ420P, RGBA, yuv420p_to_rgb32},
-        {AV_PIX_FMT_YUVJ422P, v210, yuv422p_to_v210},
-        {AV_PIX_FMT_YUVJ422P, UYVY, yuv422p_to_uyvy},
-        {AV_PIX_FMT_YUVJ422P, RGB, yuv422p_to_rgb24},
-        {AV_PIX_FMT_YUVJ422P, RGBA, yuv422p_to_rgb32},
-        {AV_PIX_FMT_YUVJ444P, v210, yuv444p_to_v210},
-        {AV_PIX_FMT_YUVJ444P, UYVY, yuv444p_to_uyvy},
-        {AV_PIX_FMT_YUVJ444P, RGB, yuv444p_to_rgb24},
-        {AV_PIX_FMT_YUVJ444P, RGBA, yuv444p_to_rgb32},
+        { AV_PIX_FMT_YUVJ420P,    v210,      yuv420p_to_v210,              nullptr },
+        { AV_PIX_FMT_YUVJ420P,    UYVY,      yuv420p_to_uyvy,              nullptr },
+        { AV_PIX_FMT_YUVJ420P,    RGB,       yuv420p_to_rgb24,             nullptr },
+        { AV_PIX_FMT_YUVJ420P,    RGBA,      yuv420p_to_rgb32,             nullptr },
+        { AV_PIX_FMT_YUVJ422P,    v210,      yuv422p_to_v210,              nullptr },
+        { AV_PIX_FMT_YUVJ422P,    UYVY,      yuv422p_to_uyvy,              nullptr },
+        { AV_PIX_FMT_YUVJ422P,    RGB,       yuv422p_to_rgb24,             nullptr },
+        { AV_PIX_FMT_YUVJ422P,    RGBA,      yuv422p_to_rgb32,             nullptr },
+        { AV_PIX_FMT_YUVJ444P,    v210,      yuv444p_to_v210,              nullptr },
+        { AV_PIX_FMT_YUVJ444P,    UYVY,      yuv444p_to_uyvy,              nullptr },
+        { AV_PIX_FMT_YUVJ444P,    RGB,       yuv444p_to_rgb24,             nullptr },
+        { AV_PIX_FMT_YUVJ444P,    RGBA,      yuv444p_to_rgb32,             nullptr },
 #if VUYX_PRESENT
-        {AV_PIX_FMT_VUYA, UYVY, vuya_to_uyvy},
-        {AV_PIX_FMT_VUYX, UYVY, vuya_to_uyvy},
-        {AV_PIX_FMT_VUYA, Y416, vuya_to_y416},
-        {AV_PIX_FMT_VUYX, Y416, vuyx_to_y416},
-        {AV_PIX_FMT_YUV444P, VUYA, yuv444p_to_vuya},
-        {AV_PIX_FMT_YUVJ444P, VUYA, yuv444p_to_vuya},
+        { AV_PIX_FMT_VUYA,        UYVY,      vuya_to_uyvy,                 nullptr },
+        { AV_PIX_FMT_VUYX,        UYVY,      vuya_to_uyvy,                 nullptr },
+        { AV_PIX_FMT_VUYA,        Y416,      vuya_to_y416,                 nullptr },
+        { AV_PIX_FMT_VUYX,        Y416,      vuyx_to_y416,                 nullptr },
+        { AV_PIX_FMT_YUV444P,     VUYA,      yuv444p_to_vuya,              nullptr },
+        { AV_PIX_FMT_YUVJ444P,    VUYA,      yuv444p_to_vuya,              nullptr },
 #endif
         // 8-bit YUV (NV12)
-        {AV_PIX_FMT_NV12, UYVY, nv12_to_uyvy},
-        {AV_PIX_FMT_NV12, RGB, nv12_to_rgb24},
-        {AV_PIX_FMT_NV12, RGBA, nv12_to_rgb32},
+        { AV_PIX_FMT_NV12,        UYVY,      nv12_to_uyvy,                 nullptr },
+        { AV_PIX_FMT_NV12,        RGB,       nv12_to_rgb24,                nullptr },
+        { AV_PIX_FMT_NV12,        RGBA,      nv12_to_rgb32,                nullptr },
         // 12-bit YUV
-        {AV_PIX_FMT_YUV444P12LE, R10k, yuv444p12le_to_r10k},
-        {AV_PIX_FMT_YUV444P12LE, R12L, yuv444p12le_to_r12l},
-        {AV_PIX_FMT_YUV444P12LE, RG48, yuv444p12le_to_rg48},
-        {AV_PIX_FMT_YUV444P12LE, UYVY, yuv444p12le_to_uyvy},
-        {AV_PIX_FMT_YUV444P12LE, v210, yuv444p12le_to_v210},
-        {AV_PIX_FMT_YUV444P12LE, Y416, yuv444p12le_to_y416},
+        { AV_PIX_FMT_YUV444P12LE, R10k,      yuv444p12le_to_r10k,          nullptr },
+        { AV_PIX_FMT_YUV444P12LE, R12L,      yuv444p12le_to_r12l,          nullptr },
+        { AV_PIX_FMT_YUV444P12LE, RG48,      yuv444p12le_to_rg48,          nullptr },
+        { AV_PIX_FMT_YUV444P12LE, UYVY,      yuv444p12le_to_uyvy,          nullptr },
+        { AV_PIX_FMT_YUV444P12LE, v210,      yuv444p12le_to_v210,          nullptr },
+        { AV_PIX_FMT_YUV444P12LE, Y416,      yuv444p12le_to_y416,          nullptr },
         // 16-bit YUV
-        {AV_PIX_FMT_YUV444P16LE, R10k, yuv444p16le_to_r10k},
-        {AV_PIX_FMT_YUV444P16LE, R12L, yuv444p16le_to_r12l},
-        {AV_PIX_FMT_YUV444P16LE, RG48, yuv444p16le_to_rg48},
-        {AV_PIX_FMT_YUV444P16LE, UYVY, yuv444p16le_to_uyvy},
-        {AV_PIX_FMT_YUV444P16LE, v210, yuv444p16le_to_v210},
-        {AV_PIX_FMT_YUV444P16LE, Y416, yuv444p16le_to_y416},
-        {AV_PIX_FMT_AYUV64, UYVY, ayuv64_to_uyvy},
-        {AV_PIX_FMT_AYUV64, v210, ayuv64_to_v210},
-        {AV_PIX_FMT_AYUV64, Y416, ayuv64_to_y416},
+        { AV_PIX_FMT_YUV444P16LE, R10k,      yuv444p16le_to_r10k,          nullptr },
+        { AV_PIX_FMT_YUV444P16LE, R12L,      yuv444p16le_to_r12l,          nullptr },
+        { AV_PIX_FMT_YUV444P16LE, RG48,      yuv444p16le_to_rg48,          nullptr },
+        { AV_PIX_FMT_YUV444P16LE, UYVY,      yuv444p16le_to_uyvy,          nullptr },
+        { AV_PIX_FMT_YUV444P16LE, v210,      yuv444p16le_to_v210,          nullptr },
+        { AV_PIX_FMT_YUV444P16LE, Y416,      yuv444p16le_to_y416,          nullptr },
+        { AV_PIX_FMT_AYUV64,      UYVY,      ayuv64_to_uyvy,               nullptr },
+        { AV_PIX_FMT_AYUV64,      v210,      ayuv64_to_v210,               nullptr },
+        { AV_PIX_FMT_AYUV64,      Y416,      ayuv64_to_y416,               nullptr },
         // RGB
-        {AV_PIX_FMT_GBRAP, RGB, gbrap_to_rgb},
-        {AV_PIX_FMT_GBRAP, RGBA, gbrap_to_rgba},
-        {AV_PIX_FMT_GBRP, RGB, gbrp_to_rgb},
-        {AV_PIX_FMT_GBRP, RGBA, gbrp_to_rgba},
-        {AV_PIX_FMT_RGB24, UYVY, rgb24_to_uyvy},
-        {AV_PIX_FMT_RGB24, RGBA, rgb24_to_rgb32},
-        {AV_PIX_FMT_GBRP10LE, R10k, av_gbrp10le_to_r10k},
-        {AV_PIX_FMT_GBRP10LE, RGB, gbrp10le_to_rgb},
-        {AV_PIX_FMT_GBRP10LE, RGBA, gbrp10le_to_rgba},
-        {AV_PIX_FMT_GBRP10LE, RG48, av_gbrp10le_to_rg48},
-        {AV_PIX_FMT_GBRP12LE, R12L, av_gbrp12le_to_r12l},
-        {AV_PIX_FMT_GBRP12LE, R10k, av_gbrp12le_to_r10k},
-        {AV_PIX_FMT_GBRP12LE, RGB, gbrp12le_to_rgb},
-        {AV_PIX_FMT_GBRP12LE, RGBA, gbrp12le_to_rgba},
-        {AV_PIX_FMT_GBRP12LE, RG48, av_gbrp12le_to_rg48},
-        {AV_PIX_FMT_GBRP16LE, R12L, av_gbrp16le_to_r12l},
-        {AV_PIX_FMT_GBRP16LE, R10k, av_gbrp16le_to_r10k},
-        {AV_PIX_FMT_GBRP16LE, RG48, av_gbrp16le_to_rg48},
-        {AV_PIX_FMT_GBRP12LE, RGB, gbrp16le_to_rgb},
-        {AV_PIX_FMT_GBRP12LE, RGBA, gbrp16le_to_rgba},
-        {AV_PIX_FMT_RGB48LE, R12L, rgb48le_to_r12l},
-        {AV_PIX_FMT_RGB48LE, RGBA, rgb48le_to_rgba},
+        { AV_PIX_FMT_GBRAP,       RGB,       gbrap_to_rgb,                 nullptr },
+        { AV_PIX_FMT_GBRAP,       RGBA,      gbrap_to_rgba,                nullptr },
+        { AV_PIX_FMT_GBRP,        RGB,       gbrp_to_rgb,                  nullptr },
+        { AV_PIX_FMT_GBRP,        RGBA,      gbrp_to_rgba,                 nullptr },
+        { AV_PIX_FMT_RGB24,       UYVY,      rgb24_to_uyvy,                nullptr },
+        { AV_PIX_FMT_RGB24,       RGBA,      rgb24_to_rgb32,               nullptr },
+        { AV_PIX_FMT_GBRP10LE,    R10k,      from_planar_conversion,       gbrp10le_to_r10k },
+        { AV_PIX_FMT_GBRP10LE,    RGB,       gbrp10le_to_rgb,              nullptr },
+        { AV_PIX_FMT_GBRP10LE,    RGBA,      gbrp10le_to_rgba,             nullptr },
+        { AV_PIX_FMT_GBRP10LE,    RG48,      from_planar_conversion,       gbrp10le_to_rg48 },
+        { AV_PIX_FMT_GBRP12LE,    R12L,      from_planar_conversion,       gbrp12le_to_r12l },
+        { AV_PIX_FMT_GBRP12LE,    R10k,      from_planar_conversion,       gbrp12le_to_r10k },
+        { AV_PIX_FMT_GBRP12LE,    RGB,       gbrp12le_to_rgb,              nullptr },
+        { AV_PIX_FMT_GBRP12LE,    RGBA,      gbrp12le_to_rgba,             nullptr },
+        { AV_PIX_FMT_GBRP12LE,    RG48,      from_planar_conversion,       gbrp12le_to_rg48 },
+        { AV_PIX_FMT_GBRP16LE,    R12L,      from_planar_conversion,       gbrp16le_to_r12l },
+        { AV_PIX_FMT_GBRP16LE,    R10k,      from_planar_conversion,       gbrp16le_to_r10k },
+        { AV_PIX_FMT_GBRP16LE,    RG48,      from_planar_conversion,       gbrp16le_to_rg48 },
+        { AV_PIX_FMT_GBRP12LE,    RGB,       gbrp16le_to_rgb,              nullptr },
+        { AV_PIX_FMT_GBRP12LE,    RGBA,      gbrp16le_to_rgba,             nullptr },
+        { AV_PIX_FMT_RGB48LE,     R12L,      rgb48le_to_r12l,              nullptr },
+        { AV_PIX_FMT_RGB48LE,     RGBA,      rgb48le_to_rgba,              nullptr },
 #ifdef HWACC_VDPAU
         // HW acceleration
-        {AV_PIX_FMT_VDPAU, HW_VDPAU, av_vdpau_to_ug_vdpau},
+        { AV_PIX_FMT_VDPAU,       HW_VDPAU,  av_vdpau_to_ug_vdpau,         nullptr },
 #endif
-        {AV_PIX_FMT_DRM_PRIME, DRM_PRIME, av_drm_prime_to_ug_drm_prime},
+        { AV_PIX_FMT_DRM_PRIME,   DRM_PRIME, av_drm_prime_to_ug_drm_prime,
+         nullptr                                                                   },
 };
 #define AV_TO_UV_CONVERSION_COUNT (sizeof av_to_uv_conversions / sizeof av_to_uv_conversions[0])
-static const struct av_to_uv_conversion *av_to_uv_conversions_end = av_to_uv_conversions + AV_TO_UV_CONVERSION_COUNT;
+static const struct av_to_uv_conversion *const av_to_uv_conversions_end =
+    av_to_uv_conversions + AV_TO_UV_CONVERSION_COUNT;
 
 static QSORT_S_COMP_DEFINE(compare_convs, a, b, orig_c) {
         const struct av_to_uv_conversion *conv_a = *(const struct av_to_uv_conversion *const *) a;
@@ -2888,6 +2850,7 @@ do_av_to_uv_convert(const av_to_uv_convert_t *s, char *__restrict dst_buffer,
                             { rgb_shift[0], rgb_shift[1], rgb_shift[2] },
                             cs_coeffs,
                             lmt_rng,
+                            s->conversion->from_planar_func,
                         });
                         DEBUG_TIMER_STOP(lavd_av_to_uv);
                         return;
@@ -2903,6 +2866,7 @@ do_av_to_uv_convert(const av_to_uv_convert_t *s, char *__restrict dst_buffer,
                     DEFAULT_RGB_SHIFT_INIT,
                     cs_coeffs,
                     lmt_rng,
+                    s->conversion->from_planar_func,
                 });
                 DEBUG_TIMER_STOP(lavd_av_to_uv);
         }

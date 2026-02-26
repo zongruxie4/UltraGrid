@@ -45,8 +45,12 @@
 #ifdef _WIN32
 #include <winsock2.h>
 #include <ws2tcpip.h> // for socklen_t
+#include <io.h> // for read, write
 typedef SOCKET fd_t;
 #define CLOSESOCKET closesocket
+#define SHUT_RD SD_RECEIVE
+#define SHUT_WR SD_SEND
+#define SHUT_RDWR SD_BOTH
 #else
 #include <arpa/inet.h>      // for htonl, ntohl
 #include <netdb.h>          // for getaddrinfo

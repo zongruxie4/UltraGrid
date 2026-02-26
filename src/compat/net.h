@@ -44,6 +44,7 @@
 // IWYU pragma: begin_exports
 #ifdef _WIN32
 #include <winsock2.h>
+#include <ws2tcpip.h> // for socklen_t
 typedef SOCKET fd_t;
 #define CLOSESOCKET closesocket
 #else

@@ -76,19 +76,18 @@ struct state_decompress_jpegxs {
 struct jpegxs_to_uv_conversion {
         ColourFormat_t src;
         codec_t dst;
-        int in_bpp;
         decode_planar_func_t *convert;
 };
 
 static const struct jpegxs_to_uv_conversion jpegxs_to_uv_conversions[] = {
-        { COLOUR_FORMAT_PLANAR_YUV422,        UYVY, 1, yuv422p_to_uyvy  },
-        { COLOUR_FORMAT_PLANAR_YUV422,        YUYV, 1, yuv422p_to_yuyv  },
-        { COLOUR_FORMAT_PLANAR_YUV420,        I420, 1, yuv420_to_i420   },
-        { COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, RGB,  1, rgbp_to_rgb      },
-        { COLOUR_FORMAT_PLANAR_YUV422,        v210, 2, yuv422p10le_to_v210},
-        { COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, R10k, 2, rgbpXXle_to_r10k },
-        { COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, R12L, 2, rgbpXXle_to_r12l },
-        { COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, RG48, 2, rgbpXXle_to_rg48 },
+        { COLOUR_FORMAT_PLANAR_YUV422,        UYVY, yuv422p_to_uyvy  },
+        { COLOUR_FORMAT_PLANAR_YUV422,        YUYV, yuv422p_to_yuyv  },
+        { COLOUR_FORMAT_PLANAR_YUV420,        I420, yuv420_to_i420   },
+        { COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, RGB,  rgbp_to_rgb      },
+        { COLOUR_FORMAT_PLANAR_YUV422,        v210, yuv422p10le_to_v210},
+        { COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, R10k, rgbpXXle_to_r10k },
+        { COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, R12L, rgbpXXle_to_r12l },
+        { COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, RG48, rgbpXXle_to_rg48 },
 };
 
 static const struct jpegxs_to_uv_conversion *
@@ -110,6 +109,7 @@ jpegxs_to_uv_convert(struct state_decompress_jpegxs *s,
                      int height, uint8_t *dst)
 {
         const struct jpegxs_to_uv_conversion *conv = s->convert_from_planar;
+        const int in_bpp = s->image_config.bit_depth > 8 ? 2 : 1;
         struct from_planar_data d = {};
         d.width          = width;
         d.height         = height;
@@ -118,9 +118,9 @@ jpegxs_to_uv_convert(struct state_decompress_jpegxs *s,
         d.in_data[0]     = (const unsigned char *) src->data_yuv[0];
         d.in_data[1]     = (const unsigned char *) src->data_yuv[1];
         d.in_data[2]     = (const unsigned char *) src->data_yuv[2];
-        d.in_linesize[0] = src->stride[0] * conv->in_bpp;
-        d.in_linesize[1] = src->stride[1] * conv->in_bpp;
-        d.in_linesize[2] = src->stride[2] * conv->in_bpp;
+        d.in_linesize[0] = src->stride[0] * in_bpp;
+        d.in_linesize[1] = src->stride[1] * in_bpp;
+        d.in_linesize[2] = src->stride[2] * in_bpp;
         d.in_depth       = s->image_config.bit_depth;
         int num_threads = 0;
         if (conv->convert == yuv420_to_i420) {

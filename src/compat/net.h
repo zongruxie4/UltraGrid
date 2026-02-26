@@ -52,6 +52,7 @@ typedef SOCKET fd_t;
 #include <netdb.h>          // for getaddrinfo
 #include <netinet/in.h>     // for sockaddr_in[6]
 #include <sys/socket.h>     // for sockaddr, sockaddr_storage
+#include <unistd.h>         // for close
 typedef int fd_t;
 #define INVALID_SOCKET (-1)
 #define CLOSESOCKET close

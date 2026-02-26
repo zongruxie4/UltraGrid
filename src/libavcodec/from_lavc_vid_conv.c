@@ -242,6 +242,9 @@ gbrp_to_rgba(struct av_conv_data d)
 static void
 from_planar_conversion(struct av_conv_data d)
 {
+        const AVPixFmtDescriptor *fmt_desc =
+            av_pix_fmt_desc_get(d.in_frame->format);
+
         static_assert(countof(d.in_frame->data) >= 4, "");
         struct from_planar_data fpd = {
                 .width          = d.in_frame->width,
@@ -256,6 +259,7 @@ from_planar_conversion(struct av_conv_data d)
                 .in_linesize[1] = d.in_frame->linesize[1],
                 .in_linesize[2] = d.in_frame->linesize[2],
                 .in_linesize[3] = d.in_frame->linesize[3],
+                .log2_chroma_h = fmt_desc->log2_chroma_h,
         };
         memcpy(fpd.rgb_shift, d.rgb_shift, sizeof fpd.rgb_shift);
         assert(d.from_planar_func != nullptr);
@@ -514,111 +518,6 @@ rgb48le_to_r12l(struct av_conv_data d)
                     frame->data[0] + y * frame->linesize[0],
                     vc_get_linesize(width, R12L), d.rgb_shift[0],
                     d.rgb_shift[1], d.rgb_shift[2]);
-        }
-}
-
-static void
-yuv420p_to_uyvy(struct av_conv_data d)
-{
-        const int width = d.in_frame->width;
-        const int height = d.in_frame->height;
-        const AVFrame *in_frame = d.in_frame;
-
-        for(int y = 0; y < (height + 1) / 2; ++y) {
-                int scnd_row = y * 2 + 1;
-                if (scnd_row == height) {
-                        scnd_row = height - 1;
-                }
-                char *src_y1 = (char *) in_frame->data[0] + in_frame->linesize[0] * y * 2;
-                char *src_y2 = (char *) in_frame->data[0] + in_frame->linesize[0] * scnd_row;
-                char *src_cb = (char *) in_frame->data[1] + in_frame->linesize[1] * y;
-                char *src_cr = (char *) in_frame->data[2] + in_frame->linesize[2] * y;
-                char *dst1 = d.dst_buffer + (y * 2) * d.pitch;
-                char *dst2 = d.dst_buffer + scnd_row * d.pitch;
-
-                int x = 0;
-
-#ifdef __SSE3__
-                __m128i y1;
-                __m128i y2;
-                __m128i u1;
-                __m128i u2;
-                __m128i v1;
-                __m128i v2;
-                __m128i out1l;
-                __m128i out1h;
-                __m128i out2l;
-                __m128i out2h;
-                __m128i zero = _mm_set1_epi32(0);
-
-                for (; x < width - 15; x += 16){
-                        y1 = _mm_lddqu_si128((__m128i const*)(const void *) src_y1);
-                        y2 = _mm_lddqu_si128((__m128i const*)(const void *) src_y2);
-                        src_y1 += 16;
-                        src_y2 += 16;
-
-                        out1l = _mm_unpacklo_epi8(zero, y1);
-                        out1h = _mm_unpackhi_epi8(zero, y1);
-                        out2l = _mm_unpacklo_epi8(zero, y2);
-                        out2h = _mm_unpackhi_epi8(zero, y2);
-
-                        u1 = _mm_lddqu_si128((__m128i const*)(const void *) src_cb);
-                        v1 = _mm_lddqu_si128((__m128i const*)(const void *) src_cr);
-                        src_cb += 8;
-                        src_cr += 8;
-
-                        u1 = _mm_unpacklo_epi8(u1, zero);
-                        v1 = _mm_unpacklo_epi8(v1, zero);
-                        u2 = _mm_unpackhi_epi8(u1, zero);
-                        v2 = _mm_unpackhi_epi8(v1, zero);
-                        u1 = _mm_unpacklo_epi8(u1, zero);
-                        v1 = _mm_unpacklo_epi8(v1, zero);
-
-                        v1 = _mm_bslli_si128(v1, 2);
-                        v2 = _mm_bslli_si128(v2, 2);
-
-                        u1 = _mm_or_si128(u1, v1);
-                        u2 = _mm_or_si128(u2, v2);
-
-                        out1l = _mm_or_si128(out1l, u1);
-                        out1h = _mm_or_si128(out1h, u2);
-                        out2l = _mm_or_si128(out2l, u1);
-                        out2h = _mm_or_si128(out2h, u2);
-
-                        _mm_storeu_si128((__m128i *)(void *) dst1, out1l);
-                        dst1 += 16;
-                        _mm_storeu_si128((__m128i *)(void *) dst1, out1h);
-                        dst1 += 16;
-                        _mm_storeu_si128((__m128i *)(void *) dst2, out2l);
-                        dst2 += 16;
-                        _mm_storeu_si128((__m128i *)(void *) dst2, out2h);
-                        dst2 += 16;
-                }
-#endif
-
-
-                OPTIMIZED_FOR (; x < width - 1; x += 2) {
-                        *dst1++ = *src_cb;
-                        *dst1++ = *src_y1++;
-                        *dst1++ = *src_cr;
-                        *dst1++ = *src_y1++;
-
-                        *dst2++ = *src_cb++;
-                        *dst2++ = *src_y2++;
-                        *dst2++ = *src_cr++;
-                        *dst2++ = *src_y2++;
-                }
-                if (x < width) {
-                        *dst1++ = *src_cb;
-                        *dst1++ = *src_y1++;
-                        *dst1++ = *src_cr;
-                        *dst1++ = 0;
-
-                        *dst2++ = *src_cb++;
-                        *dst2++ = *src_y2++;
-                        *dst2++ = *src_cr++;
-                        *dst2++ = 0;
-                }
         }
 }
 
@@ -2209,7 +2108,7 @@ static const struct av_to_uv_conversion av_to_uv_conversions[] = {
         { AV_PIX_FMT_P010LE,      UYVY,      p010le_to_uyvy,               nullptr },
         // 8-bit YUV
         { AV_PIX_FMT_YUV420P,     v210,      yuv420p_to_v210,              nullptr },
-        { AV_PIX_FMT_YUV420P,     UYVY,      yuv420p_to_uyvy,              nullptr },
+        { AV_PIX_FMT_YUV420P,     UYVY,      from_planar_conversion,       yuv420p_to_uyvy },
         { AV_PIX_FMT_YUV420P,     RGB,       yuv420p_to_rgb24,             nullptr },
         { AV_PIX_FMT_YUV420P,     RGBA,      yuv420p_to_rgb32,             nullptr },
         { AV_PIX_FMT_YUV422P,     v210,      yuv422p_to_v210,              nullptr },
@@ -2226,7 +2125,7 @@ static const struct av_to_uv_conversion av_to_uv_conversions[] = {
         // pixel formats
         // are detected only for GPUJPEG generated JPEGs.
         { AV_PIX_FMT_YUVJ420P,    v210,      yuv420p_to_v210,              nullptr },
-        { AV_PIX_FMT_YUVJ420P,    UYVY,      yuv420p_to_uyvy,              nullptr },
+        { AV_PIX_FMT_YUVJ420P,    UYVY,      from_planar_conversion,       yuv420p_to_uyvy },
         { AV_PIX_FMT_YUVJ420P,    RGB,       yuv420p_to_rgb24,             nullptr },
         { AV_PIX_FMT_YUVJ420P,    RGBA,      yuv420p_to_rgb32,             nullptr },
         { AV_PIX_FMT_YUVJ422P,    v210,      yuv422p_to_v210,              nullptr },

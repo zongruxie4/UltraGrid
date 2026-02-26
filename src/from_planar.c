@@ -1,9 +1,10 @@
 /**
  * @file   from_planar.h
- * @author Martin Pulec     <pulec@cesnet.cz>
+ * @author Martin Pulec     <martin.pulec@cesnet.cz>
+ * @author Martin Piatka    <445597@mail.muni.cz>
  */
 /*
- * Copyright (c) 2026 CESNET, zájmové sdružení právnických osob
+ * Copyright (c) 2013-2026 CESNET, zájmové sdružení právnických osob
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,6 +40,9 @@
 #include "from_planar.h"
 
 #include <assert.h>          // for assert
+#ifdef __SSE3__
+#include <pmmintrin.h>
+#endif
 #include <stdint.h>          // for uint32_t, uintptr_t, uint16_t, uint64_t
 #include <string.h>          // for memcpy
 
@@ -278,11 +282,10 @@ decode_planar_parallel(decode_planar_func_t         *dec,
                 data[i].d.out_data  = d.out_data + (i * row_height * d.out_pitch);
 
                 for (unsigned plane = 0; plane < countof(d.in_data); ++plane) {
-                        const int chroma_subs_log2 = 0;
                         data[i].d.in_data[plane] =
                             d.in_data[plane] +
                             ((i * row_height * d.in_linesize[plane]) >>
-                             (plane == 0 ? 0 : chroma_subs_log2));
+                             (plane == 0 ? 0 : d.log2_chroma_h));
                 }
                 if (i == cpu_count - 1) {
                         row_height = d.height - (row_height * (cpu_count - 1));
@@ -522,6 +525,107 @@ rgbpXX_to_rgb(const struct from_planar_data d)
                 gbrap_to_rgb_rgba(d, 0, 1, 2, -1);
         } else {
                 gbrpXXle_to_rgb(d, d.in_depth, 0, 1, 2);
+        }
+}
+
+void
+yuv420p_to_uyvy(const struct from_planar_data d)
+{
+        for(unsigned y = 0; y < (d.height + 1) / 2; ++y) {
+                unsigned scnd_row = y * 2 + 1;
+                if (scnd_row == d.height) {
+                        scnd_row = d.height - 1;
+                }
+                const char *src_y1 = (const char *) d.in_data[0] + d.in_linesize[0] * y * 2;
+                const char *src_y2 = (const char *) d.in_data[0] + d.in_linesize[0] * scnd_row;
+                const char *src_cb = (const char *) d.in_data[1] + d.in_linesize[1] * y;
+                const char *src_cr = (const char *) d.in_data[2] + d.in_linesize[2] * y;
+                char *dst1 = (char *) d.out_data + (y * 2) * d.out_pitch;
+                char *dst2 = (char *) d.out_data + scnd_row * d.out_pitch;
+
+                unsigned x = 0;
+
+#ifdef __SSE3__
+                __m128i y1;
+                __m128i y2;
+                __m128i u1;
+                __m128i u2;
+                __m128i v1;
+                __m128i v2;
+                __m128i out1l;
+                __m128i out1h;
+                __m128i out2l;
+                __m128i out2h;
+                __m128i zero = _mm_set1_epi32(0);
+
+                for (; x < d.width - 15; x += 16){
+                        y1 = _mm_lddqu_si128((__m128i const*)(const void *) src_y1);
+                        y2 = _mm_lddqu_si128((__m128i const*)(const void *) src_y2);
+                        src_y1 += 16;
+                        src_y2 += 16;
+
+                        out1l = _mm_unpacklo_epi8(zero, y1);
+                        out1h = _mm_unpackhi_epi8(zero, y1);
+                        out2l = _mm_unpacklo_epi8(zero, y2);
+                        out2h = _mm_unpackhi_epi8(zero, y2);
+
+                        u1 = _mm_lddqu_si128((__m128i const*)(const void *) src_cb);
+                        v1 = _mm_lddqu_si128((__m128i const*)(const void *) src_cr);
+                        src_cb += 8;
+                        src_cr += 8;
+
+                        u1 = _mm_unpacklo_epi8(u1, zero);
+                        v1 = _mm_unpacklo_epi8(v1, zero);
+                        u2 = _mm_unpackhi_epi8(u1, zero);
+                        v2 = _mm_unpackhi_epi8(v1, zero);
+                        u1 = _mm_unpacklo_epi8(u1, zero);
+                        v1 = _mm_unpacklo_epi8(v1, zero);
+
+                        v1 = _mm_bslli_si128(v1, 2);
+                        v2 = _mm_bslli_si128(v2, 2);
+
+                        u1 = _mm_or_si128(u1, v1);
+                        u2 = _mm_or_si128(u2, v2);
+
+                        out1l = _mm_or_si128(out1l, u1);
+                        out1h = _mm_or_si128(out1h, u2);
+                        out2l = _mm_or_si128(out2l, u1);
+                        out2h = _mm_or_si128(out2h, u2);
+
+                        _mm_storeu_si128((__m128i *)(void *) dst1, out1l);
+                        dst1 += 16;
+                        _mm_storeu_si128((__m128i *)(void *) dst1, out1h);
+                        dst1 += 16;
+                        _mm_storeu_si128((__m128i *)(void *) dst2, out2l);
+                        dst2 += 16;
+                        _mm_storeu_si128((__m128i *)(void *) dst2, out2h);
+                        dst2 += 16;
+                }
+#endif
+
+
+                for (; x < d.width - 1; x += 2) {
+                        *dst1++ = *src_cb;
+                        *dst1++ = *src_y1++;
+                        *dst1++ = *src_cr;
+                        *dst1++ = *src_y1++;
+
+                        *dst2++ = *src_cb++;
+                        *dst2++ = *src_y2++;
+                        *dst2++ = *src_cr++;
+                        *dst2++ = *src_y2++;
+                }
+                if (x < d.width) {
+                        *dst1++ = *src_cb;
+                        *dst1++ = *src_y1++;
+                        *dst1++ = *src_cr;
+                        *dst1++ = 0;
+
+                        *dst2++ = *src_cb++;
+                        *dst2++ = *src_y2++;
+                        *dst2++ = *src_cr++;
+                        *dst2++ = 0;
+                }
         }
 }
 

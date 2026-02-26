@@ -56,9 +56,11 @@ struct from_planar_data {
         unsigned out_pitch;
         const unsigned char *__restrict in_data[FROM_PLANAR_MAX_COMP];
         unsigned in_linesize[FROM_PLANAR_MAX_COMP];
-        int in_depth; ///< may be needed just if not specified by fn name
-        ///< relevant only for output RGBA
-        int rgb_shift[3];
+        // the following fields are not always needed
+        int in_depth; ///< needed just for XX (generic) conversions
+        /// set to 1 for Y420 and decode_planar_parallel, otherwise unused
+        int log2_chroma_h; ///< semantic same as in FF (420 - 1, otherwise 0)
+        int rgb_shift[3]; ///< relevant only for output RGBA
 };
 
 /// functions to decode whole buffer of packed data to planar or packed
@@ -90,6 +92,7 @@ decode_planar_func_t gbrp12le_to_rgb;
 decode_planar_func_t gbrp12le_to_rgba;
 decode_planar_func_t gbrp16le_to_rgb;
 decode_planar_func_t gbrp16le_to_rgba;
+decode_planar_func_t yuv420p_to_uyvy;
 
 #ifdef __cplusplus
 }

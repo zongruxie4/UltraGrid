@@ -36,6 +36,7 @@
  */
 
 #include <assert.h>
+#include <svt-jpegxs/SvtJpegxs.h>
 #include <svt-jpegxs/SvtJpegxsDec.h>
 #include <svt-jpegxs/SvtJpegxsImageBufferTools.h>
 
@@ -83,6 +84,7 @@ static const struct jpegxs_to_uv_conversion jpegxs_to_uv_conversions[] = {
         { COLOUR_FORMAT_PLANAR_YUV422,        UYVY, yuv422p_to_uyvy  },
         { COLOUR_FORMAT_PLANAR_YUV422,        YUYV, yuv422p_to_yuyv  },
         { COLOUR_FORMAT_PLANAR_YUV420,        I420, yuv420_to_i420   },
+        { COLOUR_FORMAT_PLANAR_YUV420,        UYVY, yuv420p_to_uyvy  },
         { COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, RGB,  rgbpXX_to_rgb    },
         { COLOUR_FORMAT_PLANAR_YUV422,        v210, yuv422p10le_to_v210},
         { COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, R10k, rgbpXXle_to_r10k },
@@ -90,15 +92,28 @@ static const struct jpegxs_to_uv_conversion jpegxs_to_uv_conversions[] = {
         { COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, RG48, rgbpXXle_to_rg48 },
 };
 
-static const struct jpegxs_to_uv_conversion *
-get_jpegxs_to_uv_conversion(codec_t codec)
-{
+static enum subsampling get_jxs_subsampling_to_ug(ColourFormat_t jxs_ss);
 
+static const struct jpegxs_to_uv_conversion *
+get_jpegxs_to_uv_conversion(codec_t codec, int ug_ss)
+{
+        bool found_any = true;
         const struct jpegxs_to_uv_conversion *conv = jpegxs_to_uv_conversions;
         for (unsigned i = 0; i < std::size(jpegxs_to_uv_conversions); ++i) {
-                if (conv[i].dst == codec) {
+                if (conv[i].dst != codec) {
+                        continue;
+                }
+                found_any = true;
+                if (ug_ss == get_jxs_subsampling_to_ug(conv[i].src)) {
                         return &conv[i];
                 }
+        }
+
+        if (found_any && ug_ss != 0) {
+                MSG(WARNING,
+                    "Some found but incompatible subsampling (have %d and "
+                    "pixfmt %s)\n",
+                    ug_ss , get_codec_name(codec));
         }
         return nullptr;
 }
@@ -122,6 +137,7 @@ jpegxs_to_uv_convert(struct state_decompress_jpegxs *s,
         d.in_linesize[1] = src->stride[1] * in_bpp;
         d.in_linesize[2] = src->stride[2] * in_bpp;
         d.in_depth       = s->image_config.bit_depth;
+        d.log2_chroma_h = conv->src == COLOUR_FORMAT_PLANAR_YUV420 ? 1 : 0;
         d.rgb_shift[0] = DEFAULT_R_SHIFT;
         d.rgb_shift[1] = DEFAULT_G_SHIFT;
         d.rgb_shift[2] = DEFAULT_B_SHIFT;
@@ -156,6 +172,13 @@ static bool configure_with(struct state_decompress_jpegxs *s, unsigned char *bit
                 log_msg(LOG_LEVEL_ERROR, MOD_NAME "Failed to allocate JPEG XS frame pool\n");
                 return false;
         }
+        if (s->out_codec != VIDEO_CODEC_NONE) {
+                s->convert_from_planar = get_jpegxs_to_uv_conversion(s->out_codec, get_jxs_subsampling_to_ug(s->image_config.format));
+                if (!s->convert_from_planar) {
+                        log_msg(LOG_LEVEL_ERROR, MOD_NAME "Unsupported codec: %s\n", get_codec_name(s->out_codec));
+                        return false;
+                }
+        }
 
         s->configured = true;
         return true;
@@ -165,8 +188,6 @@ static int jpegxs_decompress_reconfigure(void *state, struct video_desc desc,
         int rshift, int gshift, int bshift, int pitch, codec_t out_codec)
 {
         struct state_decompress_jpegxs *s = (struct state_decompress_jpegxs *) state;
-
-        assert(get_jpegxs_to_uv_conversion(out_codec) || out_codec == VIDEO_CODEC_NONE);
 
         if (s->out_codec == out_codec &&
                 s->pitch == pitch &&
@@ -189,14 +210,6 @@ static int jpegxs_decompress_reconfigure(void *state, struct video_desc desc,
                     "SVT-JPEG-XS seems to freeze when the height isn't "
                     "divisible by 8 (or such internal value)! Please report if "
                     "you're seeing this message and decode correctly.");
-        }
-
-        if (s->out_codec != VIDEO_CODEC_NONE) {
-                s->convert_from_planar = get_jpegxs_to_uv_conversion(s->out_codec);
-                if (!s->convert_from_planar) {
-                        log_msg(LOG_LEVEL_ERROR, MOD_NAME "Unsupported codec: %s\n", get_codec_name(s->out_codec));
-                        return false;
-                }
         }
 
         if (s->configured) {
@@ -344,21 +357,13 @@ static int jpegxs_decompress_get_priority(codec_t compression, struct pixfmt_des
         }
 
         // supported output formats
-        const auto *conv = get_jpegxs_to_uv_conversion(ugc);
-        if (conv == nullptr) {
+        const auto *conv = get_jpegxs_to_uv_conversion(ugc, internal.subsampling);
+        if (conv == nullptr) { // either ugc unsupported or not compatible with internal.subsamling
                 return VDEC_PRIO_NA;
         }
 
         const enum subsampling exp_subsampling =
             get_jxs_subsampling_to_ug(conv->src);
-        if (exp_subsampling != internal.subsampling) {
-                MSG(WARNING,
-                    "Conversion found but incompatible subsampling (have %d, "
-                    "need %d for pixfmt %s)\n",
-                    internal.subsampling, exp_subsampling,
-                    get_codec_name(ugc));
-                return VDEC_PRIO_NA;
-        }
         const bool int_rgb = exp_subsampling == SUBS_444;
         if (int_rgb != internal.rgb) {
                 const char *exp = int_rgb ? "RGB" : "YUV";

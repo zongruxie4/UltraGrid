@@ -87,8 +87,8 @@ static const struct jpegxs_to_uv_conversion jpegxs_to_uv_conversions[] = {
         { COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, RGB,  1, rgbp_to_rgb      },
         { COLOUR_FORMAT_PLANAR_YUV422,        v210, 2, yuv422p10le_to_v210},
         { COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, R10k, 2, rgbpXXle_to_r10k },
-        { COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, R12L, 2, rgbp12le_to_r12l },
-        { COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, RG48, 2, rgbp12le_to_rg48 },
+        { COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, R12L, 2, rgbpXXle_to_r12l },
+        { COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, RG48, 2, rgbpXXle_to_rg48 },
 };
 
 static const struct jpegxs_to_uv_conversion *

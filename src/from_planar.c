@@ -145,13 +145,13 @@ gbrp16le_to_r12l(struct from_planar_data d)
 }
 
 void
-rgbp12le_to_r12l(struct from_planar_data d)
+rgbpXXle_to_r12l(struct from_planar_data d)
 {
-        gbrpXXle_to_r12l(d, DEPTH12, 0, 1, 2);
+        gbrpXXle_to_r12l(d, d.in_depth, 0, 1, 2);
 }
 
 static void
-rgbpXXle_to_rg48(struct from_planar_data d, const int in_depth, int rind, int gind, int bind)
+rgbpXXle_to_rg48_int(struct from_planar_data d, const int in_depth, int rind, int gind, int bind)
 {
         assert((uintptr_t) d.out_data % 2 == 0);
         assert((uintptr_t) d.in_data[0] % 2 == 0);
@@ -175,25 +175,25 @@ rgbpXXle_to_rg48(struct from_planar_data d, const int in_depth, int rind, int gi
 void
 gbrp10le_to_rg48(struct from_planar_data d)
 {
-        rgbpXXle_to_rg48(d, DEPTH10, 2, 0, 1);
+        rgbpXXle_to_rg48_int(d, DEPTH10, 2, 0, 1);
 }
 
 void
 gbrp12le_to_rg48(struct from_planar_data d)
 {
-        rgbpXXle_to_rg48(d, DEPTH12, 2, 0, 1);
+        rgbpXXle_to_rg48_int(d, DEPTH12, 2, 0, 1);
 }
 
 void
 gbrp16le_to_rg48(struct from_planar_data d)
 {
-        rgbpXXle_to_rg48(d, DEPTH16, 2, 0, 1);
+        rgbpXXle_to_rg48_int(d, DEPTH16, 2, 0, 1);
 }
 
 void
-rgbp12le_to_rg48(struct from_planar_data d)
+rgbpXXle_to_rg48(struct from_planar_data d)
 {
-        rgbpXXle_to_rg48(d, DEPTH12, 0, 1, 2);
+        rgbpXXle_to_rg48_int(d, d.in_depth, 0, 1, 2);
 }
 
 static void

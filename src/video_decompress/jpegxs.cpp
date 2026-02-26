@@ -86,7 +86,7 @@ static const struct jpegxs_to_uv_conversion jpegxs_to_uv_conversions[] = {
         { COLOUR_FORMAT_PLANAR_YUV420,        I420, 1, yuv420_to_i420   },
         { COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, RGB,  1, rgbp_to_rgb      },
         { COLOUR_FORMAT_PLANAR_YUV422,        v210, 2, yuv422p10le_to_v210},
-        { COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, R10k, 2, rgbp10le_to_r10k },
+        { COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, R10k, 2, rgbpXXle_to_r10k },
         { COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, R12L, 2, rgbp12le_to_r12l },
         { COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, RG48, 2, rgbp12le_to_rg48 },
 };
@@ -105,10 +105,11 @@ get_jpegxs_to_uv_conversion(codec_t codec)
 }
 
 static void
-jpegxs_to_uv_convert(const struct jpegxs_to_uv_conversion *conv,
+jpegxs_to_uv_convert(struct state_decompress_jpegxs *s,
                      const svt_jpeg_xs_image_buffer_t *src, int width,
                      int height, uint8_t *dst)
 {
+        const struct jpegxs_to_uv_conversion *conv = s->convert_from_planar;
         struct from_planar_data d = {};
         d.width          = width;
         d.height         = height;
@@ -120,6 +121,7 @@ jpegxs_to_uv_convert(const struct jpegxs_to_uv_conversion *conv,
         d.in_linesize[0] = src->stride[0] * conv->in_bpp;
         d.in_linesize[1] = src->stride[1] * conv->in_bpp;
         d.in_linesize[2] = src->stride[2] * conv->in_bpp;
+        d.in_depth       = s->image_config.bit_depth;
         int num_threads = 0;
         if (conv->convert == yuv420_to_i420) {
                 num_threads = 1; // no proper support for parallel decode
@@ -281,7 +283,7 @@ static decompress_status jpegxs_decompress(void *state, unsigned char *dst, unsi
         DEBUG_TIMER_STOP(jpegxs_decompress);
 
         DEBUG_TIMER_START(jpegxs_dconvert);
-        jpegxs_to_uv_convert(s->convert_from_planar, &dec_output.image, s->image_config.width, s->image_config.height, dst);
+        jpegxs_to_uv_convert(s, &dec_output.image, s->image_config.width, s->image_config.height, dst);
         DEBUG_TIMER_STOP(jpegxs_dconvert);
         svt_jpeg_xs_frame_pool_release(s->frame_pool, &dec_output);
         return DECODER_GOT_FRAME;

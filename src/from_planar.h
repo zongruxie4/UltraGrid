@@ -51,6 +51,7 @@ struct from_planar_data {
         unsigned out_pitch;
         const unsigned char *__restrict in_data[FROM_PLANAR_MAX_COMP];
         unsigned in_linesize[FROM_PLANAR_MAX_COMP];
+        int in_depth; ///< may be needed just if not specified by fn name
 };
 
 /// functions to decode whole buffer of packed data to planar or packed
@@ -65,7 +66,7 @@ decode_planar_func_t rgbp12le_to_rg48;
 decode_planar_func_t gbrp10le_to_r10k;
 decode_planar_func_t gbrp12le_to_r10k;
 decode_planar_func_t gbrp16le_to_r10k;
-decode_planar_func_t rgbp10le_to_r10k;
+decode_planar_func_t rgbpXXle_to_r10k;
 decode_planar_func_t yuv422p10le_to_v210;
 decode_planar_func_t gbrap_to_rgba;
 decode_planar_func_t gbrap_to_rgb;

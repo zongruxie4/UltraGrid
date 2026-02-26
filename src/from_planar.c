@@ -239,9 +239,9 @@ gbrp16le_to_r10k(struct from_planar_data d)
 }
 
 void
-rgbp10le_to_r10k(struct from_planar_data d)
+rgbpXXle_to_r10k(struct from_planar_data d)
 {
-        gbrpXXle_to_r10k(d, DEPTH10, 0, 1, 2);
+        gbrpXXle_to_r10k(d,d.in_depth, 0, 1, 2);
 }
 
 struct convert_task_data {

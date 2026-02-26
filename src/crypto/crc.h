@@ -9,7 +9,6 @@
 #include <cstdlib>
 #include <cinttypes>
 #else
-#include <stdbool.h>
 #include <stdlib.h>           /* For size_t                 */
 #include <stdint.h>
 #endif
@@ -26,7 +25,6 @@ extern "C" {
      ^ ((uint8_t)octet)) & 0xff] ^ ((crc) >> 8))
 
 uint32_t updateCRC32(unsigned char ch, uint32_t crc);
-bool crc32file(char *name, uint32_t *crc, long *charcnt);
 
 uint32_t crc32buf(const char *buf, size_t len);
 

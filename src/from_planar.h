@@ -68,33 +68,33 @@ typedef void         decode_planar_func_t(struct from_planar_data d);
 void                 decode_planar_parallel(decode_planar_func_t   *dec,
                                             struct from_planar_data d, int num_threads);
 
-decode_planar_func_t gbrp12le_to_r12l;
-decode_planar_func_t gbrp16le_to_r12l;
-decode_planar_func_t rgbpXXle_to_r12l;
-decode_planar_func_t gbrp10le_to_rg48;
-decode_planar_func_t gbrp12le_to_rg48;
-decode_planar_func_t gbrp16le_to_rg48;
-decode_planar_func_t rgbpXXle_to_rg48;
-decode_planar_func_t gbrp10le_to_r10k;
-decode_planar_func_t gbrp12le_to_r10k;
-decode_planar_func_t gbrp16le_to_r10k;
-decode_planar_func_t rgbpXXle_to_r10k;
-decode_planar_func_t yuv422p10le_to_v210;
-decode_planar_func_t gbrap_to_rgba;
 decode_planar_func_t gbrap_to_rgb;
-decode_planar_func_t rgbpXX_to_rgb;
-decode_planar_func_t yuv420_to_i420;
-decode_planar_func_t yuv422p_to_uyvy;
-decode_planar_func_t yuv422p10le_to_uyvy;
-decode_planar_func_t yuv422pXX_to_uyvy;
-decode_planar_func_t yuv422p_to_yuyv;
+decode_planar_func_t gbrap_to_rgba;
 decode_planar_func_t gbrp10le_to_rgb;
 decode_planar_func_t gbrp10le_to_rgba;
+decode_planar_func_t gbrp10le_to_rg48;
+decode_planar_func_t gbrp10le_to_r10k;
 decode_planar_func_t gbrp12le_to_rgb;
 decode_planar_func_t gbrp12le_to_rgba;
+decode_planar_func_t gbrp12le_to_rg48;
+decode_planar_func_t gbrp12le_to_r10k;
+decode_planar_func_t gbrp12le_to_r12l;
 decode_planar_func_t gbrp16le_to_rgb;
 decode_planar_func_t gbrp16le_to_rgba;
+decode_planar_func_t gbrp16le_to_rg48;
+decode_planar_func_t gbrp16le_to_r10k;
+decode_planar_func_t gbrp16le_to_r12l;
+decode_planar_func_t rgbpXX_to_rgb;
+decode_planar_func_t rgbpXXle_to_rg48;
+decode_planar_func_t rgbpXXle_to_r10k;
+decode_planar_func_t rgbpXXle_to_r12l;
 decode_planar_func_t yuv420p_to_uyvy;
+decode_planar_func_t yuv420_to_i420;
+decode_planar_func_t yuv422p_to_uyvy;
+decode_planar_func_t yuv422p_to_yuyv;
+decode_planar_func_t yuv422pXX_to_uyvy;
+decode_planar_func_t yuv422p10le_to_uyvy;
+decode_planar_func_t yuv422p10le_to_v210;
 
 #ifdef __cplusplus
 }

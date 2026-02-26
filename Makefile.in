@@ -314,11 +314,6 @@ src/jpegxs/to_jpegxs_conv.o: src/jpegxs/to_jpegxs_conv.c
 	$(CC_NO_SUFF) $(CFLAGS) $(OFAST) $(INC) -MD -c $(srcdir)/src/jpegxs/to_jpegxs_conv.c -o $@
 	$(POSTPROCESS_DEPS)
 
-src/jpegxs/from_jpegxs_conv.o: src/jpegxs/from_jpegxs_conv.c
-	$(MKDIR_P) $$(dirname $@)
-	$(CC_NO_SUFF) $(CFLAGS) $(OFAST) $(INC) -MD -c $(srcdir)/src/jpegxs/from_jpegxs_conv.c -o $@
-	$(POSTPROCESS_DEPS)
-
 src/libavcodec/from_lavc_vid_conv.o: src/libavcodec/from_lavc_vid_conv.c
 	$(MKDIR_P) $$(dirname $@)
 	$(CC_NO_SUFF) $(CFLAGS) $(OFAST) $(INC) -MD -c $(srcdir)/src/libavcodec/from_lavc_vid_conv.c -o $@

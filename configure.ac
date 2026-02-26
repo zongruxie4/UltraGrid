@@ -2414,7 +2414,7 @@ PKG_CHECK_MODULES([JPEGXS], [SvtJpegxs >= 0.10],
 )
 
 if test "$jpegxs_req" != no -a "$FOUND_JPEGXS_DEP" = yes; then
-        JPEGXS_VIDEO="src/jpegxs/from_jpegxs_conv.o src/jpegxs/to_jpegxs_conv.o"
+        JPEGXS_VIDEO="src/jpegxs/to_jpegxs_conv.o"
         JPEGXS_COMPRESS_OBJ="$JPEGXS_VIDEO src/video_compress/jpegxs.o"
         JPEGXS_DECOMPRESS_OBJ="$JPEGXS_VIDEO src/video_decompress/jpegxs.o"
         add_module vcompress_jpegxs "$JPEGXS_COMPRESS_OBJ" "$JPEGXS_LIBS"

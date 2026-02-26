@@ -41,11 +41,11 @@
 
 #include "debug.h"
 #include "lib_common.h"
+#include "from_planar.h"                           // for rgbp12le_to_r12l
 #include "utils/debug.h"                           // for DEBUG_TIMER_*
 #include "utils/misc.h"                            // for get_cpu_core_count
 #include "video.h"
 #include "video_decompress.h"
-#include "jpegxs/jpegxs_conv.h"
 
 #define MOD_NAME "[JPEG XS dec.] "
 
@@ -71,6 +71,64 @@ struct state_decompress_jpegxs {
         int pitch;
         codec_t out_codec;
 };
+
+struct jpegxs_to_uv_conversion {
+        ColourFormat_t src;
+        codec_t dst;
+        int in_bpp;
+        decode_planar_func_t *convert_external;
+};
+
+static const struct jpegxs_to_uv_conversion jpegxs_to_uv_conversions[] = {
+        { COLOUR_FORMAT_PLANAR_YUV422,        UYVY,             1, yuv422p_to_uyvy  },
+        { COLOUR_FORMAT_PLANAR_YUV422,        YUYV,             1, yuv422p_to_yuyv  },
+        { COLOUR_FORMAT_PLANAR_YUV420,        I420,             1, yuv420_to_i420   },
+        { COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, RGB,              1, rgbp_to_rgb      },
+        { COLOUR_FORMAT_PLANAR_YUV422,        v210,             2, yuv422p10le_to_v210},
+        { COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, R10k,             2, rgbp10le_to_r10k },
+        { COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, R12L,             2, rgbp12le_to_r12l },
+        { COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, RG48,             2, rgbp12le_to_rg48 },
+        { COLOUR_FORMAT_INVALID,              VIDEO_CODEC_NONE, 0, NULL             }
+};
+
+static const struct jpegxs_to_uv_conversion *
+get_jpegxs_to_uv_conversion(codec_t codec)
+{
+
+        const struct jpegxs_to_uv_conversion *conv = jpegxs_to_uv_conversions;
+        while (conv->dst != VIDEO_CODEC_NONE) {
+                if (conv->dst == codec)
+                        return conv;
+                conv++;
+        }
+
+        return NULL;
+}
+
+static void
+jpegxs_to_uv_convert(const struct jpegxs_to_uv_conversion *conv,
+                     const svt_jpeg_xs_image_buffer_t *src, int width,
+                     int height, uint8_t *dst)
+{
+        assert (conv->convert_external);
+        struct from_planar_data d = {};
+        d.width          = width;
+        d.height         = height;
+        d.out_data       = dst;
+        d.out_pitch      = vc_get_linesize(width, conv->dst);
+        d.in_data[0]     = (const unsigned char *) src->data_yuv[0];
+        d.in_data[1]     = (const unsigned char *) src->data_yuv[1];
+        d.in_data[2]     = (const unsigned char *) src->data_yuv[2];
+        d.in_linesize[0] = src->stride[0] * conv->in_bpp;
+        d.in_linesize[1] = src->stride[1] * conv->in_bpp;
+        d.in_linesize[2] = src->stride[2] * conv->in_bpp;
+        int num_threads = 0;
+        if (conv->convert_external == yuv420_to_i420) {
+                num_threads = 1; // no proper support for parallel decode
+        }
+        decode_planar_parallel(conv->convert_external, d, num_threads);
+}
+
 
 static void *jpegxs_decompress_init(void) {
         struct state_decompress_jpegxs *s = new state_decompress_jpegxs();

@@ -239,47 +239,6 @@ gbrp_to_rgba(struct av_conv_data d)
         }
 }
 
-#if defined __GNUC__
-static inline void gbrap_to_rgb_rgba(struct av_conv_data d, int comp_count)
-        __attribute__((always_inline));
-#endif
-static inline void
-gbrap_to_rgb_rgba(struct av_conv_data d, int comp_count)
-{
-        const int width = d.in_frame->width;
-        const int height = d.in_frame->height;
-        const AVFrame *frame = d.in_frame;
-
-        assert(d.rgb_shift[R] == DEFAULT_R_SHIFT &&
-               d.rgb_shift[G] == DEFAULT_G_SHIFT &&
-               d.rgb_shift[B] == DEFAULT_B_SHIFT);
-
-        for (int y = 0; y < height; ++y) {
-                OPTIMIZED_FOR (int x = 0; x < width; ++x) {
-                        uint8_t *buf = (uint8_t *) d.dst_buffer + y * d.pitch + x * comp_count;
-                        int src_idx = y * frame->linesize[0] + x;
-                        buf[0] = frame->data[2][src_idx]; // R
-                        buf[1] = frame->data[0][src_idx]; // G
-                        buf[2] = frame->data[1][src_idx]; // B
-                        if (comp_count == 4) {
-                                buf[3] = frame->data[3][src_idx]; // A
-                        }
-                }
-        }
-}
-
-static void
-gbrap_to_rgba(struct av_conv_data d)
-{
-        gbrap_to_rgb_rgba(d, 4);
-}
-
-static void
-gbrap_to_rgb(struct av_conv_data d)
-{
-        gbrap_to_rgb_rgba(d, 3);
-}
-
 static void
 from_planar_conversion(struct av_conv_data d)
 {
@@ -833,28 +792,6 @@ yuv420p_to_v210(struct av_conv_data d)
 }
 
 static void
-yuv422p_to_uyvy(struct av_conv_data d)
-{
-        const int width = d.in_frame->width;
-        const int height = d.in_frame->height;
-        const AVFrame *in_frame = d.in_frame;
-
-        for(int y = 0; y < height; ++y) {
-                char *src_y = (char *) in_frame->data[0] + in_frame->linesize[0] * y;
-                char *src_cb = (char *) in_frame->data[1] + in_frame->linesize[1] * y;
-                char *src_cr = (char *) in_frame->data[2] + in_frame->linesize[2] * y;
-                char *dst = d.dst_buffer + d.pitch * y;
-
-                OPTIMIZED_FOR (int x = 0; x < width / 2; ++x) {
-                        *dst++ = *src_cb++;
-                        *dst++ = *src_y++;
-                        *dst++ = *src_cr++;
-                        *dst++ = *src_y++;
-                }
-        }
-}
-
-static void
 yuv422p_to_v210(struct av_conv_data d)
 {
         const int width = d.in_frame->width;
@@ -1330,47 +1267,6 @@ yuv420p10le_to_v210(struct av_conv_data d)
                         *dst2++ = w1_1;
                         *dst2++ = w1_2;
                         *dst2++ = w1_3;
-                }
-        }
-}
-
-static void
-yuv422p10le_to_v210(struct av_conv_data d)
-{
-        const int width = d.in_frame->width;
-        const int height = d.in_frame->height;
-        const AVFrame *in_frame = d.in_frame;
-
-        for(int y = 0; y < height; ++y) {
-                uint16_t *src_y = (uint16_t *)(void *)(in_frame->data[0] + in_frame->linesize[0] * y);
-                uint16_t *src_cb = (uint16_t *)(void *)(in_frame->data[1] + in_frame->linesize[1] * y);
-                uint16_t *src_cr = (uint16_t *)(void *)(in_frame->data[2] + in_frame->linesize[2] * y);
-                uint32_t *dst =
-                    (uint32_t *) (void *) (d.dst_buffer + y * d.pitch);
-
-                OPTIMIZED_FOR (int x = 0; x < width / 6; ++x) {
-                        uint32_t w0_0, w0_1, w0_2, w0_3;
-
-                        w0_0 = *src_cb++;
-                        w0_0 = w0_0 | (*src_y++) << 10;
-                        w0_0 = w0_0 | (*src_cr++) << 20;
-
-                        w0_1 = *src_y++;
-                        w0_1 = w0_1 | (*src_cb++) << 10;
-                        w0_1 = w0_1 | (*src_y++) << 20;
-
-                        w0_2 = *src_cr++;
-                        w0_2 = w0_2 | (*src_y++) << 10;
-                        w0_2 = w0_2 | (*src_cb++) << 20;
-
-                        w0_3 = *src_y++;
-                        w0_3 = w0_3 | (*src_cr++) << 10;
-                        w0_3 = w0_3 | (*src_y++) << 20;
-
-                        *dst++ = w0_0;
-                        *dst++ = w0_1;
-                        *dst++ = w0_2;
-                        *dst++ = w0_3;
                 }
         }
 }
@@ -2378,7 +2274,7 @@ static const struct av_to_uv_conversion av_to_uv_conversions[] = {
         { AV_PIX_FMT_YUV420P10LE, RGB,       yuv420p10le_to_rgb24,         nullptr },
         { AV_PIX_FMT_YUV420P10LE, RGBA,      yuv420p10le_to_rgb32,         nullptr },
         { AV_PIX_FMT_YUV420P10LE, R10k,      yuv420p10le_to_rgb30,         nullptr },
-        { AV_PIX_FMT_YUV422P10LE, v210,      yuv422p10le_to_v210,          nullptr },
+        { AV_PIX_FMT_YUV422P10LE, v210,      from_planar_conversion,       yuv422p10le_to_v210 },
         { AV_PIX_FMT_YUV422P10LE, UYVY,      yuv422p10le_to_uyvy,          nullptr },
         { AV_PIX_FMT_YUV422P10LE, RGB,       yuv422p10le_to_rgb24,         nullptr },
         { AV_PIX_FMT_YUV422P10LE, RGBA,      yuv422p10le_to_rgb32,         nullptr },
@@ -2418,7 +2314,7 @@ static const struct av_to_uv_conversion av_to_uv_conversions[] = {
         { AV_PIX_FMT_YUV420P,     RGB,       yuv420p_to_rgb24,             nullptr },
         { AV_PIX_FMT_YUV420P,     RGBA,      yuv420p_to_rgb32,             nullptr },
         { AV_PIX_FMT_YUV422P,     v210,      yuv422p_to_v210,              nullptr },
-        { AV_PIX_FMT_YUV422P,     UYVY,      yuv422p_to_uyvy,              nullptr },
+        { AV_PIX_FMT_YUV422P,     UYVY,      from_planar_conversion,       yuv422p_to_uyvy },
         { AV_PIX_FMT_YUV422P,     RGB,       yuv422p_to_rgb24,             nullptr },
         { AV_PIX_FMT_YUV422P,     RGBA,      yuv422p_to_rgb32,             nullptr },
         { AV_PIX_FMT_YUV444P,     v210,      yuv444p_to_v210,              nullptr },
@@ -2435,7 +2331,7 @@ static const struct av_to_uv_conversion av_to_uv_conversions[] = {
         { AV_PIX_FMT_YUVJ420P,    RGB,       yuv420p_to_rgb24,             nullptr },
         { AV_PIX_FMT_YUVJ420P,    RGBA,      yuv420p_to_rgb32,             nullptr },
         { AV_PIX_FMT_YUVJ422P,    v210,      yuv422p_to_v210,              nullptr },
-        { AV_PIX_FMT_YUVJ422P,    UYVY,      yuv422p_to_uyvy,              nullptr },
+        { AV_PIX_FMT_YUVJ422P,    UYVY,      from_planar_conversion,       yuv422p_to_uyvy },
         { AV_PIX_FMT_YUVJ422P,    RGB,       yuv422p_to_rgb24,             nullptr },
         { AV_PIX_FMT_YUVJ422P,    RGBA,      yuv422p_to_rgb32,             nullptr },
         { AV_PIX_FMT_YUVJ444P,    v210,      yuv444p_to_v210,              nullptr },
@@ -2472,8 +2368,8 @@ static const struct av_to_uv_conversion av_to_uv_conversions[] = {
         { AV_PIX_FMT_AYUV64,      v210,      ayuv64_to_v210,               nullptr },
         { AV_PIX_FMT_AYUV64,      Y416,      ayuv64_to_y416,               nullptr },
         // RGB
-        { AV_PIX_FMT_GBRAP,       RGB,       gbrap_to_rgb,                 nullptr },
-        { AV_PIX_FMT_GBRAP,       RGBA,      gbrap_to_rgba,                nullptr },
+        { AV_PIX_FMT_GBRAP,       RGB,       from_planar_conversion,       gbrap_to_rgb },
+        { AV_PIX_FMT_GBRAP,       RGBA,      from_planar_conversion,       gbrap_to_rgba },
         { AV_PIX_FMT_GBRP,        RGB,       gbrp_to_rgb,                  nullptr },
         { AV_PIX_FMT_GBRP,        RGBA,      gbrp_to_rgba,                 nullptr },
         { AV_PIX_FMT_RGB24,       UYVY,      rgb24_to_uyvy,                nullptr },

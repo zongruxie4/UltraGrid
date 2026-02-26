@@ -66,8 +66,15 @@ decode_planar_func_t gbrp10le_to_r10k;
 decode_planar_func_t gbrp12le_to_r10k;
 decode_planar_func_t gbrp16le_to_r10k;
 decode_planar_func_t rgbp10le_to_r10k;
+decode_planar_func_t yuv422p10le_to_v210;
+decode_planar_func_t gbrap_to_rgba;
+decode_planar_func_t gbrap_to_rgb;
+decode_planar_func_t rgbp_to_rgb;
+decode_planar_func_t yuv420_to_i420;
+decode_planar_func_t yuv422p_to_uyvy;
+decode_planar_func_t yuv422p_to_yuyv;
 void                 decode_planar_parallel(decode_planar_func_t   *dec,
-                                            struct from_planar_data d);
+                                            struct from_planar_data d, int num_threads);
 #ifdef __cplusplus
 }
 #endif // __cplusplus

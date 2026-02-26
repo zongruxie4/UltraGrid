@@ -258,9 +258,12 @@ convert_task(void *arg)
 }
 
 // destiled from av_to_uv_convert
-void decode_planar_parallel(decode_planar_func_t *dec, const struct from_planar_data d)
+void
+decode_planar_parallel(decode_planar_func_t         *dec,
+                       const struct from_planar_data d, int num_threads)
 {
-        const unsigned cpu_count = get_cpu_core_count();
+        const unsigned cpu_count =
+            num_threads == 0 ? get_cpu_core_count() : num_threads;
 
         struct convert_task_data data[cpu_count];
         for (size_t i = 0; i < cpu_count; ++i) {
@@ -282,5 +285,146 @@ void decode_planar_parallel(decode_planar_func_t *dec, const struct from_planar_
                 data[i].d.height = row_height;
         }
         task_run_parallel(convert_task, (int) cpu_count, data, sizeof data[0], NULL);
+}
+
+void
+yuv422p10le_to_v210(const struct from_planar_data d)
+{
+        const int width = d.width;
+        const int height = d.height;
+
+        for(int y = 0; y < height; ++y) {
+                const uint16_t *src_y =  (const void *)(d.in_data[0] + d.in_linesize[0] * y);
+                const uint16_t *src_cb = (const void *)(d.in_data[1] + d.in_linesize[1] * y);
+                const uint16_t *src_cr = (const void *)(d.in_data[2] + d.in_linesize[2] * y);
+                uint32_t *dst =
+                    (void *) (d.out_data + y * d.out_pitch);
+
+                for (int x = 0; x < width / 6; ++x) {
+                        uint32_t w0_0, w0_1, w0_2, w0_3;
+
+                        w0_0 = *src_cb++;
+                        w0_0 = w0_0 | (*src_y++) << 10;
+                        w0_0 = w0_0 | (*src_cr++) << 20;
+
+                        w0_1 = *src_y++;
+                        w0_1 = w0_1 | (*src_cb++) << 10;
+                        w0_1 = w0_1 | (*src_y++) << 20;
+
+                        w0_2 = *src_cr++;
+                        w0_2 = w0_2 | (*src_y++) << 10;
+                        w0_2 = w0_2 | (*src_cb++) << 20;
+
+                        w0_3 = *src_y++;
+                        w0_3 = w0_3 | (*src_cr++) << 10;
+                        w0_3 = w0_3 | (*src_y++) << 20;
+
+                        *dst++ = w0_0;
+                        *dst++ = w0_1;
+                        *dst++ = w0_2;
+                        *dst++ = w0_3;
+                }
+        }
+}
+
+static void
+gbrap_to_rgb_rgba(const struct from_planar_data d, int rind, int gind, int bind, int aind)
+{
+        const int width = d.width;
+        const int height = d.height;
+        const int out_comp_count = aind == -1 ? 3 : 4;
+
+        for (int y = 0; y < height; ++y) {
+                for (int x = 0; x < width; ++x) {
+                        uint8_t *buf = d.out_data + (y * d.out_pitch) + (x * out_comp_count);
+                        int src_idx = (y * d.in_linesize[0]) + x;
+                        buf[0] = d.in_data[rind][src_idx]; // R
+                        buf[1] = d.in_data[gind][src_idx]; // G
+                        buf[2] = d.in_data[bind][src_idx]; // B
+                        if (out_comp_count == 4) {
+                                buf[3] = d.in_data[aind][src_idx]; // A
+                        }
+                }
+        }
+}
+
+void
+gbrap_to_rgba(const struct from_planar_data d)
+{
+        gbrap_to_rgb_rgba(d, 2, 0, 1, 3);
+}
+
+void
+gbrap_to_rgb(const struct from_planar_data d)
+{
+        gbrap_to_rgb_rgba(d, 2, 0, 1, -1);
+}
+
+void
+rgbp_to_rgb(const struct from_planar_data d)
+{
+        gbrap_to_rgb_rgba(d, 0, 1, 2, -1);
+}
+
+void
+yuv420_to_i420(const struct from_planar_data d)
+{
+        assert(d.width % 2 == 0);
+        assert(d.height % 2 == 0);
+        // d.out_pitch ignored
+        const size_t dst_y_linesize = d.width;
+        const size_t dst_uv_linesize = d.width  / 2 ;
+        unsigned char *dst_y = d.out_data;
+        unsigned char *dst_u = dst_y + ((size_t) dst_y_linesize * d.height);
+        unsigned char *dst_v = dst_u + ((size_t) dst_uv_linesize * (d.height / 2));
+        for (size_t y = 0; y < d.height / 2; y += 1) {
+                memcpy(dst_y, d.in_data[0] + (2 * y * d.in_linesize[0]), dst_y_linesize);
+                dst_y += dst_y_linesize;
+                memcpy(dst_y, d.in_data[0] + ((2 * y + 1) * d.in_linesize[0]), dst_y_linesize);
+                dst_y += dst_y_linesize;
+
+                memcpy(dst_u, d.in_data[1] + (y * d.in_linesize[1]), dst_uv_linesize);
+                dst_u += dst_uv_linesize;
+                memcpy(dst_v, d.in_data[2] + (y * d.in_linesize[2]), dst_uv_linesize);
+                dst_v += dst_uv_linesize;
+        }
+}
+
+static void
+yuv422p_to_uyvy_yuyv(const struct from_planar_data d, bool yuyv)
+{
+        (void) yuyv;
+        for (size_t y = 0; y < d.height; ++y) {
+                const unsigned char *src_y =  d.in_data[0] + (d.in_linesize[0] * y);
+                const unsigned char *src_cb = d.in_data[1] + (d.in_linesize[1] * y);
+                const unsigned char *src_cr = d.in_data[2] + (d.in_linesize[2] * y);
+                unsigned char *dst = d.out_data + (d.out_pitch * y);
+
+                for (unsigned x = 0; x < d.width / 2; ++x) {
+                        if (yuyv) {
+                                *dst++ = *src_y++;
+                                *dst++ = *src_cb++;
+                                *dst++ = *src_y++;
+                                *dst++ = *src_cr++;
+                        } else {
+                                *dst++ = *src_cb++;
+                                *dst++ = *src_y++;
+                                *dst++ = *src_cr++;
+                                *dst++ = *src_y++;
+                        }
+                }
+        }
+}
+
+void
+yuv422p_to_uyvy(const struct from_planar_data d)
+{
+        yuv422p_to_uyvy_yuyv(d, false);
+}
+
+void
+yuv422p_to_yuyv(const struct from_planar_data d)
+{
+        yuv422p_to_uyvy_yuyv(d, true);
 }
 

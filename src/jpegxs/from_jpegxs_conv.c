@@ -46,122 +46,23 @@
 #include "types.h"
 #include "video_codec.h"
 
-static void yuv422p_to_uyvy(const svt_jpeg_xs_image_buffer_t *src, int width, int height, uint8_t *dst) {
-
-        for (int y = 0; y < height; y++) {
-                uint8_t *src_y = (uint8_t *) src->data_yuv[0] + y * src->stride[0];
-                uint8_t *src_u = (uint8_t *) src->data_yuv[1] + y * src->stride[1];
-                uint8_t *src_v = (uint8_t *) src->data_yuv[2] + y * src->stride[2];
-
-                for (int x = 0; x < width; x += 2) {
-                        *dst++ = *src_u++;
-                        *dst++ = *src_y++;
-                        *dst++ = *src_v++;
-                        *dst++ = *src_y++;
-                }
-        }
-}
-
-static void yuv422p_to_yuyv(const svt_jpeg_xs_image_buffer_t *src, int width, int height, uint8_t *dst) {
-
-        for (int y = 0; y < height; y++) {
-                uint8_t *src_y = (uint8_t *) src->data_yuv[0] + y * src->stride[0];
-                uint8_t *src_u = (uint8_t *) src->data_yuv[1] + y * src->stride[1];
-                uint8_t *src_v = (uint8_t *) src->data_yuv[2] + y * src->stride[2];
-
-                for (int x = 0; x < width; x += 2) {
-                        *dst++ = *src_y++;
-                        *dst++ = *src_u++;
-                        *dst++ = *src_y++;
-                        *dst++ = *src_v++;
-                }
-        }
-}
-
-static void yuv420p_to_i420(const svt_jpeg_xs_image_buffer_t *src, int width, int height, uint8_t *dst) {
-
-        const int y_size = width * height;
-        const int uv_size = (width / 2) * (height / 2);
-
-        uint8_t *dst_y = dst;
-        uint8_t *dst_u = dst_y + y_size;
-        uint8_t *dst_v = dst_u + uv_size;
-
-        memcpy(dst_y, src->data_yuv[0], y_size);
-        memcpy(dst_u, src->data_yuv[1], uv_size);
-        memcpy(dst_v, src->data_yuv[2], uv_size);
-}
-
-static void rgbp_to_rgb(const svt_jpeg_xs_image_buffer_t *src, int width, int height, uint8_t *dst) {
-
-        for (int y = 0; y < height; ++y) {
-                uint8_t *src_r = (uint8_t *) src->data_yuv[0] + y * src->stride[0];
-                uint8_t *src_g = (uint8_t *) src->data_yuv[1] + y * src->stride[1];
-                uint8_t *src_b = (uint8_t *) src->data_yuv[2] + y * src->stride[2];
-
-                for (int x = 0; x < width; ++x) {
-                        *dst++ = *src_r++;
-                        *dst++ = *src_g++;
-                        *dst++ = *src_b++;
-                }
-        }
-}
-
-static void yuv422p10le_to_v210(const svt_jpeg_xs_image_buffer_t *src, int width, int height, uint8_t *dst) {
-
-        for (int y = 0; y < height; ++y) {
-                uint32_t *dst_row = (uint32_t *)(dst + y * vc_get_linesize(width, v210));
-                uint16_t *src_y = (uint16_t *) src->data_yuv[0] + y * src->stride[0];
-                uint16_t *src_u = (uint16_t *) src->data_yuv[1] + y * src->stride[1];
-                uint16_t *src_v = (uint16_t *) src->data_yuv[2] + y * src->stride[2];
-
-                for (int x = 0; x < width; x += 6) {
-                        uint16_t y0 = *src_y++;
-                        uint16_t y1 = *src_y++;
-                        uint16_t y2 = *src_y++;
-                        uint16_t y3 = *src_y++;
-                        uint16_t y4 = *src_y++;
-                        uint16_t y5 = *src_y++;
-
-                        uint16_t u0 = *src_u++;
-                        uint16_t u2 = *src_u++;
-                        uint16_t u4 = *src_u++;
-
-                        uint16_t v0 = *src_v++;
-                        uint16_t v2 = *src_v++;
-                        uint16_t v4 = *src_v++;
-
-                        uint32_t w0 = ((v0 & 0x3FF) << 20) | ((y0 & 0x3FF) << 10) | (u0 & 0x3FF);
-                        uint32_t w1 = ((y2 & 0x3FF) << 20) | ((u2 & 0x3FF) << 10) | (y1 & 0x3FF);
-                        uint32_t w2 = ((u4 & 0x3FF) << 20) | ((y3 & 0x3FF) << 10) | (v2 & 0x3FF);
-                        uint32_t w3 = ((y5 & 0x3FF) << 20) | ((v4 & 0x3FF) << 10) | (y4 & 0x3FF);
-                        
-                        *dst_row++ = w0;
-                        *dst_row++ = w1;
-                        *dst_row++ = w2;
-                        *dst_row++ = w3;
-                }
-        }
-}
-
 struct jpegxs_to_uv_conversion {
         ColourFormat_t src;
         codec_t dst;
-        void (*convert)(const svt_jpeg_xs_image_buffer_t *src, int width, int height, uint8_t *dst);
         int in_bpp;
         decode_planar_func_t *convert_external;
 };
 
 static const struct jpegxs_to_uv_conversion jpegxs_to_uv_conversions[] = {
-        { COLOUR_FORMAT_PLANAR_YUV422,        UYVY,             yuv422p_to_uyvy,     0, NULL             },
-        { COLOUR_FORMAT_PLANAR_YUV422,        YUYV,             yuv422p_to_yuyv,     0, NULL             },
-        { COLOUR_FORMAT_PLANAR_YUV420,        I420,             yuv420p_to_i420,     0, NULL             },
-        { COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, RGB,              rgbp_to_rgb,         0, NULL             },
-        { COLOUR_FORMAT_PLANAR_YUV422,        v210,             yuv422p10le_to_v210, 0, NULL             },
-        { COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, R10k,             NULL,                2, rgbp10le_to_r10k },
-        { COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, R12L,             NULL,                2, rgbp12le_to_r12l },
-        { COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, RG48,             NULL,                2, rgbp12le_to_rg48 },
-        { COLOUR_FORMAT_INVALID,              VIDEO_CODEC_NONE, NULL,                0, NULL             }
+        { COLOUR_FORMAT_PLANAR_YUV422,        UYVY,             1, yuv422p_to_uyvy  },
+        { COLOUR_FORMAT_PLANAR_YUV422,        YUYV,             1, yuv422p_to_yuyv  },
+        { COLOUR_FORMAT_PLANAR_YUV420,        I420,             1, yuv420_to_i420   },
+        { COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, RGB,              1, rgbp_to_rgb      },
+        { COLOUR_FORMAT_PLANAR_YUV422,        v210,             2, yuv422p10le_to_v210},
+        { COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, R10k,             2, rgbp10le_to_r10k },
+        { COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, R12L,             2, rgbp12le_to_r12l },
+        { COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, RG48,             2, rgbp12le_to_rg48 },
+        { COLOUR_FORMAT_INVALID,              VIDEO_CODEC_NONE, 0, NULL             }
 };
 
 const struct jpegxs_to_uv_conversion *get_jpegxs_to_uv_conversion(codec_t codec) {
@@ -180,10 +81,6 @@ void jpegxs_to_uv_convert(const struct jpegxs_to_uv_conversion   *conv,
                           const svt_jpeg_xs_image_buffer_t *src, int width,
                           int height, uint8_t *dst)
 {
-        if (conv->convert) {
-                conv->convert(src, width, height, dst);
-                return;
-        }
         assert (conv->convert_external);
         struct from_planar_data d = {
                 .width          = width,
@@ -197,5 +94,9 @@ void jpegxs_to_uv_convert(const struct jpegxs_to_uv_conversion   *conv,
                 .in_linesize[1] = src->stride[1] * conv->in_bpp,
                 .in_linesize[2] = src->stride[2] * conv->in_bpp,
         };
-        decode_planar_parallel(conv->convert_external, d);
+        int num_threads = 0;
+        if (conv->convert_external == yuv420_to_i420) {
+                num_threads = 1; // no proper support for parallel decode
+        }
+        decode_planar_parallel(conv->convert_external, d, num_threads);
 }

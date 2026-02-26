@@ -129,7 +129,7 @@ jpegxs_to_uv_convert(struct state_decompress_jpegxs *s,
         d.width          = width;
         d.height         = height;
         d.out_data       = dst;
-        d.out_pitch      = vc_get_linesize(width, conv->dst);
+        d.out_pitch      = s->pitch;
         d.in_data[0]     = (const unsigned char *) src->data_yuv[0];
         d.in_data[1]     = (const unsigned char *) src->data_yuv[1];
         d.in_data[2]     = (const unsigned char *) src->data_yuv[2];
@@ -138,9 +138,9 @@ jpegxs_to_uv_convert(struct state_decompress_jpegxs *s,
         d.in_linesize[2] = src->stride[2] * in_bpp;
         d.in_depth       = s->image_config.bit_depth;
         d.log2_chroma_h = conv->src == COLOUR_FORMAT_PLANAR_YUV420 ? 1 : 0;
-        d.rgb_shift[0] = DEFAULT_R_SHIFT;
-        d.rgb_shift[1] = DEFAULT_G_SHIFT;
-        d.rgb_shift[2] = DEFAULT_B_SHIFT;
+        d.rgb_shift[0] = s->rshift;
+        d.rgb_shift[1] = s->gshift;
+        d.rgb_shift[2] = s->bshift;
         int num_threads = 0;
         if (conv->convert == yuv420_to_i420) {
                 num_threads = 1; // no proper support for parallel decode

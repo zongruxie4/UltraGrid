@@ -44,6 +44,11 @@ extern "C" {
 
 #define FROM_PLANAR_MAX_COMP 4
 
+// defined also in pixfmt_conv.h
+#define DEFAULT_R_SHIFT  0
+#define DEFAULT_G_SHIFT  8
+#define DEFAULT_B_SHIFT 16
+
 struct from_planar_data {
         unsigned width;
         unsigned height;
@@ -52,10 +57,15 @@ struct from_planar_data {
         const unsigned char *__restrict in_data[FROM_PLANAR_MAX_COMP];
         unsigned in_linesize[FROM_PLANAR_MAX_COMP];
         int in_depth; ///< may be needed just if not specified by fn name
+        ///< relevant only for output RGBA
+        int rgb_shift[3];
 };
 
 /// functions to decode whole buffer of packed data to planar or packed
 typedef void         decode_planar_func_t(struct from_planar_data d);
+void                 decode_planar_parallel(decode_planar_func_t   *dec,
+                                            struct from_planar_data d, int num_threads);
+
 decode_planar_func_t gbrp12le_to_r12l;
 decode_planar_func_t gbrp16le_to_r12l;
 decode_planar_func_t rgbpXXle_to_r12l;
@@ -70,12 +80,17 @@ decode_planar_func_t rgbpXXle_to_r10k;
 decode_planar_func_t yuv422p10le_to_v210;
 decode_planar_func_t gbrap_to_rgba;
 decode_planar_func_t gbrap_to_rgb;
-decode_planar_func_t rgbp_to_rgb;
+decode_planar_func_t rgbpXX_to_rgb;
 decode_planar_func_t yuv420_to_i420;
 decode_planar_func_t yuv422p_to_uyvy;
 decode_planar_func_t yuv422p_to_yuyv;
-void                 decode_planar_parallel(decode_planar_func_t   *dec,
-                                            struct from_planar_data d, int num_threads);
+decode_planar_func_t gbrp10le_to_rgb;
+decode_planar_func_t gbrp10le_to_rgba;
+decode_planar_func_t gbrp12le_to_rgb;
+decode_planar_func_t gbrp12le_to_rgba;
+decode_planar_func_t gbrp16le_to_rgb;
+decode_planar_func_t gbrp16le_to_rgba;
+
 #ifdef __cplusplus
 }
 #endif // __cplusplus

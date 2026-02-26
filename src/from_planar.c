@@ -54,6 +54,11 @@
 #define BYTE_SWAP(x) x
 #endif
 
+// shortcuts
+#define R R_SHIFT_IDX
+#define G G_SHIFT_IDX
+#define B B_SHIFT_IDX
+
 static void
 gbrpXXle_to_r12l(struct from_planar_data d, const int in_depth, int rind, int gind, int bind)
 {
@@ -361,12 +366,6 @@ gbrap_to_rgb(const struct from_planar_data d)
 }
 
 void
-rgbp_to_rgb(const struct from_planar_data d)
-{
-        gbrap_to_rgb_rgba(d, 0, 1, 2, -1);
-}
-
-void
 yuv420_to_i420(const struct from_planar_data d)
 {
         assert(d.width % 2 == 0);
@@ -426,5 +425,103 @@ void
 yuv422p_to_yuyv(const struct from_planar_data d)
 {
         yuv422p_to_uyvy_yuyv(d, true);
+}
+
+static void
+gbrpXXle_to_rgb(const struct from_planar_data d, unsigned int in_depth, int rind, int gind, int bind)
+{
+        assert((uintptr_t) d.in_linesize[0] % 2 == 0);
+        assert((uintptr_t) d.in_linesize[1] % 2 == 0);
+        assert((uintptr_t) d.in_linesize[2] % 2 == 0);
+
+        for (unsigned y = 0; y < d.height; ++y) {
+                const uint16_t *src_r = (const void *) (d.in_data[rind] + ((d.in_linesize[rind] * y)));
+                const uint16_t *src_g = (const void *) (d.in_data[gind] + ((d.in_linesize[gind] * y)));
+                const uint16_t *src_b = (const void *) (d.in_data[bind] + ((d.in_linesize[bind] * y)));
+                unsigned char *dst =
+                    (unsigned char *) d.out_data + (y * d.out_pitch);
+
+                for (unsigned x = 0; x < d.width; ++x) {
+                        *dst++ = *src_r++ >> (in_depth - 8U);
+                        *dst++ = *src_g++ >> (in_depth - 8U);
+                        *dst++ = *src_b++ >> (in_depth - 8U);
+                }
+        }
+}
+
+static void
+gbrpXXle_to_rgba(const struct from_planar_data d, unsigned int in_depth)
+{
+        assert((uintptr_t) d.out_data  % 4 == 0);
+        assert((uintptr_t) d.in_data[0] % 2 == 0);
+        assert((uintptr_t) d.in_data[1] % 2 == 0);
+        assert((uintptr_t) d.in_data[2] % 2 == 0);
+
+        enum { R = 0, G = 1, B = 2 };
+
+        const uint32_t alpha_mask = 0xFFFFFFFFU ^ (0xFFU << d.rgb_shift[R]) ^
+                                    (0xFFU << d.rgb_shift[G]) ^
+                                    (0xFFU << d.rgb_shift[B]);
+
+        for (unsigned y = 0; y < d.height; ++y) {
+                const uint16_t *src_g = (const void *) (d.in_data[0] + (d.in_linesize[0] * y));
+                const uint16_t *src_b = (const void *) (d.in_data[1] + (d.in_linesize[1] * y));
+                const uint16_t *src_r = (const void *) (d.in_data[2] + (d.in_linesize[2] * y));
+                uint32_t *dst = (void *) (d.out_data+ (y * d.out_pitch));
+
+                for (unsigned x = 0; x < d.width; ++x) {
+                        *dst++ =
+                            alpha_mask |
+                            (*src_r++ >> (in_depth - 8U)) << d.rgb_shift[0] |
+                            (*src_g++ >> (in_depth - 8U)) << d.rgb_shift[1] |
+                            (*src_b++ >> (in_depth - 8U)) << d.rgb_shift[2];
+                }
+        }
+}
+
+void
+gbrp10le_to_rgb(const struct from_planar_data d)
+{
+        gbrpXXle_to_rgb(d, DEPTH10, 2, 0, 1);
+}
+
+void
+gbrp10le_to_rgba(const struct from_planar_data d)
+{
+        gbrpXXle_to_rgba(d, DEPTH10);
+}
+
+void
+gbrp12le_to_rgb(const struct from_planar_data d)
+{
+        gbrpXXle_to_rgb(d, DEPTH12, 2, 0, 1);
+}
+
+void
+gbrp12le_to_rgba(const struct from_planar_data d)
+{
+        gbrpXXle_to_rgba(d, DEPTH12);
+}
+
+void
+gbrp16le_to_rgb(const struct from_planar_data d)
+{
+        gbrpXXle_to_rgb(d, DEPTH16, 2, 0, 1);
+}
+
+void
+gbrp16le_to_rgba(const struct from_planar_data d)
+{
+        gbrpXXle_to_rgba(d, DEPTH16);
+}
+
+void
+rgbpXX_to_rgb(const struct from_planar_data d)
+{
+        if (d.in_depth == DEPTH8) {
+                gbrap_to_rgb_rgba(d, 0, 1, 2, -1);
+        } else {
+                gbrpXXle_to_rgb(d, d.in_depth, 0, 1, 2);
+        }
 }
 

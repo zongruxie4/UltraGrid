@@ -83,7 +83,7 @@ static const struct jpegxs_to_uv_conversion jpegxs_to_uv_conversions[] = {
         { COLOUR_FORMAT_PLANAR_YUV422,        UYVY, yuv422p_to_uyvy  },
         { COLOUR_FORMAT_PLANAR_YUV422,        YUYV, yuv422p_to_yuyv  },
         { COLOUR_FORMAT_PLANAR_YUV420,        I420, yuv420_to_i420   },
-        { COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, RGB,  rgbp_to_rgb      },
+        { COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, RGB,  rgbpXX_to_rgb    },
         { COLOUR_FORMAT_PLANAR_YUV422,        v210, yuv422p10le_to_v210},
         { COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, R10k, rgbpXXle_to_r10k },
         { COLOUR_FORMAT_PLANAR_YUV444_OR_RGB, R12L, rgbpXXle_to_r12l },
@@ -122,6 +122,9 @@ jpegxs_to_uv_convert(struct state_decompress_jpegxs *s,
         d.in_linesize[1] = src->stride[1] * in_bpp;
         d.in_linesize[2] = src->stride[2] * in_bpp;
         d.in_depth       = s->image_config.bit_depth;
+        d.rgb_shift[0] = DEFAULT_R_SHIFT;
+        d.rgb_shift[1] = DEFAULT_G_SHIFT;
+        d.rgb_shift[2] = DEFAULT_B_SHIFT;
         int num_threads = 0;
         if (conv->convert == yuv420_to_i420) {
                 num_threads = 1; // no proper support for parallel decode

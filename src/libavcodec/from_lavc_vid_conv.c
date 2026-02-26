@@ -257,6 +257,7 @@ from_planar_conversion(struct av_conv_data d)
                 .in_linesize[2] = d.in_frame->linesize[2],
                 .in_linesize[3] = d.in_frame->linesize[3],
         };
+        memcpy(fpd.rgb_shift, d.rgb_shift, sizeof fpd.rgb_shift);
         assert(d.from_planar_func != nullptr);
         d.from_planar_func(fpd);
 }
@@ -479,108 +480,6 @@ static void
 yuv444p16le_to_rg48(struct av_conv_data d)
 {
         yuv444pXXle_to_rg48(d, DEPTH16);
-}
-
-#if defined __GNUC__
-static inline void gbrpXXle_to_rgb(struct av_conv_data d, unsigned int in_depth)
-        __attribute__((always_inline));
-#endif
-static inline void
-gbrpXXle_to_rgb(struct av_conv_data d, unsigned int in_depth)
-{
-        const int width = d.in_frame->width;
-        const int height = d.in_frame->height;
-        const AVFrame *frame = d.in_frame;
-
-        assert((uintptr_t) frame->linesize[0] % 2 == 0);
-        assert((uintptr_t) frame->linesize[1] % 2 == 0);
-        assert((uintptr_t) frame->linesize[2] % 2 == 0);
-
-        for (int y = 0; y < height; ++y) {
-                uint16_t *src_g = (uint16_t *)(void *) (frame->data[0] + frame->linesize[0] * y);
-                uint16_t *src_b = (uint16_t *)(void *) (frame->data[1] + frame->linesize[1] * y);
-                uint16_t *src_r = (uint16_t *)(void *) (frame->data[2] + frame->linesize[2] * y);
-                unsigned char *dst =
-                    (unsigned char *) d.dst_buffer + y * d.pitch;
-
-                OPTIMIZED_FOR (int x = 0; x < width; ++x) {
-                        *dst++ = *src_r++ >> (in_depth - 8U);
-                        *dst++ = *src_g++ >> (in_depth - 8U);
-                        *dst++ = *src_b++ >> (in_depth - 8U);
-                }
-        }
-}
-
-#if defined __GNUC__
-static inline void gbrpXXle_to_rgba(struct av_conv_data d, unsigned int in_depth)
-        __attribute__((always_inline));
-#endif
-static inline void
-gbrpXXle_to_rgba(struct av_conv_data d, unsigned int in_depth)
-{
-        const int width = d.in_frame->width;
-        const int height = d.in_frame->height;
-        const AVFrame *frame = d.in_frame;
-
-        assert((uintptr_t) d.dst_buffer % 4 == 0);
-        assert((uintptr_t) frame->data[0] % 2 == 0);
-        assert((uintptr_t) frame->data[1] % 2 == 0);
-        assert((uintptr_t) frame->data[2] % 2 == 0);
-
-        const uint32_t alpha_mask = 0xFFFFFFFFU ^ (0xFFU << d.rgb_shift[R]) ^
-                                    (0xFFU << d.rgb_shift[G]) ^
-                                    (0xFFU << d.rgb_shift[B]);
-
-        for (int y = 0; y < height; ++y) {
-                uint16_t *src_g = (uint16_t *)(void *) (frame->data[0] + frame->linesize[0] * y);
-                uint16_t *src_b = (uint16_t *)(void *) (frame->data[1] + frame->linesize[1] * y);
-                uint16_t *src_r = (uint16_t *)(void *) (frame->data[2] + frame->linesize[2] * y);
-                uint32_t *dst = (void *) (d.dst_buffer + y * d.pitch);
-
-                OPTIMIZED_FOR (int x = 0; x < width; ++x) {
-                        *dst++ =
-                            alpha_mask |
-                            (*src_r++ >> (in_depth - 8U)) << d.rgb_shift[0] |
-                            (*src_g++ >> (in_depth - 8U)) << d.rgb_shift[1] |
-                            (*src_b++ >> (in_depth - 8U)) << d.rgb_shift[2];
-                }
-        }
-}
-
-static void
-gbrp10le_to_rgb(struct av_conv_data d)
-{
-        gbrpXXle_to_rgb(d, DEPTH10);
-}
-
-static void
-gbrp10le_to_rgba(struct av_conv_data d)
-{
-        gbrpXXle_to_rgba(d, DEPTH10);
-}
-
-static void
-gbrp12le_to_rgb(struct av_conv_data d)
-{
-        gbrpXXle_to_rgb(d, DEPTH12);
-}
-
-static void
-gbrp12le_to_rgba(struct av_conv_data d)
-{
-        gbrpXXle_to_rgba(d, DEPTH12);
-}
-
-static void
-gbrp16le_to_rgb(struct av_conv_data d)
-{
-        gbrpXXle_to_rgb(d, DEPTH16);
-}
-
-static void
-gbrp16le_to_rgba(struct av_conv_data d)
-{
-        gbrpXXle_to_rgba(d, DEPTH16);
 }
 
 static void
@@ -2375,19 +2274,19 @@ static const struct av_to_uv_conversion av_to_uv_conversions[] = {
         { AV_PIX_FMT_RGB24,       UYVY,      rgb24_to_uyvy,                nullptr },
         { AV_PIX_FMT_RGB24,       RGBA,      rgb24_to_rgb32,               nullptr },
         { AV_PIX_FMT_GBRP10LE,    R10k,      from_planar_conversion,       gbrp10le_to_r10k },
-        { AV_PIX_FMT_GBRP10LE,    RGB,       gbrp10le_to_rgb,              nullptr },
-        { AV_PIX_FMT_GBRP10LE,    RGBA,      gbrp10le_to_rgba,             nullptr },
+        { AV_PIX_FMT_GBRP10LE,    RGB,       from_planar_conversion,       gbrp10le_to_rgb },
+        { AV_PIX_FMT_GBRP10LE,    RGBA,      from_planar_conversion,       gbrp10le_to_rgba },
         { AV_PIX_FMT_GBRP10LE,    RG48,      from_planar_conversion,       gbrp10le_to_rg48 },
         { AV_PIX_FMT_GBRP12LE,    R12L,      from_planar_conversion,       gbrp12le_to_r12l },
         { AV_PIX_FMT_GBRP12LE,    R10k,      from_planar_conversion,       gbrp12le_to_r10k },
-        { AV_PIX_FMT_GBRP12LE,    RGB,       gbrp12le_to_rgb,              nullptr },
-        { AV_PIX_FMT_GBRP12LE,    RGBA,      gbrp12le_to_rgba,             nullptr },
+        { AV_PIX_FMT_GBRP12LE,    RGB,       from_planar_conversion,       gbrp12le_to_rgb },
+        { AV_PIX_FMT_GBRP12LE,    RGBA,      from_planar_conversion,       gbrp12le_to_rgba },
         { AV_PIX_FMT_GBRP12LE,    RG48,      from_planar_conversion,       gbrp12le_to_rg48 },
         { AV_PIX_FMT_GBRP16LE,    R12L,      from_planar_conversion,       gbrp16le_to_r12l },
         { AV_PIX_FMT_GBRP16LE,    R10k,      from_planar_conversion,       gbrp16le_to_r10k },
         { AV_PIX_FMT_GBRP16LE,    RG48,      from_planar_conversion,       gbrp16le_to_rg48 },
-        { AV_PIX_FMT_GBRP12LE,    RGB,       gbrp16le_to_rgb,              nullptr },
-        { AV_PIX_FMT_GBRP12LE,    RGBA,      gbrp16le_to_rgba,             nullptr },
+        { AV_PIX_FMT_GBRP12LE,    RGB,       from_planar_conversion,       gbrp16le_to_rgb },
+        { AV_PIX_FMT_GBRP12LE,    RGBA,      from_planar_conversion,       gbrp16le_to_rgba },
         { AV_PIX_FMT_RGB48LE,     R12L,      rgb48le_to_r12l,              nullptr },
         { AV_PIX_FMT_RGB48LE,     RGBA,      rgb48le_to_rgba,              nullptr },
 #ifdef HWACC_VDPAU

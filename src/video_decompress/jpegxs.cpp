@@ -81,7 +81,7 @@ struct jpegxs_to_uv_conversion {
 };
 
 static const struct jpegxs_to_uv_conversion jpegxs_to_uv_conversions[] = {
-        { COLOUR_FORMAT_PLANAR_YUV422,        UYVY, yuv422p_to_uyvy  },
+        { COLOUR_FORMAT_PLANAR_YUV422,        UYVY, yuv422pXX_to_uyvy  },
         { COLOUR_FORMAT_PLANAR_YUV422,        YUYV, yuv422p_to_yuyv  },
         { COLOUR_FORMAT_PLANAR_YUV420,        I420, yuv420_to_i420   },
         { COLOUR_FORMAT_PLANAR_YUV420,        UYVY, yuv420p_to_uyvy  },

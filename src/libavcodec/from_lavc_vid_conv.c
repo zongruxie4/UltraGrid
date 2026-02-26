@@ -1173,28 +1173,6 @@ static void yuv420p10le_to_uyvy(struct av_conv_data d)
         }
 }
 
-static void yuv422p10le_to_uyvy(struct av_conv_data d)
-{
-        const int width = d.in_frame->width;
-        const int height = d.in_frame->height;
-        const AVFrame *in_frame = d.in_frame;
-
-        for(int y = 0; y < height; ++y) {
-                uint16_t *src_y = (uint16_t *)(void *)(in_frame->data[0] + in_frame->linesize[0] * y);
-                uint16_t *src_cb = (uint16_t *)(void *)(in_frame->data[1] + in_frame->linesize[1] * y);
-                uint16_t *src_cr = (uint16_t *)(void *)(in_frame->data[2] + in_frame->linesize[2] * y);
-                uint8_t *dst =
-                    (uint8_t *) (void *) (d.dst_buffer + y * d.pitch);
-
-                for(int x = 0; x < width / 2; ++x) {
-                        *dst++ = *src_cb++ >> 2;
-                        *dst++ = *src_y++ >> 2;
-                        *dst++ = *src_cr++ >> 2;
-                        *dst++ = *src_y++ >> 2;
-                }
-        }
-}
-
 #if defined __GNUC__
 static inline void yuv444p1Xle_to_uyvy(struct av_conv_data d, int in_depth)
         __attribute__((always_inline));
@@ -2073,7 +2051,7 @@ static const struct av_to_uv_conversion av_to_uv_conversions[] = {
         { AV_PIX_FMT_YUV420P10LE, RGBA,      yuv420p10le_to_rgb32,         nullptr },
         { AV_PIX_FMT_YUV420P10LE, R10k,      yuv420p10le_to_rgb30,         nullptr },
         { AV_PIX_FMT_YUV422P10LE, v210,      from_planar_conversion,       yuv422p10le_to_v210 },
-        { AV_PIX_FMT_YUV422P10LE, UYVY,      yuv422p10le_to_uyvy,          nullptr },
+        { AV_PIX_FMT_YUV422P10LE, UYVY,      from_planar_conversion,       yuv422p10le_to_uyvy },
         { AV_PIX_FMT_YUV422P10LE, RGB,       yuv422p10le_to_rgb24,         nullptr },
         { AV_PIX_FMT_YUV422P10LE, RGBA,      yuv422p10le_to_rgb32,         nullptr },
         { AV_PIX_FMT_YUV422P10LE, R10k,      yuv422p10le_to_rgb30,         nullptr },

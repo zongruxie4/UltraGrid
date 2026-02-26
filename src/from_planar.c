@@ -424,6 +424,40 @@ yuv422p_to_uyvy(const struct from_planar_data d)
         yuv422p_to_uyvy_yuyv(d, false);
 }
 
+static void yuv422pXXle_to_uyvy_int(const struct from_planar_data d, int in_depth)
+{
+        for(unsigned y = 0; y < d.height; ++y) {
+                const uint16_t *src_y =  (const void *)(d.in_data[0] + d.in_linesize[0] * y);
+                const uint16_t *src_cb = (const void *)(d.in_data[1] + d.in_linesize[1] * y);
+                const uint16_t *src_cr = (const void *)(d.in_data[2] + d.in_linesize[2] * y);
+                uint8_t *dst =
+                    (uint8_t *) (void *) (d.out_data + y * d.out_pitch);
+
+                for(unsigned x = 0; x < d.width / 2; ++x) {
+                        *dst++ = *src_cb++ >> (in_depth - 8);
+                        *dst++ = *src_y++  >> (in_depth - 8);
+                        *dst++ = *src_cr++ >> (in_depth - 8);
+                        *dst++ = *src_y++  >> (in_depth - 8);
+                }
+        }
+}
+
+void yuv422p10le_to_uyvy(const struct from_planar_data d)
+{
+        yuv422pXXle_to_uyvy_int(d, DEPTH10);
+}
+
+void
+yuv422pXX_to_uyvy(const struct from_planar_data d)
+{
+        if (d.in_depth == DEPTH8) {
+                yuv422p_to_uyvy_yuyv(d, false);
+        } else {
+                yuv422pXXle_to_uyvy_int(d, d.in_depth);
+        }
+}
+
+
 void
 yuv422p_to_yuyv(const struct from_planar_data d)
 {

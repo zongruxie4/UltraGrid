@@ -1,9 +1,3 @@
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif // defined HAVE_CONFIG_H
-#include "config_unix.h"
-#include "config_win32.h"
-
 #include <cassert>
 #include "debug.h"
 
@@ -134,7 +128,7 @@ void state_vdpau::initMixer(uint32_t w, uint32_t h, VdpChromaType ct){
 
         st = funcs.videoMixerCreate(device,
                         0,
-                        NULL,
+                        nullptr,
                         3,
                         params,
                         param_vals,
@@ -160,19 +154,19 @@ void state_vdpau::initMixer(uint32_t w, uint32_t h, VdpChromaType ct){
 void state_vdpau::mixerRender(VdpVideoSurface f){
         VdpStatus st = funcs.videoMixerRender(mixer,
                         VDP_INVALID_HANDLE,
-                        NULL,
+                        nullptr,
                         VDP_VIDEO_MIXER_PICTURE_STRUCTURE_FRAME,
                         0,
-                        NULL,
+                        nullptr,
                         f,
                         0,
-                        NULL,
-                        NULL,
+                        nullptr,
+                        nullptr,
                         out_surf,
-                        NULL,
-                        NULL,
+                        nullptr,
+                        nullptr,
                         0,
-                        NULL);
+                        nullptr);
 
         if(st != VDP_STATUS_OK){
                 log_msg(LOG_LEVEL_ERROR, "Failed to render: %s\n", funcs.getErrorString(st));

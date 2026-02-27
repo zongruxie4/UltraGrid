@@ -1,14 +1,10 @@
-
-#include "config.h"
-#include "config_unix.h"
-#include "config_win32.h"
-
-#include <assert.h>
-#include <stdlib.h>
+#include <cassert>
+#include <cstdlib>
 #include <unistd.h>
-#include <string.h>
+#include <cstring>
 #include <memory>
 #include <atomic>
+#include <sys/mman.h>
 
 #include "debug.h"
 #include "host.h"
@@ -329,7 +325,7 @@ static bool display_pw_putf(void *state, struct video_frame *frame, long long fl
 {
         auto s = static_cast<display_pw_state *>(state);
 
-        if (flags == PUTF_DISCARD || frame == NULL || frame == s->dummy_frame.get()) {
+        if (flags == PUTF_DISCARD || !frame || frame == s->dummy_frame.get()) {
                 return true;
         }
 
@@ -447,21 +443,21 @@ static bool display_pw_reconfigure(void *state, struct video_desc desc)
 
 static void display_pw_probe(struct device_info **available_cards, int *count, void (**deleter)(void *)) {
         UNUSED(deleter);
-        *available_cards = NULL;
+        *available_cards = nullptr;
         *count = 0;
 }
 
 static const struct video_display_info display_pw_info = {
         display_pw_probe,
         display_pw_init,
-        NULL, // _run
+        nullptr, // _run
         display_pw_done,
         display_pw_getf,
         display_pw_putf,
         display_pw_reconfigure,
         display_pw_get_property,
-        NULL, // _put_audio_frame
-        NULL, // _reconfigure_audio
+        nullptr, // _put_audio_frame
+        nullptr, // _reconfigure_audio
         MOD_NAME,
 };
 

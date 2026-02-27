@@ -49,6 +49,7 @@
 #include "compat/c23.h"    // for size_t, NULL, countof, nullptr, ptrdiff_t
 #include "compat/endian.h" // BYTE_ORDER, BIG_ENDIAN
 #include "types.h"         // for depth
+#include "utils/macros.h"  // for OPTIMIZED_FOR
 #include "utils/misc.h"    // for get_cpu_core_count
 #include "utils/worker.h"  // for task_run_parallel
 
@@ -58,12 +59,18 @@
 #define BYTE_SWAP(x) x
 #endif
 
+#if defined __GNUC__ && (__GNUC__ >= 10 || __clang_major__ >= 9)
+#define ALWAYS_INLINE [[gnu::always_inline]]
+#else
+#define ALWAYS_INLINE
+#endif
+
 // shortcuts
 #define R R_SHIFT_IDX
 #define G G_SHIFT_IDX
 #define B B_SHIFT_IDX
 
-static void
+ALWAYS_INLINE static inline  void
 gbrpXXle_to_r12l(struct from_planar_data d, const int in_depth, int rind, int gind, int bind)
 {
         assert((uintptr_t) d.in_linesize[0] % 2 == 0);
@@ -205,7 +212,7 @@ rgbpXXle_to_rg48(struct from_planar_data d)
         rgbpXXle_to_rg48_int(d, d.in_depth, 0, 1, 2);
 }
 
-static void
+ALWAYS_INLINE static inline void
 gbrpXXle_to_r10k(struct from_planar_data d, const unsigned int in_depth,
                  int rind, int gind, int bind)
 {
@@ -220,7 +227,8 @@ gbrpXXle_to_r10k(struct from_planar_data d, const unsigned int in_depth,
                 const uint16_t *src_b = (const void *) (d.in_data[bind] + (d.in_linesize[bind] * y));
                 unsigned char *dst = d.out_data + (y * d.out_pitch);
 
-                for (unsigned x = 0; x < d.width; ++x) {
+                const unsigned width = d.width;
+                OPTIMIZED_FOR (unsigned x = 0; x < width; ++x) {
                         *dst++ = *src_r >> (in_depth - 8U);
                         *dst++ = ((*src_r++ >> (in_depth - 10U)) & 0x3U) << 6U | *src_g >> (in_depth - 6U);
                         *dst++ = ((*src_g++ >> (in_depth - 10U)) & 0xFU) << 4U | *src_b >> (in_depth - 4U);
@@ -402,7 +410,8 @@ yuv422p_to_uyvy_yuyv(const struct from_planar_data d, bool yuyv)
                 const unsigned char *src_cr = d.in_data[2] + (d.in_linesize[2] * y);
                 unsigned char *dst = d.out_data + (d.out_pitch * y);
 
-                for (unsigned x = 0; x < d.width / 2; ++x) {
+                const unsigned width = d.width;
+                OPTIMIZED_FOR (unsigned x = 0; x < width / 2; ++x) {
                         if (yuyv) {
                                 *dst++ = *src_y++;
                                 *dst++ = *src_cb++;
@@ -478,7 +487,8 @@ gbrpXXle_to_rgb(const struct from_planar_data d, unsigned int in_depth, int rind
                 unsigned char *dst =
                     (unsigned char *) d.out_data + (y * d.out_pitch);
 
-                for (unsigned x = 0; x < d.width; ++x) {
+                const unsigned width = d.width;
+                OPTIMIZED_FOR (unsigned x = 0; x < width; ++x) {
                         *dst++ = *src_r++ >> (in_depth - 8U);
                         *dst++ = *src_g++ >> (in_depth - 8U);
                         *dst++ = *src_b++ >> (in_depth - 8U);
@@ -506,7 +516,8 @@ gbrpXXle_to_rgba(const struct from_planar_data d, unsigned int in_depth)
                 const uint16_t *src_r = (const void *) (d.in_data[2] + (d.in_linesize[2] * y));
                 uint32_t *dst = (void *) (d.out_data+ (y * d.out_pitch));
 
-                for (unsigned x = 0; x < d.width; ++x) {
+                const unsigned width = d.width;
+                OPTIMIZED_FOR (unsigned x = 0; x < width; ++x) {
                         *dst++ =
                             alpha_mask |
                             (*src_r++ >> (in_depth - 8U)) << d.rgb_shift[0] |
@@ -565,6 +576,7 @@ rgbpXX_to_rgb(const struct from_planar_data d)
 void
 yuv420p_to_uyvy(const struct from_planar_data d)
 {
+        const unsigned width = d.width;
         for(unsigned y = 0; y < (d.height + 1) / 2; ++y) {
                 unsigned scnd_row = y * 2 + 1;
                 if (scnd_row == d.height) {
@@ -592,7 +604,8 @@ yuv420p_to_uyvy(const struct from_planar_data d)
                 __m128i out2h;
                 __m128i zero = _mm_set1_epi32(0);
 
-                for (; x < d.width - 15; x += 16){
+
+                OPTIMIZED_FOR (; x < width - 15; x += 16){
                         y1 = _mm_lddqu_si128((__m128i const*)(const void *) src_y1);
                         y2 = _mm_lddqu_si128((__m128i const*)(const void *) src_y2);
                         src_y1 += 16;
@@ -638,7 +651,7 @@ yuv420p_to_uyvy(const struct from_planar_data d)
 #endif
 
 
-                for (; x < d.width - 1; x += 2) {
+                OPTIMIZED_FOR (; x < width - 1; x += 2) {
                         *dst1++ = *src_cb;
                         *dst1++ = *src_y1++;
                         *dst1++ = *src_cr;
@@ -649,7 +662,7 @@ yuv420p_to_uyvy(const struct from_planar_data d)
                         *dst2++ = *src_cr++;
                         *dst2++ = *src_y2++;
                 }
-                if (x < d.width) {
+                if (x < width) {
                         *dst1++ = *src_cb;
                         *dst1++ = *src_y1++;
                         *dst1++ = *src_cr;

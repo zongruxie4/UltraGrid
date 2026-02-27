@@ -1,4 +1,4 @@
-FLAGS ?= -Ofast -g
+FLAGS ?= -O3 -g
 SRCDIR ?= ..
 COMMON_FLAGS = $(FLAGS) -D_GNU_SOURCE -I$(SRCDIR)/src/
 MKDIR_P = mkdir -p

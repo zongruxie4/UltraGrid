@@ -12,8 +12,8 @@ PARENT=`echo $PWD | sed -e 's%/[[^/]]*$%%'`
 
 AC_DEFINE_UNQUOTED([CONFIG_FLAGS], ["$configure_flags"], [Flags passed to configure])
 
-if expr "x$CFLAGS" : 'x.*-O' >/dev/null; then OFAST=""; else OFAST="-Ofast"; fi
-AC_SUBST(OFAST)
+if expr "x$CFLAGS" : 'x.*-O' >/dev/null; then O3=""; else O3="-O3"; fi
+AC_SUBST(O3)
 
 AC_CANONICAL_HOST
 AC_PROG_CC

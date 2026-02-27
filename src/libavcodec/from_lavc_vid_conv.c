@@ -330,6 +330,11 @@ yuv444p16le_to_r10k(struct av_conv_data d)
 }
 
 #if defined __GNUC__
+// actually faster with -02 with GCC
+#if !defined __clang__
+#pragma GCC push_options
+#pragma GCC optimize("O2")
+#endif
 static inline void yuv444pXXle_to_r12l(struct av_conv_data d, int depth)
         __attribute__((always_inline));
 #endif
@@ -420,6 +425,9 @@ yuv444p12le_to_r12l(struct av_conv_data d)
 {
         yuv444pXXle_to_r12l(d, DEPTH12);
 }
+#if defined __GNUC__ && !defined __clang__
+#pragma GCC pop_options
+#endif
 
 static void
 yuv444p16le_to_r12l(struct av_conv_data d)

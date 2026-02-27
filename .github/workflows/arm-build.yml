@@ -21,11 +21,11 @@ jobs:
           - arch: armhf
             repo: http://mirrordirector.raspbian.org/raspbian/
             qemu_bin_arch: arm
-            deb_release: bullseye
+            deb_release: bookworm
           - arch: arm64
             repo: https://deb.debian.org/debian
             qemu_bin_arch: aarch64
-            deb_release: bullseye
+            deb_release: bookworm
 
     steps:
     - uses: actions/checkout@v4

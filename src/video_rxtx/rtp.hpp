@@ -3,7 +3,7 @@
  * @author Martin Pulec     <pulec@cesnet.cz>
  */
 /*
- * Copyright (c) 2013-2025 CESNET, zájmové sdružení právnických osob
+ * Copyright (c) 2013-2026 CESNET, zájmové sdružení právnických osob
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,6 +39,7 @@
 #define VIDEO_RXTX_RTP_H_
 
 #include "tv.h"
+#include "utils/macros.h"      // for to_fourcc
 #include "video_rxtx.hpp"
 
 #include <mutex>
@@ -55,9 +56,10 @@
 struct rtp;
 struct fec;
 
-class rtp_video_rxtx : public video_rxtx {
+class rtp_video_rxtx : public video_rxtx_i {
         friend struct video_rxtx;
 public:
+        const uint32_t magic = to_fourcc('V', 'X', 'r', ' ');
         rtp_video_rxtx(std::map<std::string, param_u> const &params);
         virtual ~rtp_video_rxtx();
 
@@ -69,6 +71,7 @@ public:
 
 protected:
         struct rtp *m_network_device; // ULTRAGRID_RTP
+        struct common_opts m_common;
         std::mutex m_network_devices_lock;
         struct tx *m_tx;
         struct pdb *m_participants;
@@ -76,6 +79,8 @@ protected:
         int              m_recv_port_number;
         int              m_send_port_number;
         fec             *m_fec_state;
+        int              m_rxtx_mode;
+        bool             m_used = false; ///< at least one frame was sent
 private:
         struct response *process_sender_message(struct msg_sender *msg) override;
 };

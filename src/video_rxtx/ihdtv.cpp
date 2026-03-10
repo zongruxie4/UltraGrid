@@ -10,7 +10,7 @@
  *          Dalibor Matura   <255899@mail.muni.cz>
  *          Ian Wesley-Smith <iwsmith@cct.lsu.edu>
  *
- * Copyright (c) 2005-2023 CESNET z.s.p.o.
+ * Copyright (c) 2005-2026 CESNET, zájmové sdružení právnických osob
  * Copyright (c) 2001-2004 University of Southern California
  * Copyright (c) 2003-2004 University of Glasgow
  *
@@ -118,8 +118,7 @@ static void *ihdtv_sender_thread(void *arg)
 }
 #endif
 
-ihdtv_video_rxtx::ihdtv_video_rxtx(map<string, param_u> const &params) :
-        video_rxtx(params)
+ihdtv_video_rxtx::ihdtv_video_rxtx(map<string, param_u> const &/* params */)
 #ifdef HAVE_IHDTV
         , m_tx_connection(), m_rx_connection()
 #endif
@@ -173,7 +172,7 @@ ihdtv_video_rxtx::~ihdtv_video_rxtx()
 {
 }
 
-static video_rxtx *create_video_rxtx_ihdtv(std::map<std::string, param_u> const &params)
+static video_rxtx_i *create_video_rxtx_ihdtv(std::map<std::string, param_u> const &params)
 {
         log_msg(LOG_LEVEL_WARNING, "Warning: iHDTV support may be currently broken.\n"
                         "Please contact %s if you need this.\n", PACKAGE_BUGREPORT);

@@ -11,7 +11,7 @@
  *          Ian Wesley-Smith <iwsmith@cct.lsu.edu>
  *          Martin Pulec     <pulec@cesnet.cz>
  *
- * Copyright (c) 2005-2023 CESNET z.s.p.o.
+ * Copyright (c) 2005-2026 CESNET, zájmové sdružení právnických osob
  * Copyright (c) 2001-2004 University of Southern California
  * Copyright (c) 2003-2004 University of Glasgow
  *
@@ -65,7 +65,7 @@
 struct video_frame;
 struct display;
 
-class ihdtv_video_rxtx: public video_rxtx {
+class ihdtv_video_rxtx: public video_rxtx_i {
 public:
         ihdtv_video_rxtx(std::map<std::string, param_u> const &);
         ~ihdtv_video_rxtx();

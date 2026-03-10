@@ -3,7 +3,7 @@
  * @author Martin Pulec     <pulec@cesnet.cz>
  */
 /*
- * Copyright (c) 2013-2025 CESNET
+ * Copyright (c) 2013-2026 CESNET, zájmové sdružení právnických osob
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -58,19 +58,25 @@
 #include "tfrc.h"
 #include "transmit.h"
 #include "tv.h"
+#include "utils/macros.h"      // for to_fourcc
 #include "utils/thread.h"
 #include "video_display.h"
 #include "video_rxtx.hpp"
 #include "ug_runtime_error.hpp"
 #include "utils/worker.h"
 
+constexpr uint32_t MAGIC = to_fourcc('V', 'X', 'u', 'r');
+
 using namespace std;
 
 ultragrid_rtp_video_rxtx::ultragrid_rtp_video_rxtx(const map<string, param_u> &params) :
-        rtp_video_rxtx(params), m_send_bytes_total(0)
+        rtp_video_rxtx(params),
+        magic(MAGIC),
+        m_send_bytes_total(0)
 {
         m_decoder_mode = (enum video_mode) params.at("decoder_mode").l;
         m_display_device = (struct display *) params.at("display_device").ptr;
+        m_receiver_mod = (struct module*) params.at("receiver_mod").ptr;
         m_async_sending = false;
 
         if (get_commandline_param("decoder-use-codec") != nullptr && "help"s == get_commandline_param("decoder-use-codec")) {
@@ -90,13 +96,13 @@ ultragrid_rtp_video_rxtx::~ultragrid_rtp_video_rxtx()
 
 void ultragrid_rtp_video_rxtx::join()
 {
-        video_rxtx::join();
         unique_lock<mutex> lk(m_async_sending_lock);
         m_async_sending_cv.wait(lk, [this]{return !m_async_sending;});
 }
 
 void *ultragrid_rtp_video_rxtx::receiver_thread(void *arg) {
         ultragrid_rtp_video_rxtx *s = static_cast<ultragrid_rtp_video_rxtx *>(arg);
+        assert(s->magic == MAGIC);
         return s->receiver_loop();
 }
 
@@ -108,6 +114,7 @@ void *(*ultragrid_rtp_video_rxtx::get_receiver_thread() noexcept)(void *arg)
 void
 ultragrid_rtp_video_rxtx::send_frame(shared_ptr<video_frame> tx_frame) noexcept
 {
+        m_used = true;
         if (m_fec_state) {
                 tx_frame = m_fec_state->encode(tx_frame);
         }
@@ -160,7 +167,7 @@ void ultragrid_rtp_video_rxtx::send_frame_async(shared_ptr<video_frame> tx_frame
 void ultragrid_rtp_video_rxtx::receiver_process_messages()
 {
         struct msg_receiver *msg;
-        while ((msg = (struct msg_receiver *) check_message(&m_receiver_mod))) {
+        while ((msg = (struct msg_receiver *) check_message(m_receiver_mod))) {
                 lock_guard<mutex> lock(m_network_devices_lock);
                 struct response *r = NULL;
 
@@ -243,7 +250,7 @@ struct vcodec_state *ultragrid_rtp_video_rxtx::new_video_decoder(struct display 
         struct vcodec_state *state = (struct vcodec_state *) calloc(1, sizeof(struct vcodec_state));
 
         if(state) {
-                state->decoder = video_decoder_init(&m_receiver_mod, m_decoder_mode,
+                state->decoder = video_decoder_init(m_receiver_mod, m_decoder_mode,
                                 d, m_common.encryption);
 
                 if(!state->decoder) {
@@ -257,6 +264,11 @@ struct vcodec_state *ultragrid_rtp_video_rxtx::new_video_decoder(struct display 
         }
 
         return state;
+}
+
+void ultragrid_rtp_video_rxtx::should_exit(void *state) {
+        auto *s = (ultragrid_rtp_video_rxtx *) state;
+        s->m_should_exit = true;
 }
 
 void *ultragrid_rtp_video_rxtx::receiver_loop()
@@ -278,6 +290,9 @@ void *ultragrid_rtp_video_rxtx::receiver_loop()
         fr = 1;
 
         time_ns_t last_not_timeout = 0;
+
+        register_should_exit_callback(m_common.parent, ultragrid_rtp_video_rxtx::should_exit,
+                                      this);
 
         while (!m_should_exit) {
                 struct timeval timeout;
@@ -388,6 +403,9 @@ void *ultragrid_rtp_video_rxtx::receiver_loop()
                 pdb_iter_done(&it);
         }
 
+        unregister_should_exit_callback(
+            m_common.parent, ultragrid_rtp_video_rxtx::should_exit, this);
+
 #ifdef SHARED_DECODER
         destroy_video_decoder(shared_decoder);
 #else
@@ -407,7 +425,7 @@ uint32_t ultragrid_rtp_video_rxtx::get_ssrc()
         return rtp_my_ssrc(m_network_device);
 }
 
-static video_rxtx *create_video_rxtx_ultragrid_rtp(std::map<std::string, param_u> const &params)
+static video_rxtx_i *create_video_rxtx_ultragrid_rtp(std::map<std::string, param_u> const &params)
 {
         return new ultragrid_rtp_video_rxtx(params);
 }

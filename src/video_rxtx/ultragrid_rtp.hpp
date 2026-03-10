@@ -3,7 +3,7 @@
  * @author Martin Pulec     <pulec@cesnet.cz>
  */
 /*
- * Copyright (c) 2013-2025 CESNET, zájmové sdružení právnických osob
+ * Copyright (c) 2013-2026 CESNET, zájmové sdružení právnických osob
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -62,6 +62,7 @@ union param_u;
 
 class ultragrid_rtp_video_rxtx : public rtp_video_rxtx {
 public:
+        const uint32_t magic;
         ultragrid_rtp_video_rxtx(std::map<std::string, param_u> const &);
         virtual ~ultragrid_rtp_video_rxtx();
         void join() override;
@@ -103,6 +104,11 @@ private:
         long long int m_nano_per_frame_actual_cumul = 0;
         long long int m_nano_per_frame_expected_cumul = 0;
         long long int m_compress_millis_cumul = 0;
+
+        struct module *m_receiver_mod{};
+
+        bool m_should_exit = false;
+        static void should_exit(void *state);
 };
 
 #endif // VIDEO_RXTX_ULTRAGRID_RTP_H_

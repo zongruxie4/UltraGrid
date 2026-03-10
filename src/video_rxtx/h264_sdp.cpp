@@ -184,7 +184,7 @@ h264_sdp_video_rxtx::set_audio_spec(const struct audio_desc *desc,
         }
 }
 
-static video_rxtx *create_video_rxtx_h264_sdp(std::map<std::string, param_u> const &params)
+static video_rxtx_i *create_video_rxtx_h264_sdp(std::map<std::string, param_u> const &params)
 {
         return new h264_sdp_video_rxtx(params);
 }

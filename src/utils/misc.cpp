@@ -4,7 +4,7 @@
  * @author Martin Piatka    <piatka@cesnet.cz>
  */
 /*
- * Copyright (c) 2014-2024 CESNET
+ * Copyright (c) 2014-2026 CESNET, zájmové sdružení právnických osob
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -44,7 +44,7 @@
 #include <unistd.h>           // for sysconf, _SC_NPROCESSORS_ONLN
 #endif
 #include <cassert>
-#include <cctype>             // for toupper
+#include <cctype>             // for isprint, toupper
 #include <cerrno>
 #include <climits>
 #include <cmath>
@@ -56,6 +56,7 @@
 #include <string>
 
 #include "compat/strings.h" // sterror_s
+#include "compat/endian.h"    // for be32toh
 #include "debug.h"
 #include "utils/macros.h"
 #include "utils/color_out.h"
@@ -445,4 +446,20 @@ parse_number(const char *str, int min, int base)
                 return INT_MIN;
         }
         return (int) ret;
+}
+
+/**
+ * @sa pretty_print_fourcc
+ */
+struct fourcc_s
+fourcc_to_string(uint32_t fourcc)
+{
+        fourcc = be32toh(fourcc);
+        struct fourcc_s ret{};
+        for (unsigned i = 0; i < 4; i++) {
+                char c = (fourcc >> (24 - 8 * i)) & 0xFF;
+                ret.s[i] = isprint(c) ? c : '?';
+        }
+
+        return ret;
 }

@@ -8,7 +8,7 @@
  * (therefore it wraps the whole sending part of UltraGrid).
  */
 /*
- * Copyright (c) 2013-2025 CESNET
+ * Copyright (c) 2013-2026 CESNET, zájmové sdružení právnických osob
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -75,7 +75,7 @@ struct recompress_output_port {
                 unsigned short tx_port, const struct common_opts *common,
                 const char *fec, long long bitrate);
 
-        std::unique_ptr<ultragrid_rtp_video_rxtx> video_rxtx;
+        std::unique_ptr<struct video_rxtx> video_rxtx;
         std::string host;
         int tx_port = 0;
 
@@ -136,7 +136,7 @@ recompress_output_port::recompress_output_port(
                 rxtx->m_port_id = this->host + ":" + to_string(tx_port);
         }
 
-        video_rxtx.reset(dynamic_cast<ultragrid_rtp_video_rxtx *>(rxtx));
+        video_rxtx.reset(rxtx);
 }
 
 static void recompress_port_write(recompress_output_port& port, shared_ptr<video_frame> frame)
@@ -153,7 +153,7 @@ static void recompress_port_write(recompress_output_port& port, shared_ptr<video
                 log_msg(LOG_LEVEL_INFO, "[0x%08" PRIx32 "->%s:%d:0x%08" PRIx32 "] %d frames in %g seconds = %g FPS\n",
                                 frame->ssrc,
                                 port.host.c_str(), port.tx_port,
-                                port.video_rxtx->get_ssrc(),
+                                dynamic_cast<ultragrid_rtp_video_rxtx *>(port.video_rxtx->m_impl)->get_ssrc(),
                                 port.frames, seconds, fps);
                 port.t0 = now;
                 port.frames = 0;
@@ -261,7 +261,7 @@ uint32_t recompress_get_port_ssrc(struct state_recompress *s, int idx){
         auto [compress_cfg, i] = s->index_to_port[idx];
 
         std::lock_guard<std::mutex> work_lock(s->workers[compress_cfg].ports_mut);
-        return s->workers[compress_cfg].ports[i].video_rxtx->get_ssrc();
+        return dynamic_cast<ultragrid_rtp_video_rxtx *>(s->workers[compress_cfg].ports[i].video_rxtx->m_impl)->get_ssrc();
 }
 
 void recompress_port_set_active(struct state_recompress *s,

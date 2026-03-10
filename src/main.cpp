@@ -1219,8 +1219,8 @@ static int adjust_params(struct ug_options *opt) {
                         opt->audio.send_cfg = "testcard:frames=1";
                 }
 
-                punch_c.video_rx_port = &opt->video_rx_port;
-                punch_c.video_tx_port = &opt->video_tx_port;
+                punch_c.video_rx_port = &opt->video.rx_port;
+                punch_c.video_tx_port = &opt->video.tx_port;
                 punch_c.audio_rx_port = &opt->audio.recv_port;
                 punch_c.audio_tx_port = &opt->audio.send_port;
 
@@ -1242,8 +1242,8 @@ static int adjust_params(struct ug_options *opt) {
                 }
 
                 log_msg(LOG_LEVEL_INFO, "[holepunch] remote: %s\n rx: %d\n tx: %d\n",
-                                punched_host, opt->video_rx_port, opt->video_tx_port);
-                opt->requested_receiver = punched_host;
+                                punched_host, opt->video.rx_port, opt->video.tx_port);
+                opt->video.receiver = punched_host;
                 opt->audio.host = punched_host;
 #endif //HAVE_LIBJUICE
         }
@@ -1560,7 +1560,7 @@ int main(int argc, char *argv[])
                 struct additional_audio_data aux = {
                         { uv.display_device, display_put_audio_frame,
                          display_reconfigure_audio, display_ctl_property },
-                        uv.state_video_rxtx,
+                        uv.state_video_rxtx->m_impl,
                 };
                 audio_register_aux_data(uv.audio, aux);
 

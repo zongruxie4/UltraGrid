@@ -7,7 +7,7 @@
  */
 /*
  * Copyright (c) 2013-2014 Fundació i2CAT, Internet I Innovació Digital a Catalunya
- * Copyright (c) 2013-2024 CESNET, z. s. p. o.
+ * Copyright (c) 2013-2026 CESNET, zájmové sdružení právnických osob
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -164,7 +164,6 @@ h264_rtp_video_rxtx::~h264_rtp_video_rxtx()
 void h264_rtp_video_rxtx::join()
 {
         c_stop_server(m_rtsp_server);
-        video_rxtx::join();
 }
 
 void
@@ -213,7 +212,7 @@ static int get_rtsp_server_port(const char *config) {
         return port;
 }
 
-static video_rxtx *create_video_rxtx_h264_std(std::map<std::string, param_u> const &params)
+static video_rxtx_i *create_video_rxtx_h264_std(std::map<std::string, param_u> const &params)
 {
         int rtsp_port;
         const char *rtsp_port_str = static_cast<const char *>(params.at("opts").ptr);

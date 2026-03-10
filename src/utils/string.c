@@ -3,7 +3,7 @@
  * @author Martin Pulec     <pulec@cesnet.cz>
  */
 /*
- * Copyright (c) 2014-2025 CESNET
+ * Copyright (c) 2014-2026 CESNET, zájmové sdružení právnických osob
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -221,6 +221,7 @@ append_sig_desc(char **ptr, const char *ptr_end, int signum)
  *
  * @returns NUL-terminated FourCC, which will be longer than 4B + '\0' if
  *           non-printable characters are present
+ * @sa fourcc_to_string
  */
 
 const char *

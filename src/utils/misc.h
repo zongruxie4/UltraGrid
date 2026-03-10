@@ -4,7 +4,7 @@
  * @author Martin Piatka    <piatka@cesnet.cz>
  */
 /*
- * Copyright (c) 2014-2023 CESNET z.s.p.o.
+ * Copyright (c) 2014-2026 CESNET, zájmové sdružení právnických osob
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -85,6 +85,11 @@ char *format_number_with_delim(size_t num, char *buf, size_t buflen);
 #endif
 
 int parse_number(const char *str, int min, int base);
+
+struct fourcc_s {
+        char s[5];
+};
+struct fourcc_s fourcc_to_string(uint32_t fourcc);
 
 #ifdef __cplusplus
 }

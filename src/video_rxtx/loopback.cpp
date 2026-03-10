@@ -3,7 +3,7 @@
  * @author Martin Pulec     <pulec@cesnet.cz>
  */
 /*
- * Copyright (c) 2018-2023 CESNET, z. s. p. o.
+ * Copyright (c) 2018-2026 CESNET, zájmové sdružení právnických osob
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -60,9 +60,9 @@ static const int BUFF_MAX_LEN = 2;
 static const char *MODULE_NAME = "[loopback] ";
 
 loopback_video_rxtx::loopback_video_rxtx(std::map<std::string, param_u> const &params)
-        : video_rxtx(params)
 {
         m_display_device = static_cast<struct display *>(params.at("display_device").ptr);
+        m_parent = static_cast<struct common_opts const *>(params.at("common").cptr)->parent;
 }
 
 loopback_video_rxtx::~loopback_video_rxtx()
@@ -88,9 +88,17 @@ loopback_video_rxtx::send_frame(std::shared_ptr<video_frame> f) noexcept
         m_frame_ready.notify_one();
 }
 
+void loopback_video_rxtx::should_exit(void *state) {
+        auto *s          = (loopback_video_rxtx *) state;
+        s->m_should_exit = true;
+}
+
 void *loopback_video_rxtx::receiver_loop()
 {
         set_thread_name(__func__);
+        register_should_exit_callback(m_parent,
+                                      loopback_video_rxtx::should_exit, this);
+
         while (!m_should_exit) {
                 unique_lock<mutex> lk(m_lock);
                 m_frame_ready.wait_for(lk, milliseconds(100), [this]{return m_frames.size() > 0;});
@@ -114,6 +122,8 @@ void *loopback_video_rxtx::receiver_loop()
                 display_put_frame(m_display_device, display_f, PUTF_BLOCKING);
         }
         display_put_frame(m_display_device, nullptr, PUTF_BLOCKING);
+        unregister_should_exit_callback(m_parent,
+                                        loopback_video_rxtx::should_exit, this);
         return nullptr;
 }
 
@@ -122,7 +132,7 @@ void *(*loopback_video_rxtx::get_receiver_thread() noexcept)(void *arg)
         return receiver_thread;
 }
 
-static video_rxtx *create_video_rxtx_loopback(std::map<std::string, param_u> const &params)
+static video_rxtx_i *create_video_rxtx_loopback(std::map<std::string, param_u> const &params)
 {
         return new loopback_video_rxtx(params);
 }

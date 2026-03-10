@@ -8,7 +8,7 @@
  *          Dalibor Matura   <255899@mail.muni.cz>
  *          Ian Wesley-Smith <iwsmith@cct.lsu.edu>
  *
- * Copyright (c) 2005-2024 CESNET
+ * Copyright (c) 2005-2026 CESNET, zájmové sdružení právnických osob
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, is permitted provided that the following conditions
@@ -107,7 +107,7 @@ struct additional_audio_data {
                 bool (*reconfigure)(struct display *, int, int, int);
                 bool (*get_property)(struct display *, int, void *, size_t *);
         } display_callbacks;
-        struct video_rxtx *vrxtx;
+        struct video_rxtx_i *vrxtx;
 };
 void audio_register_aux_data(struct state_audio          *s,
                              struct additional_audio_data data);

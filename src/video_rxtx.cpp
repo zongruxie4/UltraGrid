@@ -3,7 +3,7 @@
  * @author Martin Pulec     <pulec@cesnet.cz>
  */
 /*
- * Copyright (c) 2013-2025 CESNET, zájmové sdružení právnických osob
+ * Copyright (c) 2013-2026 CESNET, zájmové sdružení právnických osob
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -35,6 +35,7 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <memory>
 #include <sstream>
 #include <stdexcept>
 #include <sstream>
@@ -70,7 +71,6 @@ using std::ostringstream;
 using std::string;
 
 video_rxtx::video_rxtx(map<string, param_u> const &params): m_port_id("default"),
-                m_rxtx_mode(params.at("rxtx_mode").i),
                 m_frames_sent(0ull),
                 m_common(*static_cast<struct common_opts const *>(params.at("common").cptr)),
                 m_thread_id(), m_poisoned(false), m_joined(true) {
@@ -109,25 +109,19 @@ video_rxtx::video_rxtx(map<string, param_u> const &params): m_port_id("default")
         }
 }
 
-void video_rxtx::should_exit(void *state) {
-        video_rxtx *s = (video_rxtx *) state;
-        s->m_should_exit = true;
-}
-
 video_rxtx::~video_rxtx() {
         join();
         if (!m_poisoned && m_compression) {
                 send(NULL);
                 compress_pop(m_compression);
         }
+        delete m_impl;
         compress_done(m_compression);
         module_done(&m_receiver_mod);
         module_done(&m_sender_mod);
 }
 
 void video_rxtx::start() {
-        register_should_exit_callback(m_common.parent, video_rxtx::should_exit,
-                                      this);
         if (pthread_create(&m_thread_id, NULL, video_rxtx::sender_thread,
                            (void *) this) != 0) {
                 throw string("Unable to create sender thread!\n");
@@ -141,7 +135,7 @@ void video_rxtx::join() {
         }
         send(NULL); // pass poisoned pill
         pthread_join(m_thread_id, NULL);
-        unregister_should_exit_callback(m_common.parent, video_rxtx::should_exit, this);
+        m_impl->join();
         m_joined = true;
 }
 
@@ -188,7 +182,7 @@ void video_rxtx::check_sender_messages() {
                                                  oss.str().c_str());
                         }
                 } else { // delegate to implementations
-                        r = process_sender_message(msg);
+                        r = m_impl->process_sender_message(msg);
                 }
 
                 free_message(msg_external, r);
@@ -214,7 +208,7 @@ void *video_rxtx::sender_loop() {
                 m_video_desc = video_desc_from_frame(tx_frame.get());
                 export_video(m_common.exporter, tx_frame.get());
 
-                send_frame(std::move(tx_frame));
+                m_impl->send_frame(std::move(tx_frame));
                 m_frames_sent += 1;
         }
 
@@ -228,10 +222,22 @@ video_rxtx *video_rxtx::create(string const & proto, std::map<std::string, param
         if (!vri) {
                 return nullptr;
         }
-        auto ret = vri->create(params);
-        if (!ret) {
+
+        auto *ret = new video_rxtx(params);
+
+        auto params_c = params;
+        params_c["sender_mod"].ptr = &ret->m_sender_mod;
+        params_c["receiver_mod"].ptr = &ret->m_receiver_mod;
+        ret->m_impl= vri->create(params_c);
+        if (ret->m_impl == nullptr) {
+                delete ret;
                 return nullptr;
         }
+
+        // The idea of doing that is to display help on '-f ldgm:help' even if UG would exit
+        // immediately. The encoder is actually created by a message.
+        ret->check_sender_messages();
+
         ret->start();
         return ret;
 }

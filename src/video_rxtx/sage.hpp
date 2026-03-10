@@ -3,7 +3,7 @@
  * @author Martin Pulec     <martin.pulec@cesnet.cz>
  */
 /*
- * Copyright (c) 2014-2023 CESNET, z. s. p. o.
+ * Copyright (c) 2014-2026 CESNET, zájmové sdružení právnických osob
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -46,7 +46,7 @@
 struct video_frame;
 struct display;
 
-class sage_video_rxtx: public video_rxtx {
+class sage_video_rxtx: public video_rxtx_i {
 public:
         sage_video_rxtx(std::map<std::string, param_u> const &);
         ~sage_video_rxtx();

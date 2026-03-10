@@ -5,7 +5,7 @@
  * @brief  decompressing part of transcoding reflector
  */
 /*
- * Copyright (c) 2013-2024 CESNET
+ * Copyright (c) 2013-2026 CESNET, zájmové sdružení právnických osob
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -75,7 +75,7 @@ using std::unique_lock;
 
 namespace hd_rum_decompress {
 struct state_transcoder_decompress final : public frame_recv_delegate {
-        ultragrid_rtp_video_rxtx* video_rxtx = nullptr;
+        struct video_rxtx *video_rxtx = nullptr;
 
         struct state_recompress *recompress = nullptr;
 
@@ -136,8 +136,10 @@ ssize_t hd_rum_decompress_write(void *state, void *buf, size_t count)
 {
         auto *s = static_cast<state_transcoder_decompress *>(state);
 
-        return rtp_send_raw_rtp_data(s->video_rxtx->m_network_device,
-                        (char *) buf, count);
+        auto &ultragrid_rtp =
+            dynamic_cast<ultragrid_rtp_video_rxtx &>(*s->video_rxtx->m_impl);
+        return rtp_send_raw_rtp_data(ultragrid_rtp.m_network_device,
+                                     (char *) buf, count);
 }
 
 void state_transcoder_decompress::worker()
@@ -226,7 +228,7 @@ void *hd_rum_decompress_init(struct module *parent, struct hd_rum_output_conf co
         params["display_device"].ptr = s->display;
 
         try {
-                s->video_rxtx = dynamic_cast<ultragrid_rtp_video_rxtx *>(video_rxtx::create("ultragrid_rtp", params));
+                s->video_rxtx = video_rxtx::create("ultragrid_rtp", params);
                 assert (s->video_rxtx);
 
                 s->worker_thread = thread(&state_transcoder_decompress::worker, s);

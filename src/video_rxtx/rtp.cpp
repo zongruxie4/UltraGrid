@@ -3,7 +3,7 @@
  * @author Martin Pulec     <pulec@cesnet.cz>
  */
 /*
- * Copyright (c) 2013-2025 CESNET
+ * Copyright (c) 2013-2026 CESNET, zájmové sdružení právnických osob
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -142,7 +142,7 @@ rtp_video_rxtx::process_sender_message(struct msg_sender *msg)
 
                         // Exit only if we failed because of command line
                         // params, not control port msg
-                        if (m_frames_sent == 0ULL) {
+                        if (m_used) {
                                 exit_uv(rc);
                         }
 
@@ -187,7 +187,9 @@ rtp_video_rxtx::process_sender_message(struct msg_sender *msg)
 }
 
 rtp_video_rxtx::rtp_video_rxtx(map<string, param_u> const &params) :
-        video_rxtx(params), m_fec_state(NULL)
+        m_common(*static_cast<struct common_opts const *>(params.at("common").cptr)),
+        m_fec_state(NULL),
+        m_rxtx_mode(params.at("rxtx_mode").i)
 {
         m_participants = pdb_init("video", &video_offset);
         m_requested_receiver = params.at("receiver").str;
@@ -203,17 +205,14 @@ rtp_video_rxtx::rtp_video_rxtx(map<string, param_u> const &params) :
                                        EXIT_FAIL_NETWORK);
         }
 
-        if ((m_tx = tx_init(&m_sender_mod, m_common.mtu,
+        if ((m_tx = tx_init((struct module *) params.at("sender_mod").ptr,
+                                        m_common.mtu,
                                         TX_MEDIA_VIDEO,
                                         params.at("fec").str,
                                         m_common.encryption,
                                         params.at("bitrate").ll)) == NULL) {
                 throw ug_runtime_error("Unable to initialize transmitter", EXIT_FAIL_TRANSMIT);
         }
-
-        // The idea of doing that is to display help on '-f ldgm:help' even if UG would exit
-        // immediately. The encoder is actually created by a message.
-        check_sender_messages();
 }
 
 rtp_video_rxtx::~rtp_video_rxtx()

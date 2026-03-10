@@ -3,7 +3,7 @@
  * @author Martin Pulec     <pulec@cesnet.cz>
  */
 /*
- * Copyright (c) 2018-2023 CESNET, z. s. p. o.
+ * Copyright (c) 2018-2026 CESNET, zájmové sdružení právnických osob
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -48,12 +48,13 @@
 
 struct display;
 
-class loopback_video_rxtx : public video_rxtx {
+class loopback_video_rxtx : public video_rxtx_i {
 public:
         loopback_video_rxtx(std::map<std::string, param_u> const &);
         virtual ~loopback_video_rxtx();
 
 private:
+        struct module *m_parent;
         static void *receiver_thread(void *arg);
         virtual void send_frame(std::shared_ptr<video_frame>) noexcept override;
         void *receiver_loop();
@@ -64,6 +65,9 @@ private:
         std::queue<std::shared_ptr<video_frame>> m_frames;
         std::condition_variable m_frame_ready;
         std::mutex m_lock;
+
+        bool m_should_exit = false;
+        static void should_exit(void *state);
 };
 
 #endif // !defined VIDEO_RXTX_LOOPBACK_HPP

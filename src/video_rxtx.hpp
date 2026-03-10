@@ -73,7 +73,29 @@ union param_u {
 
 struct video_rxtx_info {
         const char *long_name;
-        struct video_rxtx *(*create)(std::map<std::string, param_u> const &params);
+        struct video_rxtx_i *(*create)(std::map<std::string, param_u> const &params);
+};
+
+struct video_rxtx_i {
+public:
+        virtual ~video_rxtx_i() {}
+        virtual void join() {}
+
+        virtual void
+        set_audio_spec([[maybe_unused]] const struct audio_desc *desc,
+                       [[maybe_unused]] int                      audio_rx_port,
+                       [[maybe_unused]] int                      audio_tx_port,
+                       [[maybe_unused]] bool                     ipv6)
+        {
+        }
+
+private:
+        virtual void send_frame(std::shared_ptr<video_frame>) noexcept = 0;
+        virtual void *(*get_receiver_thread() noexcept)(void *arg) = 0;
+        virtual struct response *process_sender_message(struct msg_sender *) {
+                return nullptr;
+        }
+        friend struct video_rxtx;
 };
 
 struct video_rxtx {
@@ -83,10 +105,10 @@ public:
         static const char *get_long_name(std::string const & short_name);
         static void *receiver_thread(void *arg) {
                 video_rxtx *rxtx = static_cast<video_rxtx *>(arg);
-                return rxtx->get_receiver_thread()(arg);
+                return rxtx->m_impl->get_receiver_thread()(rxtx->m_impl);
         }
         bool supports_receiving() {
-                return get_receiver_thread() != NULL;
+                return m_impl->get_receiver_thread() != NULL;
         }
         /**
          * If overridden, children must call also video_rxtx::join()
@@ -98,26 +120,19 @@ public:
                                     int audio_rx_port, int audio_tx_port,
                                     bool ipv6);
         std::string m_port_id;
+        struct video_rxtx_i* m_impl;
 protected:
         video_rxtx(std::map<std::string, param_u> const &);
         void check_sender_messages();
         struct module m_sender_mod;
         struct module m_receiver_mod;
-        int m_rxtx_mode;
         unsigned long long int m_frames_sent;
         struct common_opts m_common;
-        bool m_should_exit = false;
 
 private:
         void start();
-        virtual void send_frame(std::shared_ptr<video_frame>) noexcept = 0;
-        virtual void *(*get_receiver_thread() noexcept)(void *arg) = 0;
         static void *sender_thread(void *args);
         void *sender_loop();
-        virtual struct response *process_sender_message(struct msg_sender *) {
-                return NULL;
-        }
-        static void should_exit(void *state);
 
         struct compress_state *m_compression = nullptr;
         pthread_mutex_t m_lock;

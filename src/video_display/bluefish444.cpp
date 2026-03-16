@@ -42,12 +42,13 @@
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
-#include "config_unix.h"
-#include "config_win32.h"
 #endif
 
 #include "video_display.h"
 
+#include <cassert>
+#include <cstdint>
+#include <cstdio>
 #include <iomanip>
 #include <iostream>
 #include <queue>

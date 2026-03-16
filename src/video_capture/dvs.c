@@ -50,12 +50,13 @@
  */
 
 #include <stdbool.h>
+#include <stdio.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <pthread.h>
+
 
 #include "host.h"
-#include "config.h"
-#include "config_unix.h"
-#include "config_win32.h"
-
 #include "audio/types.h"
 #include "audio/utils.h"
 #include "debug.h"
@@ -65,6 +66,7 @@
 #include "video_display.h"
 #include "video_display/dvs.h"
 #include "tv.h"
+#include "types.h"
 #include "dvs_clib.h"           /* From the DVS SDK */
 #include "dvs_fifo.h"           /* From the DVS SDK */
 

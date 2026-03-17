@@ -35,16 +35,11 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#include "config_unix.h"
-#include "config_win32.h"
-#endif // HAVE_CONFIG_H
-
-#include "cuda_dxt/cuda_dxt.h"
-
+#include <cassert>
+#include <cstdlib>
 #include <pthread.h>
-#include <stdlib.h>
+
+#include "../cuda_dxt/cuda_dxt.h"
 
 #include "libgpujpeg/gpujpeg_decoder.h"
 #include "libgpujpeg/gpujpeg_version.h"

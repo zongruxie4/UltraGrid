@@ -37,9 +37,7 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "config.h"
-#include "config_unix.h"
-#include "config_win32.h"
+#include <cassert>
 #include "host.h"
 
 #include "debug.h"
@@ -53,6 +51,7 @@
 #include "audio/utils.h"
 #include "utils/ring_buffer.h"
 #include "video.h"
+#include "compat/usleep.h"
 
 #ifdef __APPLE__
 #include "utils/autorelease_pool.h"

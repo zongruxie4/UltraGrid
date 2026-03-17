@@ -5,7 +5,7 @@
  * @author Martin Pulec     <pulec@cesnet.cz>
  */
 /*
- * Copyright (c) 2010-2025 CESNET
+ * Copyright (c) 2010-2026 CESNET, zájmové sdružení právnických osob
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -74,6 +74,7 @@ extern "C" void NSApplicationLoad();
 #define FOURCC_YUYV 0x32595559
 
 #define MAX_BUFFER_SIZE 1
+#define MOD_NAME "[SDL] "
 
 using namespace std;
 
@@ -82,7 +83,6 @@ using namespace std;
 struct state_sdl {
         uint32_t                magic;
 
-        struct timeval          tv;
         int                     frames;
 
         SDL_Overlay  *          yuv_image;
@@ -125,7 +125,6 @@ struct state_sdl {
 #endif
                       sdl_flags_win(0), sdl_flags_fs(0)
         {
-                gettimeofday(&tv, NULL);
                 module_init_default(&mod);
                 mod.cls = MODULE_CLASS_DATA;
                 module_register(&mod, parent);
@@ -217,8 +216,6 @@ static bool update_size(struct state_sdl *s, int win_w, int win_h)
 
 static void display_frame(struct state_sdl *s, struct video_frame *frame)
 {
-        struct timeval tv;
-
         if (s->deinterlace) {
                 vc_deinterlace((unsigned char *) frame->tiles[0].data,
                                 vc_get_linesize(frame->tiles[0].width,
@@ -285,17 +282,6 @@ free_frame:
         s->lock.lock();
         s->free_frame_queue.push(frame);
         s->lock.unlock();
-
-        s->frames++;
-        gettimeofday(&tv, NULL);
-        double seconds = tv_diff(tv, s->tv);
-        if (seconds > 5) {
-                double fps = s->frames / seconds;
-                log_msg(LOG_LEVEL_INFO, "[SDL] %d frames in %g seconds = %g FPS\n",
-                                s->frames, seconds, fps);
-                s->tv = tv;
-                s->frames = 0;
-        }
 }
 
 static void display_sdl_run(void *arg)
@@ -784,7 +770,7 @@ static const struct video_display_info display_sdl_info = {
         display_sdl_get_property,
         display_sdl_put_audio_frame,
         display_sdl_reconfigure_audio,
-        DISPLAY_NO_GENERIC_FPS_INDICATOR,
+        MOD_NAME,
 };
 
 REGISTER_MODULE(sdl, &display_sdl_info, LIBRARY_CLASS_VIDEO_DISPLAY, VIDEO_DISPLAY_ABI_VERSION);

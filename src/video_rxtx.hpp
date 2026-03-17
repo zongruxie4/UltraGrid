@@ -56,24 +56,47 @@ struct video_compress;
 struct exporter;
 struct video_frame;
 
-/**
- * @todo
- * get rid of this altogether and pass 2 structs (common + video_rxtx opts)
- */
-union param_u {
-        void          *ptr;
-        const void    *cptr;
-        volatile void *vptr;
-        const char    *str;
-        int            i;
-        long           l;
-        long long      ll;
-        bool           b;
+struct vrxtx_params {
+        const char           *compression;
+        unsigned int          rxtx_mode;
+        struct display       *display_device; // iHDTV, UG RTP
+        struct vidcap        *capture_device; // iHDTV
+        const char           *receiver;
+        int                   rx_port;
+        int                   tx_port;
+        const char           *fec;
+        long long             bitrate;
+        enum video_mode       decoder_mode;
+        const char           *protocol_opts;
+        long long             start_time;
+        long                  av_type;       // RTSP
+        struct module        *sender_mod;
+        struct module        *receiver_mod;
 };
+
+#define VRXTX_INIT \
+        { \
+                .compression    = nullptr, \
+                .rxtx_mode      = 0, \
+                .display_device = nullptr, \
+                .capture_device = nullptr, \
+                .receiver       = nullptr, \
+                .rx_port        = -1, \
+                .tx_port        = -1, \
+                .fec            = "none", \
+                .bitrate        = RATE_DEFAULT, \
+                .decoder_mode   = VIDEO_NORMAL, \
+                .protocol_opts  = "", \
+                .start_time     = 0, \
+                .av_type        = 0, \
+                .sender_mod     = nullptr, \
+                .receiver_mod   = nullptr, \
+        }
 
 struct video_rxtx_info {
         const char *long_name;
-        struct video_rxtx_i *(*create)(std::map<std::string, param_u> const &params);
+        struct video_rxtx_i *(*create)(const struct vrxtx_params *params,
+                                       const struct common_opts  *common);
 };
 
 struct video_rxtx_i {
@@ -114,7 +137,9 @@ public:
          * If overridden, children must call also video_rxtx::join()
          */
         virtual void join();
-        static video_rxtx *create(std::string const & name, std::map<std::string, param_u> const &);
+        static video_rxtx   *create(std::string const         &name,
+                                    const struct vrxtx_params *params,
+                                    const struct common_opts  *opts);
         static void list(bool full);
         virtual void set_audio_spec(const struct audio_desc *desc,
                                     int audio_rx_port, int audio_tx_port,
@@ -122,12 +147,13 @@ public:
         std::string m_port_id;
         struct video_rxtx_i* m_impl;
 protected:
-        video_rxtx(std::map<std::string, param_u> const &);
+        video_rxtx(const struct vrxtx_params *params,
+                   const struct common_opts *opts);
         void check_sender_messages();
         struct module m_sender_mod;
         struct module m_receiver_mod;
         unsigned long long int m_frames_sent;
-        struct common_opts m_common;
+        struct exporter *m_exporter;
 
 private:
         void start();

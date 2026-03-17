@@ -59,10 +59,10 @@ using std::unique_lock;
 static const int BUFF_MAX_LEN = 2;
 static const char *MODULE_NAME = "[loopback] ";
 
-loopback_video_rxtx::loopback_video_rxtx(std::map<std::string, param_u> const &params)
+loopback_video_rxtx::loopback_video_rxtx(const struct vrxtx_params *params,
+                                         const struct common_opts  *common)
+    : m_parent(common->parent), m_display_device(params->display_device)
 {
-        m_display_device = static_cast<struct display *>(params.at("display_device").ptr);
-        m_parent = static_cast<struct common_opts const *>(params.at("common").cptr)->parent;
 }
 
 loopback_video_rxtx::~loopback_video_rxtx()
@@ -132,9 +132,11 @@ void *(*loopback_video_rxtx::get_receiver_thread() noexcept)(void *arg)
         return receiver_thread;
 }
 
-static video_rxtx_i *create_video_rxtx_loopback(std::map<std::string, param_u> const &params)
+static video_rxtx_i *
+create_video_rxtx_loopback(const struct vrxtx_params *params,
+                           const struct common_opts  *common)
 {
-        return new loopback_video_rxtx(params);
+        return new loopback_video_rxtx(params, common);
 }
 
 static const struct video_rxtx_info loopback_video_rxtx_info = {

@@ -67,7 +67,8 @@ struct display;
 
 class ihdtv_video_rxtx: public video_rxtx_i {
 public:
-        ihdtv_video_rxtx(std::map<std::string, param_u> const &);
+        ihdtv_video_rxtx(const struct vrxtx_params *params,
+                         const struct common_opts  *common);
         ~ihdtv_video_rxtx();
 private:
         void send_frame(std::shared_ptr<video_frame>) noexcept override;

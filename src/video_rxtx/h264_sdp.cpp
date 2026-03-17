@@ -70,13 +70,15 @@ using std::exception;
 using std::shared_ptr;
 using std::string;
 
-h264_sdp_video_rxtx::h264_sdp_video_rxtx(std::map<std::string, param_u> const &params)
-        : rtp_video_rxtx(params)
+h264_sdp_video_rxtx::h264_sdp_video_rxtx(const struct vrxtx_params *params,
+                                         const struct common_opts  *common)
+        : rtp_video_rxtx(params, common),
+        m_parent(common->parent)
 {
-        auto opts = params.at("opts").str;
+        auto opts = params->protocol_opts;
         LOG(LOG_LEVEL_WARNING) << "Warning: SDP support is experimental only. Things may be broken - feel free to report them but the support may be limited.\n";
         m_saved_addr = m_requested_receiver;
-        m_saved_tx_port = params.at("tx_port").i;
+        m_saved_tx_port = params->tx_port;
         if (int ret = sdp_set_options(opts)) {
                 throw ret == 1 ? 0 : 1;
         }
@@ -92,7 +94,7 @@ void h264_sdp_video_rxtx::change_address_callback(void *udata, const char *addre
 
         constexpr enum module_class path_sender[] = { MODULE_CLASS_SENDER,
                                                       MODULE_CLASS_NONE };
-        sdp_send_change_address_message(get_root_module(s->m_common.parent),
+        sdp_send_change_address_message(get_root_module(s->m_parent),
                                         path_sender, address);
 }
 
@@ -122,7 +124,7 @@ h264_sdp_video_rxtx::send_frame(shared_ptr<video_frame> tx_frame) noexcept
 		if (m_sent_compress_change) {
 			return;
 		}
-		send_compess_change(m_common.parent, DEFAULT_SDP_COMPRESSION);
+		send_compess_change(m_parent, DEFAULT_SDP_COMPRESSION);
 		m_sent_compress_change = true;
 		return;
         }
@@ -179,14 +181,16 @@ h264_sdp_video_rxtx::set_audio_spec(const struct audio_desc *desc,
                           desc->sample_rate,
                           desc->ch_count, desc->codec,
                           sdp_change_address_callback,
-                          get_root_module(m_common.parent)) != 0) {
+                          get_root_module(m_parent)) != 0) {
                 MSG(ERROR, "Cannot add audio to SDP!\n");
         }
 }
 
-static video_rxtx_i *create_video_rxtx_h264_sdp(std::map<std::string, param_u> const &params)
+static video_rxtx_i *
+create_video_rxtx_h264_sdp(const struct vrxtx_params *params,
+                           const struct common_opts  *common)
 {
-        return new h264_sdp_video_rxtx(params);
+        return new h264_sdp_video_rxtx(params, common);
 }
 
 static const struct video_rxtx_info h264_sdp_video_rxtx_info = {

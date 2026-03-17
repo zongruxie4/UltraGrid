@@ -58,12 +58,11 @@ typedef SSIZE_T ssize_t;
 
 #include "types.h"             // for video_frame (ptr only), video_mode
 
-union param_u;
-
 class ultragrid_rtp_video_rxtx : public rtp_video_rxtx {
 public:
         const uint32_t magic;
-        ultragrid_rtp_video_rxtx(std::map<std::string, param_u> const &);
+        ultragrid_rtp_video_rxtx(const struct vrxtx_params *params,
+                                 const struct common_opts  *common);
         virtual ~ultragrid_rtp_video_rxtx();
         void join() override;
         uint32_t get_ssrc();
@@ -93,14 +92,17 @@ private:
         /**
          * This variables serve as a notification when asynchronous sending exits
          * @{ */
-        bool             m_async_sending;
+        bool             m_async_sending = false;
         std::condition_variable m_async_sending_cv;
         std::mutex       m_async_sending_lock;
         /// @}
 
         long long int m_send_bytes_total;
         struct control_state *m_control;
+        struct module *m_parent;
+        std::string m_encryption;
 
+        time_ns_t m_start_time;
         long long int m_nano_per_frame_actual_cumul = 0;
         long long int m_nano_per_frame_expected_cumul = 0;
         long long int m_compress_millis_cumul = 0;

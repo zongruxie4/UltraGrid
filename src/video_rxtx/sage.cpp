@@ -47,17 +47,19 @@
 
 using namespace std;
 
-sage_video_rxtx::sage_video_rxtx(map<string, param_u> const &params)
+sage_video_rxtx::sage_video_rxtx(
+    const struct vrxtx_params                 *params,
+    [[maybe_unused]] const struct common_opts *common)
 {
         ostringstream oss;
 
-        auto *m_sender_mod = (struct module*) params.at("sender_mod").ptr;
+        auto *m_sender_mod = params->sender_mod;
 
-        if (params.at("opts").str) {
-                oss << params.at("opts").str << ":";
+        if (strlen(params->protocol_opts) > 0) {
+                oss << params->protocol_opts << ":";
         }
 
-        oss << "fs=" << params.at("receiver").str;
+        oss << "fs=" << params->receiver;
         oss << ":tx"; // indicates that we are in tx mode
         int ret = initialize_video_display(m_sender_mod, "sage",
                         oss.str().c_str(), 0, NULL, &m_sage_tx_device);
@@ -93,9 +95,11 @@ sage_video_rxtx::~sage_video_rxtx()
         display_done(m_sage_tx_device);
 }
 
-static video_rxtx_i *create_video_rxtx_sage(std::map<std::string, param_u> const &params)
+static video_rxtx_i *
+create_video_rxtx_sage(const struct vrxtx_params *params,
+                       const struct common_opts  *common)
 {
-        return new sage_video_rxtx(params);
+        return new sage_video_rxtx(params, common);
 }
 
 static const struct video_rxtx_info sage_video_rxtx_info = {

@@ -58,7 +58,7 @@
 #include "video.h"
 #include "video_display.h"
 #include "video_display/pipe.hpp"
-#include "video_rxtx.hpp"                         // for param_u, video_rxtx
+#include "video_rxtx.hpp"                         // for video_rxtx, vrxtx_pa...
 #include "video_rxtx/ultragrid_rtp.hpp"
 
 #include "utils/profile_timer.hpp"
@@ -205,31 +205,27 @@ void *hd_rum_decompress_init(struct module *parent, struct hd_rum_output_conf co
 
         assert(ret == 0 && "Unable to initialize auxiliary display");
 
-        map<string, param_u> params;
+        struct vrxtx_params params = VRXTX_INIT;
 
         // common
         s->common.parent = parent;
-        params["exporter"].ptr = nullptr;
-        params["compression"].str = "none";
-        params["rxtx_mode"].i = MODE_RECEIVER;
+        params.compression = "none";
+        params.rxtx_mode = MODE_RECEIVER;
 
         //RTP
         // should be localhost and RX TX ports the same (here dynamic) in order to work like a pipe
-        params["receiver"].str = "localhost";
-        params["rx_port"].i = 0;
-        params["tx_port"].i = 0;
-        params["common"].ptr = &s->common;
-        params["fec"].str = "none";
-        params["bitrate"].ll = 0;
-        params["video_delay"].vptr = nullptr;
+        params.receiver = "localhost";
+        params.rx_port = 0;
+        params.tx_port = 0;
+        // params["video_delay"].vptr = nullptr;
 
         // UltraGrid RTP
-        params["decoder_mode"].l = VIDEO_NORMAL;
-        params["display_device"].ptr = s->display;
+        params.decoder_mode = VIDEO_NORMAL;
+        params.display_device = s->display;
 
         try {
-                s->video_rxtx = video_rxtx::create("ultragrid_rtp", params);
-                assert (s->video_rxtx);
+                s->video_rxtx =  video_rxtx::create("ultragrid_rtp", &params, &s->common);
+                assert(s->video_rxtx);
 
                 s->worker_thread = thread(&state_transcoder_decompress::worker, s);
                 s->receiver_thread = thread(&video_rxtx::receiver_thread, s->video_rxtx);

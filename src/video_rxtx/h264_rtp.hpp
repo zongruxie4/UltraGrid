@@ -7,7 +7,7 @@
  */
 /*
  * Copyright (c) 2013-2014 Fundació i2CAT, Internet I Innovació Digital a Catalunya
- * Copyright (c) 2013-2023 CESNET, z. s. p. o.
+ * Copyright (c) 2013-2026 CESNET, zájmové sdružení právnických osob
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,19 +43,18 @@
 #define VIDEO_RXTX_H264_RTP_H_
 
 #include <atomic>                        // for atomic_bool
-#include <map>                           // for map
 #include <memory>                        // for shared_ptr
-#include <string>                        // for string
 
 #include "rtsp/c_basicRTSPOnlyServer.h"
 #include "video_rxtx/rtp.hpp"
+#include "tv.h"                          // for m_start_time
 
-union param_u;
 struct video_frame;
 
 class h264_rtp_video_rxtx : public rtp_video_rxtx {
 public:
-        h264_rtp_video_rxtx(std::map<std::string, param_u> const &, int);
+        h264_rtp_video_rxtx(const struct vrxtx_params *params,
+                            const struct common_opts  *common, int rtsp_port);
         virtual ~h264_rtp_video_rxtx();
         void join() override;
         void set_audio_spec(const struct audio_desc *desc, int audio_rx_port,
@@ -74,6 +73,8 @@ private:
                             struct rtp *rtp_session) = nullptr;
 
         bool m_sent_compress_change = false;
+        struct module *m_parent;
+        time_ns_t      m_start_time;
 };
 
 #endif // VIDEO_RXTX_H264_RTP_H_

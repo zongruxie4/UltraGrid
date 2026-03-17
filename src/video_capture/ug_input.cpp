@@ -165,29 +165,27 @@ static int vidcap_ug_input_init(const struct vidcap_params *cap_params, void **s
         int ret = initialize_video_display(vidcap_params_get_parent(cap_params), "pipe", cfg, 0, NULL, &s->display);
         assert(ret == 0 && "Unable to initialize proxy display");
 
-        map<string, param_u> params;
+        struct vrxtx_params params = VRXTX_INIT;
 
         // common
         s->common.parent = vidcap_params_get_parent(cap_params);
-        params["exporter"].ptr = NULL;
-        params["compression"].str = "none";
-        params["rxtx_mode"].i = MODE_RECEIVER;
+        params.compression = "none";
+        params.rxtx_mode = MODE_RECEIVER;
 
         //RTP
-        params["common"].ptr = &s->common;
         // should be localhost and RX TX ports the same (here dynamic) in order to work like a pipe
-        params["receiver"].str = "localhost";
-        params["rx_port"].i = port;
-        params["tx_port"].i = 0;
-        params["fec"].str = "none";
-        params["bitrate"].ll = 0;
-
+        params.receiver = "localhost";
+        // following 3 already set by VRTX_INIT
+        // params["fec"].str = "none";
+        // params["bitrate"].ll = 0;
         // UltraGrid RTP
-        params["decoder_mode"].l = VIDEO_NORMAL;
-        params["display_device"].ptr = s->display;
+        // params["decoder_mode"].l = VIDEO_NORMAL;
+        params.display_device = s->display;
 
-        s->video_rxtx = unique_ptr<ultragrid_rtp_video_rxtx>(dynamic_cast<ultragrid_rtp_video_rxtx *>(video_rxtx::create("ultragrid_rtp", params)));
-        assert (s->video_rxtx);
+        s->video_rxtx = unique_ptr<ultragrid_rtp_video_rxtx>(
+            dynamic_cast<ultragrid_rtp_video_rxtx *>(
+                video_rxtx::create("ultragrid_rtp", &params, &s->common)));
+        assert(s->video_rxtx);
 
         if (vidcap_params_get_flags(cap_params) & VIDCAP_FLAG_AUDIO_ANY) {
                 struct audio_options opt = {

@@ -111,25 +111,24 @@ recompress_output_port::recompress_output_port(
         frames(0),
         active(true)
 {
-        std::map<std::string, param_u> params;
+        struct vrxtx_params params = VRXTX_INIT;
 
         // common
-        params["compression"].str = "none";
-        params["rxtx_mode"].i = MODE_SENDER;
+        params.compression = "none";
+        params.rxtx_mode = MODE_SENDER;
 
         //RTP
-        params["common"].cptr = common;
-        params["receiver"].str = this->host.c_str();
-        params["rx_port"].i = rx_port;
-        params["tx_port"].i = tx_port;
-        params["fec"].str = fec;
-        params["bitrate"].ll = bitrate;
+        params.receiver = this->host.c_str();
+        params.rx_port = rx_port;
+        params.tx_port = tx_port;
+        params.fec = fec;
+        params.bitrate = bitrate;
 
-        // UltraGrid RTP
-        params["decoder_mode"].l = VIDEO_NORMAL;
-        params["display_device"].ptr = nullptr;
+        // UltraGrid RTP - fllowing already set by VRXTX_INIT
+        // params["decoder_mode"].l = VIDEO_NORMAL;
+        // params["display_device"].ptr = nullptr;
 
-        auto rxtx = video_rxtx::create("ultragrid_rtp", params);
+        auto rxtx = video_rxtx::create("ultragrid_rtp", &params, common);
         if (this->host.find(':') != std::string::npos) {
                 rxtx->m_port_id = "[" + this->host + "]:" + to_string(tx_port);
         } else {

@@ -70,21 +70,22 @@ using std::shared_ptr;
 using std::ostringstream;
 using std::string;
 
-video_rxtx::video_rxtx(map<string, param_u> const &params): m_port_id("default"),
-                m_frames_sent(0ull),
-                m_common(*static_cast<struct common_opts const *>(params.at("common").cptr)),
+video_rxtx::video_rxtx(const struct vrxtx_params *params,
+                       const struct common_opts  *common)
+              : m_port_id("default"), m_frames_sent(0ull),
+                m_exporter(common->exporter),
                 m_thread_id(), m_poisoned(false), m_joined(true) {
 
         module_init_default(&m_sender_mod);
         m_sender_mod.cls = MODULE_CLASS_SENDER;
-        module_register(&m_sender_mod, m_common.parent);
+        module_register(&m_sender_mod, common->parent);
 
         module_init_default(&m_receiver_mod);
         m_receiver_mod.cls = MODULE_CLASS_RECEIVER;
-        module_register(&m_receiver_mod, m_common.parent);
+        module_register(&m_receiver_mod, common->parent);
 
         try {
-                int ret = compress_init(&m_sender_mod, static_cast<const char *>(params.at("compression").ptr),
+                int ret = compress_init(&m_sender_mod, params->compression,
                                 &m_compression);
                 if(ret != 0) {
                         if(ret < 0) {
@@ -206,7 +207,7 @@ void *video_rxtx::sender_loop() {
                 }
 
                 m_video_desc = video_desc_from_frame(tx_frame.get());
-                export_video(m_common.exporter, tx_frame.get());
+                export_video(m_exporter, tx_frame.get());
 
                 m_impl->send_frame(std::move(tx_frame));
                 m_frames_sent += 1;
@@ -216,19 +217,21 @@ void *video_rxtx::sender_loop() {
         return NULL;
 }
 
-video_rxtx *video_rxtx::create(string const & proto, std::map<std::string, param_u> const &params)
+video_rxtx *
+video_rxtx::create(string const &proto, const struct vrxtx_params *params,
+                   const struct common_opts *common)
 {
         auto vri = static_cast<const video_rxtx_info *>(load_library(proto.c_str(), LIBRARY_CLASS_VIDEO_RXTX, VIDEO_RXTX_ABI_VERSION));
         if (!vri) {
                 return nullptr;
         }
 
-        auto *ret = new video_rxtx(params);
+        auto *ret = new video_rxtx(params, common);
 
-        auto params_c = params;
-        params_c["sender_mod"].ptr = &ret->m_sender_mod;
-        params_c["receiver_mod"].ptr = &ret->m_receiver_mod;
-        ret->m_impl= vri->create(params_c);
+        auto params_c = *params;
+        params_c.sender_mod  = &ret->m_sender_mod;
+        params_c.receiver_mod  = &ret->m_receiver_mod;
+        ret->m_impl= vri->create(&params_c, common);
         if (ret->m_impl == nullptr) {
                 delete ret;
                 return nullptr;

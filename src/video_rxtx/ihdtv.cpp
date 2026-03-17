@@ -51,8 +51,6 @@
  *
  */
 
-#include "config.h"
-
 #include <string>
 
 #include "debug.h"
@@ -118,7 +116,8 @@ static void *ihdtv_sender_thread(void *arg)
 }
 #endif
 
-ihdtv_video_rxtx::ihdtv_video_rxtx(map<string, param_u> const &/* params */)
+ihdtv_video_rxtx::ihdtv_video_rxtx([[maybe_unused]] const struct vrxtx_params *params,
+                                   [[maybe_unused]] const struct common_opts  *common)
 #ifdef HAVE_IHDTV
         , m_tx_connection(), m_rx_connection()
 #endif
@@ -172,12 +171,12 @@ ihdtv_video_rxtx::~ihdtv_video_rxtx()
 {
 }
 
-static video_rxtx_i *create_video_rxtx_ihdtv(std::map<std::string, param_u> const &params)
+static video_rxtx_i *create_video_rxtx_ihdtv(const struct vrxtx_params *params,
+                            const struct common_opts  *common)
 {
-        log_msg(LOG_LEVEL_WARNING, "Warning: iHDTV support may be currently broken.\n"
-                        "Please contact %s if you need this.\n", PACKAGE_BUGREPORT);
-
-        return new ihdtv_video_rxtx(params);
+        bug_msg(LOG_LEVEL_WARNING,
+                "Warning: iHDTV support may be currently broken");
+        return new ihdtv_video_rxtx(params, common);
 }
 
 static const struct video_rxtx_info ihdtv_video_rxtx_info = {

@@ -60,7 +60,8 @@ class rtp_video_rxtx : public video_rxtx_i {
         friend struct video_rxtx;
 public:
         const uint32_t magic = to_fourcc('V', 'X', 'r', ' ');
-        rtp_video_rxtx(std::map<std::string, param_u> const &params);
+        rtp_video_rxtx(const struct vrxtx_params *params,
+                       const struct common_opts  *common);
         virtual ~rtp_video_rxtx();
 
         static struct rtp *initialize_network(const char *addrs, int recv_port_base,
@@ -71,7 +72,9 @@ public:
 
 protected:
         struct rtp *m_network_device; // ULTRAGRID_RTP
-        struct common_opts m_common;
+        int         m_force_ip_version;
+        std::string m_mcast_if;
+        int         m_ttl;
         std::mutex m_network_devices_lock;
         struct tx *m_tx;
         struct pdb *m_participants;

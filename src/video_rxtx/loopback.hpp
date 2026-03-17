@@ -50,7 +50,8 @@ struct display;
 
 class loopback_video_rxtx : public video_rxtx_i {
 public:
-        loopback_video_rxtx(std::map<std::string, param_u> const &);
+        loopback_video_rxtx(const struct vrxtx_params *params,
+                            const struct common_opts  *common);
         virtual ~loopback_video_rxtx();
 
 private:

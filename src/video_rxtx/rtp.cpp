@@ -85,8 +85,8 @@ rtp_video_rxtx::process_sender_message(struct msg_sender *msg)
                 m_network_device               = initialize_network(
                     m_requested_receiver.c_str(), m_recv_port_number,
                     m_send_port_number, m_participants,
-                    m_common.force_ip_version,
-                    m_common.mcast_if, m_common.ttl);
+                    m_force_ip_version,
+                    m_mcast_if.c_str(), m_ttl);
                 if (m_network_device == nullptr) {
                         m_network_device     = old_device;
                         m_requested_receiver = std::move(old_receiver);
@@ -110,8 +110,8 @@ rtp_video_rxtx::process_sender_message(struct msg_sender *msg)
                 m_network_device = initialize_network(
                     m_requested_receiver.c_str(), m_recv_port_number,
                     m_send_port_number, m_participants,
-                    m_common.force_ip_version,
-                    m_common.mcast_if, m_common.ttl);
+                    m_force_ip_version,
+                    m_mcast_if.c_str(), m_ttl);
 
                 if (m_network_device == nullptr) {
                         m_network_device   = old_device;
@@ -159,8 +159,8 @@ rtp_video_rxtx::process_sender_message(struct msg_sender *msg)
                 m_network_device             = initialize_network(
                     m_requested_receiver.c_str(), m_recv_port_number,
                     m_send_port_number, m_participants,
-                    m_common.force_ip_version,
-                    m_common.mcast_if, m_common.ttl);
+                    m_force_ip_version,
+                    m_mcast_if.c_str(), m_ttl);
                 if (m_network_device == nullptr) {
                         m_network_device = old_device;
                         MSG(ERROR, "Unable to change SSRC!\n");
@@ -186,31 +186,31 @@ rtp_video_rxtx::process_sender_message(struct msg_sender *msg)
         return new_response(RESPONSE_OK, nullptr);
 }
 
-rtp_video_rxtx::rtp_video_rxtx(map<string, param_u> const &params) :
-        m_common(*static_cast<struct common_opts const *>(params.at("common").cptr)),
+rtp_video_rxtx::rtp_video_rxtx(const struct vrxtx_params *params,
+                               const struct common_opts  *common) :
+        m_force_ip_version(common->force_ip_version),
+        m_mcast_if(common->mcast_if),
+        m_ttl(common->ttl),
+        m_requested_receiver(params->receiver),
+        m_recv_port_number(params->rx_port),
+        m_send_port_number(params->tx_port),
         m_fec_state(NULL),
-        m_rxtx_mode(params.at("rxtx_mode").i)
+        m_rxtx_mode(params->rxtx_mode)
 {
         m_participants = pdb_init("video", &video_offset);
-        m_requested_receiver = params.at("receiver").str;
-        m_recv_port_number = params.at("rx_port").i;
-        m_send_port_number = params.at("tx_port").i;
 
         m_network_device = initialize_network(
             m_requested_receiver.c_str(), m_recv_port_number,
-            m_send_port_number, m_participants, m_common.force_ip_version,
-            m_common.mcast_if, m_common.ttl);
+            m_send_port_number, m_participants, common->force_ip_version,
+            common->mcast_if, common->ttl);
         if (m_network_device == nullptr) {
                 throw ug_runtime_error("Unable to open network",
                                        EXIT_FAIL_NETWORK);
         }
 
-        if ((m_tx = tx_init((struct module *) params.at("sender_mod").ptr,
-                                        m_common.mtu,
-                                        TX_MEDIA_VIDEO,
-                                        params.at("fec").str,
-                                        m_common.encryption,
-                                        params.at("bitrate").ll)) == NULL) {
+        m_tx = tx_init(params->sender_mod, common->mtu, TX_MEDIA_VIDEO,
+                       params->fec, common->encryption, params->bitrate);
+        if (m_tx == nullptr) {
                 throw ug_runtime_error("Unable to initialize transmitter", EXIT_FAIL_TRANSMIT);
         }
 }

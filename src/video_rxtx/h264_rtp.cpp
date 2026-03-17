@@ -67,14 +67,16 @@ constexpr char DEFAULT_RTSP_COMPRESSION[] = "lavc:enc=libx264:safe";
 
 using std::shared_ptr;
 
-h264_rtp_video_rxtx::h264_rtp_video_rxtx(std::map<std::string, param_u> const &params,
-                int rtsp_port) :
-        rtp_video_rxtx(params)
+h264_rtp_video_rxtx::h264_rtp_video_rxtx(const struct vrxtx_params *params,
+                            const struct common_opts *common, int rtsp_port) :
+        rtp_video_rxtx(params, common),
+        m_parent(common->parent),
+        m_start_time(common->start_time)
 {
         rtsp_params.rtsp_port = (unsigned) rtsp_port;
-        rtsp_params.parent = m_common.parent;;
-        rtsp_params.avType = static_cast<rtsp_types_t>(params.at("avType").l);
-        rtsp_params.rtp_port_video = params.at("rx_port").i;  //server rtp port
+        rtsp_params.parent = common->parent;
+        rtsp_params.avType = (rtsp_types_t) params->av_type;
+        rtsp_params.rtp_port_video = params->rx_port;  //server rtp port
 }
 
 /**
@@ -120,7 +122,7 @@ h264_rtp_video_rxtx::send_frame(shared_ptr<video_frame> tx_frame) noexcept
         // requestt compress reconfiguration if receivng raw data
         if (!is_codec_opaque(tx_frame->color_spec)) {
                 if (!m_sent_compress_change) {
-                        send_compess_change(m_common.parent,
+                        send_compess_change(m_parent,
                                             DEFAULT_RTSP_COMPRESSION);
                         m_sent_compress_change = true;
                 }
@@ -144,7 +146,7 @@ h264_rtp_video_rxtx::send_frame(shared_ptr<video_frame> tx_frame) noexcept
 
         if ((m_rxtx_mode & MODE_RECEIVER) == 0) { // send RTCP (receiver thread would otherwise do this
                 time_ns_t curr_time = get_time_in_ns();
-                uint32_t ts = (curr_time - m_common.start_time) / 100'000 * 9; // at 90000 Hz
+                uint32_t ts = (curr_time - m_start_time) / 100'000 * 9; // at 90000 Hz
                 rtp_update(m_network_device, curr_time);
                 rtp_send_ctrl(m_network_device, ts, nullptr, curr_time);
 
@@ -212,10 +214,11 @@ static int get_rtsp_server_port(const char *config) {
         return port;
 }
 
-static video_rxtx_i *create_video_rxtx_h264_std(std::map<std::string, param_u> const &params)
+static video_rxtx_i *create_video_rxtx_h264_std(const struct vrxtx_params *params,
+                            const struct common_opts *common)
 {
         int rtsp_port;
-        const char *rtsp_port_str = static_cast<const char *>(params.at("opts").ptr);
+        const char *rtsp_port_str = params->protocol_opts;
         if (strlen(rtsp_port_str) == 0) {
                 rtsp_port = 0;
         } else {
@@ -228,7 +231,7 @@ static video_rxtx_i *create_video_rxtx_h264_std(std::map<std::string, param_u> c
                         return nullptr;
                 }
         }
-        return new h264_rtp_video_rxtx(params, rtsp_port);
+        return new h264_rtp_video_rxtx(params, common, rtsp_port);
 }
 
 static const struct video_rxtx_info h264_video_rxtx_info = {

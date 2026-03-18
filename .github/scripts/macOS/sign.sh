@@ -8,7 +8,8 @@
 ## Environment variables:
 ## - **KEY_CHAIN**              - keychain containing the CESNET signing key
 ## - **KEY_CHAIN_PASS**         - password to the above keychain
-## - **notarytool_credentials** - developer credentials to be used with notarytool (in format user:password:team_id)
+## - **notarytool_credentials** - developer credentials to be used with
+##        notarytool (in format user:password:team_id), pw must be app passwd
 ##
 ## KEY_CHAIN and KEY_CHAIN_PASS are set by .github/scripts/environment.sh
 ## if apple_key_p12_b64 GH environment workflow is defined.

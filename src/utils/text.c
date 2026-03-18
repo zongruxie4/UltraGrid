@@ -3,7 +3,7 @@
  * @author Martin Pulec     <pulec@cesnet.cz>
  */
 /*
- * Copyright (c) 2014-2025 CESNET, zájmové sdružení právnických osob
+ * Copyright (c) 2014-2026 CESNET, zájmové sdružení právnických osob
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -52,45 +52,30 @@
 #include "utils/macros.h"    // for snprintf_ch
 #include "utils/pam.h"
 
-int urlencode_html5_eval(int c)
-{
-        return isalnum(c) || c == '*' || c == '-' || c == '.' || c == '_';
-}
-
-int urlencode_rfc3986_eval(int c)
+static bool
+urlencode_is_rfc3986_unreserved(int c)
 {
         return isalnum(c) || c == '~' || c == '-' || c == '.' || c == '_';
 }
 
 /**
- * Replaces all occurrences where eval() evaluates to true with %-encoding
+ * Replaces all characters that are not unreserved in RFC 3986 with percent
+ * encoding.
+ *
  * @param in        input
  * @param out       output array
  * @param max_len   maximal length to be written (including terminating NUL)
- * @param eval_pass predictor if an input character should be kept (functions
- *                  from ctype.h may be used)
- * @param space_plus_replace replace spaces (' ') with ASCII plus sign -
- *                  should be true for HTML5 URL encoding, false for RFC 3986
  * @returns bytes written to out
  *
- * @note
- * Symbol ' ' is not treated specially (unlike in classic URL encoding which
- * translates it to '+'.
- * @todo
- * There may be a LUT as in https://rosettacode.org/wiki/URL_encoding#C
  */
-size_t urlencode(char *out, size_t max_len, const char *in, int (*eval_pass)(int c),
-                bool space_plus_replace)
+size_t urlencode(char *out, size_t max_len, const char *in)
 {
         if (max_len == 0 || max_len >= INT_MAX) { // prevent overflow
                 return 0;
         }
         size_t len = 0;
         while (*in && len < max_len - 1) {
-                if (*in == ' ' && space_plus_replace) {
-                        *out++ = '+';
-                        in++;
-                } else if (eval_pass(*in) != 0) {
+                if (urlencode_is_rfc3986_unreserved(*in)) {
                         *out++ = *in++;
                         len++;
                 } else {

@@ -323,7 +323,7 @@ static void vidcap_spout_probe(device_info **available_cards, int *count, void (
                         snprintf(card.dev, sizeof card.dev, ":name=urlencoded=");
                         urlencode(card.dev + strlen(card.dev),
                                         sizeof card.dev - strlen(card.dev),
-                                        name.data(), urlencode_rfc3986_eval, false);
+                                        name.data());
                         snprintf(card.name, sizeof card.name, "Spout %s", name.data());
                 }
                 card.repeatable = true;

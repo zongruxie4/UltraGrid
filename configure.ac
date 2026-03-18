@@ -3439,6 +3439,28 @@ fi
 ENSURE_FEATURE_PRESENT([$cineform_req], [$cineform], [CINEFORM not found])
 
 # ---------------------------------------------------------------------
+# OMT
+# -----------------------------------
+omt=no
+AC_ARG_ENABLE(omt,
+              AS_HELP_STRING([--disable-omt], [disable OMT suppport (default is auto)]
+              [Requires: libomt]),
+              [omt_req=$enableval],
+              [omt_req=$build_default]
+              )
+
+if test $omt_req != no; then
+        AC_CHECK_HEADER(libomt.h, FOUND_LIBOMT_H=yes, FOUND_LIBOMT_H=no)
+        AC_CHECK_LIB(omt, omt_receive_create, FOUND_LIBOMT_LIB=yes, FOUND_LIBOMT_LIB=no)
+fi
+
+if test "${omt_req?}" != no && test "${FOUND_LIBOMT_H?}" && test "${FOUND_LIBOMT_LIB?}" = yes
+then
+        omt=yes
+        add_module rxtx_omt "src/video_rxtx/omt.o" "-lomt"
+fi
+
+# ---------------------------------------------------------------------
 # NAT-PMP
 # -----------------------------------
 natpmp=no
@@ -3703,6 +3725,7 @@ add_column "Library live555" "${livemedia?}"
 add_column "Libbacktrace" "${libbacktrace?}"
 add_column "Manual pages" "${man?}"
 add_column "OpenCV" "${opencv?}"
+add_column "OMT" "${omt?}"
 add_column "Profiling support" "${profile?}"
 add_column "Qt GUI" "${qt_gui?}"
 add_column "RT priority" "${use_rt?}"

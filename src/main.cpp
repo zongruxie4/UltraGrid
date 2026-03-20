@@ -1245,10 +1245,12 @@ static int adjust_params(struct ug_options *opt) {
         }
 
         if (strcmp("none", opt->requested_display) != 0) {
-                opt->video.rxtx_mode |= MODE_RECEIVER;
+                opt->video.rxtx_mode =
+                    (enum rxtx_mode)(opt->video.rxtx_mode | MODE_RECEIVER);
         }
         if (strcmp("none", vidcap_params_get_driver(opt->vidcap_params_head)) != 0) {
-                opt->video.rxtx_mode |= MODE_SENDER;
+                opt->video.rxtx_mode =
+                    (enum rxtx_mode)(opt->video.rxtx_mode | MODE_SENDER);
         }
 
         adjust_ports(opt, audio_rxtx_mode);

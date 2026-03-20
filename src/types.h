@@ -363,6 +363,13 @@ enum video_mode {
         VIDEO_3X1,     ///< 3x1 video
 };
 
+/// bit sum SENDER+RECEIVER for duplex operation
+enum rxtx_mode {
+        RXTX_MODE_NONE = 0,
+        MODE_SENDER    = 1 << 0,
+        MODE_RECEIVER  = 1 << 1,
+};
+
 enum tx_media_type {
         TX_MEDIA_AUDIO,
         TX_MEDIA_VIDEO

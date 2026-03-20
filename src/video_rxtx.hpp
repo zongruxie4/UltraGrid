@@ -60,7 +60,7 @@ struct video_frame;
 
 struct vrxtx_params {
         const char           *compression;    // nullptr selects proto dfl
-        unsigned int          rxtx_mode;
+        enum rxtx_mode        rxtx_mode;
         struct display       *display_device; // only iHDTV, UG RTP
         struct vidcap        *capture_device; // iHDTV only
         const char           *receiver;
@@ -79,7 +79,7 @@ struct vrxtx_params {
 #define VRXTX_INIT \
         { \
                 .compression    = nullptr, \
-                .rxtx_mode      = 0, \
+                .rxtx_mode      = RXTX_MODE_NONE, \
                 .display_device = nullptr, \
                 .capture_device = nullptr, \
                 .receiver       = nullptr, \

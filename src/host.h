@@ -99,9 +99,6 @@ extern unsigned int cuda_devices[];
 extern unsigned int cuda_devices_count;
 extern bool cuda_devices_explicit; ///< --cuda-device/-D specified expilcitly
 
-#define MODE_SENDER   (1U<<0U)
-#define MODE_RECEIVER (1U<<1U)
-
 typedef void (*mainloop_t)(void *);
 /// mainloop to be run if display mainloop isn't run
 extern mainloop_t mainloop;

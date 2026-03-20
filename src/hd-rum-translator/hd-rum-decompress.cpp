@@ -210,7 +210,6 @@ void *hd_rum_decompress_init(struct module *parent, struct hd_rum_output_conf co
 
         // common
         s->common.parent = parent;
-        params.compression = "none";
         params.rxtx_mode = MODE_RECEIVER;
 
         //RTP

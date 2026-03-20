@@ -169,7 +169,6 @@ static int vidcap_ug_input_init(const struct vidcap_params *cap_params, void **s
 
         // common
         s->common.parent = vidcap_params_get_parent(cap_params);
-        params.compression = "none";
         params.rxtx_mode = MODE_RECEIVER;
 
         //RTP

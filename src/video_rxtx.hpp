@@ -43,8 +43,11 @@
 #include <string>
 
 #include "host.h"
+#define WANT_PTHREAD_NULL
+#include "compat/misc.h" // for PTHREAD_NULL
 #include "module.h"
 #include "types.h"    // for codec_t, video_desc, video_frame (ptr only)
+
 
 #define VIDEO_RXTX_ABI_VERSION 4
 
@@ -56,10 +59,10 @@ struct exporter;
 struct video_frame;
 
 struct vrxtx_params {
-        const char           *compression;
+        const char           *compression;    // nullptr selects proto dfl
         unsigned int          rxtx_mode;
-        struct display       *display_device; // iHDTV, UG RTP
-        struct vidcap        *capture_device; // iHDTV
+        struct display       *display_device; // only iHDTV, UG RTP
+        struct vidcap        *capture_device; // iHDTV only
         const char           *receiver;
         int                   rx_port;
         int                   tx_port;
@@ -68,9 +71,9 @@ struct vrxtx_params {
         enum video_mode       decoder_mode;
         const char           *protocol_opts;
         long long             start_time;
-        long                  av_type;       // RTSP
-        struct module        *sender_mod;
-        struct module        *receiver_mod;
+        long                  av_type;       // RTSP only
+        struct module        *sender_mod;    // set by video_rxtx::create
+        struct module        *receiver_mod;  // set by video_rxtx::create
 };
 
 #define VRXTX_INIT \
@@ -132,18 +135,20 @@ public:
         static void list(bool full);
         void set_audio_spec(const struct audio_desc *desc, int audio_rx_port,
                             int audio_tx_port, bool ipv6);
-        std::string m_port_id;
+        std::string m_port_id  = "default";
 
-        const struct video_rxtx_info *m_impl_funcs;
-        void                         *m_impl_state;
+        const struct video_rxtx_info *m_impl_funcs = nullptr;
+        void                         *m_impl_state = nullptr;
 
 protected:
-        video_rxtx(const struct vrxtx_params *params,
+        video_rxtx(const char *protocol_name,
+                   const struct vrxtx_params *params,
                    const struct common_opts *opts);
         void check_sender_messages();
+
         struct module m_sender_mod;
         struct module m_receiver_mod;
-        unsigned long long int m_frames_sent;
+        unsigned long long int m_frames_sent = 0ull;
         struct exporter *m_exporter;
 
 private:
@@ -154,8 +159,9 @@ private:
         struct compress_state *m_compression = nullptr;
         pthread_mutex_t m_lock;
 
-        pthread_t m_thread_id;
-        bool m_poisoned, m_joined;
+        pthread_t m_thread_id = PTHREAD_NULL;
+        bool      m_poisoned  = false;
+        bool      m_joined    = true;
 
         video_desc       m_video_desc{};
         std::atomic<codec_t> m_input_codec{};

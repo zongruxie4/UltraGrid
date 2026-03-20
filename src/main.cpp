@@ -127,7 +127,6 @@
 
 constexpr char MOD_NAME[] = "[main] ";
 
-constexpr char DEFAULT_VIDEO_COMPRESSION[] = "none";
 constexpr char DEFAULT_AUDIO_CODEC[]       = "PCM";
 constexpr int  PORT_BASE                   = 5004;
 
@@ -1168,15 +1167,6 @@ static int adjust_params(struct ug_options *opt) {
                 opt->common.force_ip_version = 4;
         }
 
-        // default values for different RXTX protocols
-        if (opt->video.compression == nullptr) {
-                if (strcasecmp(opt->video_protocol, "rtsp") == 0 || strcasecmp(opt->video_protocol, "sdp") == 0) {
-                        opt->video.compression = "none"; // will be set later by video_rxtx::send_frame()
-                } else {
-                        opt->video.compression = DEFAULT_VIDEO_COMPRESSION;
-                }
-        }
-
         const bool tx_audio_std = strcasecmp(opt->audio.proto, "rtsp") == 0 ||
                                   strcasecmp(opt->audio.proto, "sdp") == 0;
         if (opt->audio.codec_cfg == nullptr) {
@@ -1389,7 +1379,9 @@ int main(int argc, char *argv[])
                 col() << TBOLD("Audio capture    : ") << opt.audio.send_cfg << "\n";
                 col() << TBOLD("Audio playback   : ") << opt.audio.recv_cfg << "\n";
                 col() << TBOLD("MTU              : ") << opt.common.mtu << " B\n";
-                col() << TBOLD("Video compression: ") << opt.video.compression << "\n";
+                col() << TBOLD("Video compression: ")
+                      << IF_NOT_NULL_ELSE(opt.video.compression, "protocol default")
+                      << "\n";
                 col() << TBOLD("Audio codec      : ")
                       << get_name_to_audio_codec(ac_params.codec) << "\n";
                 col() << TBOLD("Network protocol : ") << video_rxtx::get_long_name(opt.video_protocol) << "\n";

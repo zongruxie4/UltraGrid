@@ -63,6 +63,8 @@
 #include "video_display.h"
 #include "video_rxtx.hpp"
 
+constexpr char DEFAULT_VIDEO_COMPRESSION[] = "none";
+
 #define MOD_NAME "[vrxtx] "
 
 using std::map;
@@ -70,44 +72,48 @@ using std::shared_ptr;
 using std::ostringstream;
 using std::string;
 
-video_rxtx::video_rxtx(const struct vrxtx_params *params,
-                       const struct common_opts  *common)
-              : m_port_id("default"), m_frames_sent(0ull),
-                m_exporter(common->exporter),
-                m_thread_id(), m_poisoned(false), m_joined(true) {
+static const char *
+get_compression(const char *video_protocol, const char *req_compression)
+{
+        if (req_compression != nullptr) {
+                return req_compression;
+        }
+        // default values for different RXTX protocols
+        if (strcasecmp(video_protocol, "rtsp") == 0 ||
+            strcasecmp(video_protocol, "sdp") == 0) {
+                return "none"; // will be set later by video_rxtx::send_frame()
+        }
+        // UG RTP or loopback
+        return DEFAULT_VIDEO_COMPRESSION;
+}
 
+video_rxtx::video_rxtx(const char                *protocol_name,
+                       const struct vrxtx_params *params,
+                       const struct common_opts  *common)
+    : m_exporter(common->exporter)
+{
         module_init_default(&m_sender_mod);
         m_sender_mod.cls = MODULE_CLASS_SENDER;
         module_register(&m_sender_mod, common->parent);
+
+        const char *compression =
+            get_compression(protocol_name, params->compression);
+        int ret = compress_init(&m_sender_mod, compression, &m_compression);
+        if(ret != 0) {
+                module_done(&m_sender_mod);
+                if(ret < 0) {
+                        throw string("Error initializing compression.");
+                }
+                if(ret > 0) {
+                        throw EXIT_SUCCESS;
+                }
+        }
 
         module_init_default(&m_receiver_mod);
         m_receiver_mod.cls = MODULE_CLASS_RECEIVER;
         module_register(&m_receiver_mod, common->parent);
 
-        try {
-                int ret = compress_init(&m_sender_mod, params->compression,
-                                &m_compression);
-                if(ret != 0) {
-                        if(ret < 0) {
-                                throw string("Error initializing compression.");
-                        }
-                        if(ret > 0) {
-                                throw EXIT_SUCCESS;
-                        }
-                }
-
-                pthread_mutex_init(&m_lock, NULL);
-
-        } catch (...) {
-                if (m_compression) {
-                        compress_done(m_compression);
-                }
-
-                module_done(&m_receiver_mod);
-                module_done(&m_sender_mod);
-
-                throw;
-        }
+        pthread_mutex_init(&m_lock, nullptr);
 }
 
 video_rxtx::~video_rxtx() {
@@ -231,7 +237,7 @@ video_rxtx::create(string const &proto, const struct vrxtx_params *params,
                 return nullptr;
         }
 
-        auto *ret = new video_rxtx(params, common);
+        auto *ret = new video_rxtx(proto.c_str(), params, common);
 
         auto params_c = *params;
         params_c.sender_mod  = &ret->m_sender_mod;

@@ -52,7 +52,6 @@
 #include "video_frame.h"
 
 using std::chrono::milliseconds;
-using std::condition_variable;
 using std::mutex;
 using std::unique_lock;
 
@@ -127,21 +126,34 @@ void *loopback_video_rxtx::receiver_loop()
         return nullptr;
 }
 
-void *(*loopback_video_rxtx::get_receiver_thread() noexcept)(void *arg)
-{
-        return receiver_thread;
-}
-
-static video_rxtx_i *
+static void*
 create_video_rxtx_loopback(const struct vrxtx_params *params,
                            const struct common_opts  *common)
 {
         return new loopback_video_rxtx(params, common);
 }
 
+static void done(void *state) {
+        auto *s = static_cast<loopback_video_rxtx *>(state);
+        delete s;
+}
+
+static void
+send_frame(void *state, std::shared_ptr<video_frame> f)
+{
+        auto *s = static_cast<loopback_video_rxtx *>(state);
+        s->send_frame(std::move(f));
+}
+
 static const struct video_rxtx_info loopback_video_rxtx_info = {
-        "loopback dummy transport",
-        create_video_rxtx_loopback
+        .long_name              = "loopback dummy transport",
+        .create                 = create_video_rxtx_loopback,
+        .done                   = done,
+        .send_frame             = send_frame,
+        .join_sender            = nullptr,
+        .set_sender_audio_spec  = nullptr,
+        .process_sender_message = nullptr,
+        .receiver_routine       = loopback_video_rxtx::receiver_thread,
 };
 
 REGISTER_MODULE(loopback, &loopback_video_rxtx_info, LIBRARY_CLASS_VIDEO_RXTX, VIDEO_RXTX_ABI_VERSION);

@@ -95,16 +95,34 @@ sage_video_rxtx::~sage_video_rxtx()
         display_done(m_sage_tx_device);
 }
 
-static video_rxtx_i *
+static void *
 create_video_rxtx_sage(const struct vrxtx_params *params,
                        const struct common_opts  *common)
 {
         return new sage_video_rxtx(params, common);
 }
 
+static void done(void *state) {
+        auto *s = static_cast<sage_video_rxtx *>(state);
+        delete s;
+}
+
+static void
+send_frame(void *state, std::shared_ptr<video_frame> f)
+{
+        auto *s = static_cast<sage_video_rxtx *>(state);
+        s->send_frame(std::move(f));
+}
+
 static const struct video_rxtx_info sage_video_rxtx_info = {
-        "SAGE",
-        create_video_rxtx_sage
+        .long_name              = "SAGE",
+        .create                 = create_video_rxtx_sage,
+        .done                   = done,
+        .send_frame             = send_frame,
+        .join_sender            = nullptr,
+        .set_sender_audio_spec  = nullptr,
+        .process_sender_message = nullptr,
+        .receiver_routine       = nullptr,
 };
 
 REGISTER_MODULE(sage, &sage_video_rxtx_info, LIBRARY_CLASS_VIDEO_RXTX, VIDEO_RXTX_ABI_VERSION);

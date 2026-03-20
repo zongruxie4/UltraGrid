@@ -56,15 +56,12 @@ public:
         h264_rtp_video_rxtx(const struct vrxtx_params *params,
                             const struct common_opts  *common, int rtsp_port);
         virtual ~h264_rtp_video_rxtx();
-        void join() override;
+        void join();
         void set_audio_spec(const struct audio_desc *desc, int audio_rx_port,
-                            int audio_tx_port, bool ipv6) override;
+                            int audio_tx_port, bool ipv6);
+        virtual void send_frame(std::shared_ptr<video_frame>) noexcept;
 
 private:
-        virtual void send_frame(std::shared_ptr<video_frame>) noexcept override;
-        virtual void *(*get_receiver_thread() noexcept)(void *arg) override {
-                return nullptr;
-        }
         void                          configure_rtsp_server_video();
         struct rtsp_server_parameters rtsp_params{};
         std::atomic<bool>             audio_params_set = false;

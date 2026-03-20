@@ -186,16 +186,42 @@ h264_sdp_video_rxtx::set_audio_spec(const struct audio_desc *desc,
         }
 }
 
-static video_rxtx_i *
+static void *
 create_video_rxtx_h264_sdp(const struct vrxtx_params *params,
                            const struct common_opts  *common)
 {
         return new h264_sdp_video_rxtx(params, common);
 }
 
+static void done(void *state) {
+        auto *s = static_cast<h264_sdp_video_rxtx *>(state);
+        delete s;
+}
+
+static void
+send_frame(void *state, std::shared_ptr<video_frame> f)
+{
+        auto *s = static_cast<h264_sdp_video_rxtx *>(state);
+        s->send_frame(std::move(f));
+}
+
+static void
+set_audio_spec(void *state, const struct audio_desc *desc, int audio_rx_port,
+               int audio_tx_port, bool ipv6)
+{
+        auto *s = static_cast<h264_sdp_video_rxtx*>(state);
+        s->set_audio_spec(desc, audio_rx_port, audio_tx_port, ipv6);
+}
+
 static const struct video_rxtx_info h264_sdp_video_rxtx_info = {
-        "RTP standard (SDP version)",
-        create_video_rxtx_h264_sdp
+        .long_name              = "RTP standard (SDP version)",
+        .create                 = create_video_rxtx_h264_sdp,
+        .done                   = done,
+        .send_frame             = send_frame,
+        .join_sender            = nullptr,
+        .set_sender_audio_spec  = set_audio_spec,
+        .process_sender_message = rtp_process_sender_message,
+        .receiver_routine       = nullptr,
 };
 
 REGISTER_MODULE(sdp, &h264_sdp_video_rxtx_info, LIBRARY_CLASS_VIDEO_RXTX, VIDEO_RXTX_ABI_VERSION);

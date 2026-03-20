@@ -80,7 +80,7 @@ struct ug_input_state final : public frame_recv_delegate {
 
         void frame_arrived(struct video_frame *f, struct audio_frame *a) override;
         thread         receiver_thread;
-        unique_ptr<ultragrid_rtp_video_rxtx> video_rxtx;
+        unique_ptr<struct video_rxtx> video_rxtx;
         struct state_audio *audio = nullptr;
 
         ~ug_input_state() override = default;
@@ -182,9 +182,8 @@ static int vidcap_ug_input_init(const struct vidcap_params *cap_params, void **s
         // params["decoder_mode"].l = VIDEO_NORMAL;
         params.display_device = s->display;
 
-        s->video_rxtx = unique_ptr<ultragrid_rtp_video_rxtx>(
-            dynamic_cast<ultragrid_rtp_video_rxtx *>(
-                video_rxtx::create("ultragrid_rtp", &params, &s->common)));
+        s->video_rxtx = unique_ptr<video_rxtx>(
+            video_rxtx::create("ultragrid_rtp", &params, &s->common));
         assert(s->video_rxtx);
 
         if (vidcap_params_get_flags(cap_params) & VIDCAP_FLAG_AUDIO_ANY) {

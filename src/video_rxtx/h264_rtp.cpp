@@ -214,8 +214,9 @@ static int get_rtsp_server_port(const char *config) {
         return port;
 }
 
-static video_rxtx_i *create_video_rxtx_h264_std(const struct vrxtx_params *params,
-                            const struct common_opts *common)
+static void *
+create_video_rxtx_h264_std(const struct vrxtx_params *params,
+                           const struct common_opts  *common)
 {
         int rtsp_port;
         const char *rtsp_port_str = params->protocol_opts;
@@ -234,9 +235,40 @@ static video_rxtx_i *create_video_rxtx_h264_std(const struct vrxtx_params *param
         return new h264_rtp_video_rxtx(params, common, rtsp_port);
 }
 
+static void done(void *state) {
+        auto *s = static_cast<h264_rtp_video_rxtx *>(state);
+        delete s;
+}
+
+static void
+send_frame(void *state, std::shared_ptr<video_frame> f)
+{
+        auto *s = static_cast<h264_rtp_video_rxtx *>(state);
+        s->send_frame(std::move(f));
+}
+
+static void join(void *state) {
+        auto *s = static_cast<h264_rtp_video_rxtx*>(state);
+        s->join();
+}
+
+static void
+set_audio_spec(void *state, const struct audio_desc *desc, int audio_rx_port,
+               int audio_tx_port, bool ipv6)
+{
+        auto *s = static_cast<h264_rtp_video_rxtx *>(state);
+        s->set_audio_spec(desc, audio_rx_port, audio_tx_port, ipv6);
+}
+
 static const struct video_rxtx_info h264_video_rxtx_info = {
-        "RTP standard (using RTSP)",
-        create_video_rxtx_h264_std
+        .long_name              = "RTP standard (using RTSP)",
+        .create                 = create_video_rxtx_h264_std,
+        .done                   = done,
+        .send_frame             = send_frame,
+        .join_sender            = join,
+        .set_sender_audio_spec  = set_audio_spec,
+        .process_sender_message = rtp_process_sender_message,
+        .receiver_routine       = nullptr,
 };
 
 REGISTER_MODULE(rtsp, &h264_video_rxtx_info, LIBRARY_CLASS_VIDEO_RXTX, VIDEO_RXTX_ABI_VERSION);

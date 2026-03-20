@@ -109,11 +109,6 @@ void *ultragrid_rtp_video_rxtx::receiver_thread(void *arg) {
         return s->receiver_loop();
 }
 
-void *(*ultragrid_rtp_video_rxtx::get_receiver_thread() noexcept)(void *arg)
-{
-        return receiver_thread;
-}
-
 void
 ultragrid_rtp_video_rxtx::send_frame(shared_ptr<video_frame> tx_frame) noexcept
 {
@@ -428,16 +423,38 @@ uint32_t ultragrid_rtp_video_rxtx::get_ssrc()
         return rtp_my_ssrc(m_network_device);
 }
 
-static video_rxtx_i *
+static void *
 create_video_rxtx_ultragrid_rtp(const struct vrxtx_params *params,
                                 const struct common_opts  *common)
 {
         return new ultragrid_rtp_video_rxtx(params, common);
 }
+static void done(void *state) {
+        auto *s = static_cast<ultragrid_rtp_video_rxtx *>(state);
+        delete s;
+}
+
+static void
+send_frame(void *state, std::shared_ptr<video_frame> f)
+{
+        auto *s = static_cast<ultragrid_rtp_video_rxtx *>(state);
+        s->send_frame(std::move(f));
+}
+
+static void join(void *state) {
+        auto *s = static_cast<ultragrid_rtp_video_rxtx *>(state);
+        s->join();
+}
 
 static const struct video_rxtx_info ultragrid_rtp_video_rxtx_info = {
-        "UltraGrid RTP",
-        create_video_rxtx_ultragrid_rtp
+        .long_name              = "UltraGrid RTP",
+        .create                 = create_video_rxtx_ultragrid_rtp,
+        .done                   = done,
+        .send_frame             = send_frame,
+        .join_sender            = join,
+        .set_sender_audio_spec  = nullptr,
+        .process_sender_message = rtp_process_sender_message,
+        .receiver_routine       = ultragrid_rtp_video_rxtx::receiver_thread,
 };
 
 REGISTER_MODULE(ultragrid_rtp, &ultragrid_rtp_video_rxtx_info, LIBRARY_CLASS_VIDEO_RXTX, VIDEO_RXTX_ABI_VERSION);

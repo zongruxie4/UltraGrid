@@ -116,7 +116,7 @@ video_rxtx::~video_rxtx() {
                 send(NULL);
                 compress_pop(m_compression);
         }
-        delete m_impl;
+        m_impl_funcs->done(m_impl_state);
         compress_done(m_compression);
         module_done(&m_receiver_mod);
         module_done(&m_sender_mod);
@@ -136,7 +136,9 @@ void video_rxtx::join() {
         }
         send(NULL); // pass poisoned pill
         pthread_join(m_thread_id, NULL);
-        m_impl->join();
+        if (m_impl_funcs != nullptr && m_impl_funcs->join_sender != nullptr) {
+                m_impl_funcs->join_sender(m_impl_state);
+        }
         m_joined = true;
 }
 
@@ -183,7 +185,10 @@ void video_rxtx::check_sender_messages() {
                                                  oss.str().c_str());
                         }
                 } else { // delegate to implementations
-                        r = m_impl->process_sender_message(msg);
+                        if (m_impl_funcs->process_sender_message != nullptr) {
+                                r = m_impl_funcs->process_sender_message(
+                                    m_impl_state, msg);
+                        }
                 }
 
                 free_message(msg_external, r);
@@ -209,7 +214,7 @@ void *video_rxtx::sender_loop() {
                 m_video_desc = video_desc_from_frame(tx_frame.get());
                 export_video(m_exporter, tx_frame.get());
 
-                m_impl->send_frame(std::move(tx_frame));
+                m_impl_funcs->send_frame(m_impl_state, std::move(tx_frame));
                 m_frames_sent += 1;
         }
 
@@ -231,8 +236,9 @@ video_rxtx::create(string const &proto, const struct vrxtx_params *params,
         auto params_c = *params;
         params_c.sender_mod  = &ret->m_sender_mod;
         params_c.receiver_mod  = &ret->m_receiver_mod;
-        ret->m_impl= vri->create(&params_c, common);
-        if (ret->m_impl == nullptr) {
+        ret->m_impl_state = vri->create(&params_c, common);
+        ret->m_impl_funcs = vri;
+        if (ret->m_impl_state == nullptr) {
                 delete ret;
                 return nullptr;
         }
@@ -252,9 +258,14 @@ void video_rxtx::list(bool full)
 }
 
 void
-video_rxtx::set_audio_spec(const struct audio_desc * /* desc */,
-                           int /* audio_rx_port */, int /* audio_tx_port */,
-                           bool /* ipv6 */)
+video_rxtx::set_audio_spec(const struct audio_desc * desc,
+                           int audio_rx_port, int audio_tx_port,
+                           bool ipv6)
 {
-        MSG(INFO, "video RXTX not h264_rtp, not setting audio...\n");
+        if (m_impl_funcs->set_sender_audio_spec != nullptr) {
+                m_impl_funcs->set_sender_audio_spec(m_impl_state, desc, audio_rx_port,
+                                             audio_tx_port, ipv6);
+        } else {
+                MSG(INFO, "video RXTX not h264_rtp, not setting audio...\n");
+        }
 }

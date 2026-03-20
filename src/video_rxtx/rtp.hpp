@@ -56,7 +56,7 @@
 struct rtp;
 struct fec;
 
-class rtp_video_rxtx : public video_rxtx_i {
+class rtp_video_rxtx {
         friend struct video_rxtx;
 public:
         const uint32_t magic = to_fourcc('V', 'X', 'r', ' ');
@@ -69,6 +69,7 @@ public:
                         const char *mcast_if, int ttl);
         static void destroy_rtp_device(struct rtp * network_devices);
         static void display_buf_increase_warning(int size);
+        struct response *process_sender_message(struct msg_sender *msg);
 
 protected:
         struct rtp *m_network_device; // ULTRAGRID_RTP
@@ -85,8 +86,9 @@ protected:
         int              m_rxtx_mode;
         bool             m_used = false; ///< at least one frame was sent
 private:
-        struct response *process_sender_message(struct msg_sender *msg) override;
 };
+
+struct response *rtp_process_sender_message(void *state, struct msg_sender *);
 
 #endif // VIDEO_RXTX_RTP_H_
 

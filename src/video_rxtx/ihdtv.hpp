@@ -65,20 +65,17 @@
 struct video_frame;
 struct display;
 
-class ihdtv_video_rxtx: public video_rxtx_i {
+class ihdtv_video_rxtx {
 public:
         ihdtv_video_rxtx(const struct vrxtx_params *params,
                          const struct common_opts  *common);
         ~ihdtv_video_rxtx();
-private:
-        void send_frame(std::shared_ptr<video_frame>) noexcept override;
+        void send_frame(std::shared_ptr<video_frame>) noexcept;
         static void *receiver_thread(void *arg) {
                 ihdtv_video_rxtx *s = static_cast<ihdtv_video_rxtx *>(arg);
                 return s->receiver_loop();
         }
-        void *(*get_receiver_thread() noexcept)(void *arg) override {
-                return receiver_thread;
-        }
+private:
         void *receiver_loop();
 #ifdef HAVE_IHDTV
         ihdtv_connection m_tx_connection, m_rx_connection;

@@ -48,18 +48,17 @@
 
 struct display;
 
-class loopback_video_rxtx : public video_rxtx_i {
+class loopback_video_rxtx {
 public:
         loopback_video_rxtx(const struct vrxtx_params *params,
                             const struct common_opts  *common);
-        virtual ~loopback_video_rxtx();
+        ~loopback_video_rxtx();
+        void send_frame(std::shared_ptr<video_frame>) noexcept;
+        static void *receiver_thread(void *arg);
 
 private:
         struct module *m_parent;
-        static void *receiver_thread(void *arg);
-        virtual void send_frame(std::shared_ptr<video_frame>) noexcept override;
         void *receiver_loop();
-        virtual void *(*get_receiver_thread() noexcept)(void *arg) override;
 
         struct display *m_display_device;
         struct video_desc m_configure_desc{};

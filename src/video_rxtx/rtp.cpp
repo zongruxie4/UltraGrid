@@ -313,3 +313,7 @@ void rtp_video_rxtx::destroy_rtp_device(struct rtp *network_device)
         rtp_done(network_device);
 }
 
+struct response *rtp_process_sender_message(void *state, struct msg_sender *msg) {
+        auto *s = static_cast<rtp_video_rxtx*>(state);
+        return s->process_sender_message(msg);
+}

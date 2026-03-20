@@ -189,7 +189,7 @@ struct state_audio {
 
         size_t recv_buf_size = DEFAULT_AUDIO_RECV_BUF_SIZE;
 
-        struct video_rxtx_i *vrxtx = nullptr;
+        struct video_rxtx *vrxtx = nullptr;
 };
 
 /** 
@@ -1067,7 +1067,7 @@ static int find_codec_sample_rate(int sample_rate, const int *supported) {
 }
 
 static void
-set_audio_spec_to_vrxtx(struct video_rxtx_i *vrxtx, audio_frame2 *compressed_frm,
+set_audio_spec_to_vrxtx(struct video_rxtx *vrxtx, audio_frame2 *compressed_frm,
                         struct rtp *netdev, int tx_port, bool *audio_spec_to_vrxtx_set)
 {
         if (*audio_spec_to_vrxtx_set) {

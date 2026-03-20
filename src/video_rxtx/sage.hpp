@@ -46,17 +46,14 @@
 struct video_frame;
 struct display;
 
-class sage_video_rxtx: public video_rxtx_i {
+class sage_video_rxtx {
 public:
         sage_video_rxtx(const struct vrxtx_params *params,
                         const struct common_opts  *common);
         ~sage_video_rxtx();
+        void send_frame(std::shared_ptr<video_frame>) noexcept;
 
 private:
-        void send_frame(std::shared_ptr<video_frame>) noexcept override;
-        void *(*get_receiver_thread() noexcept)(void *arg) override {
-                return NULL;
-        }
         struct video_desc     m_saved_video_desc;
         struct display       *m_sage_tx_device;
 };

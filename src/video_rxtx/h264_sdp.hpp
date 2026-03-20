@@ -53,14 +53,11 @@ public:
         h264_sdp_video_rxtx(const struct vrxtx_params *params,
                             const struct common_opts  *common);
         ~h264_sdp_video_rxtx() override = default;
+        virtual void send_frame(std::shared_ptr<video_frame>) noexcept;
+        void set_audio_spec(const struct audio_desc *desc, int audio_rx_port,
+                            int audio_tx_port, bool ipv6);
 private:
         static void change_address_callback(void *udata, const char *address);
-        virtual void send_frame(std::shared_ptr<video_frame>) noexcept override;
-        virtual void *(*get_receiver_thread() noexcept)(void *arg) override {
-                return nullptr;
-        }
-        void set_audio_spec(const struct audio_desc *desc, int audio_rx_port,
-                            int audio_tx_port, bool ipv6) override;
         void sdp_add_video(codec_t codec);
         codec_t m_sdp_configured_codec = VIDEO_CODEC_NONE;
         int m_saved_tx_port;

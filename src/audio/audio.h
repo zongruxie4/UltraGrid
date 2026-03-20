@@ -107,7 +107,7 @@ struct additional_audio_data {
                 bool (*reconfigure)(struct display *, int, int, int);
                 bool (*get_property)(struct display *, int, void *, size_t *);
         } display_callbacks;
-        struct video_rxtx_i *vrxtx;
+        struct video_rxtx *vrxtx;
 };
 void audio_register_aux_data(struct state_audio          *s,
                              struct additional_audio_data data);

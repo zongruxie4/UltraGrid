@@ -64,18 +64,17 @@ public:
         ultragrid_rtp_video_rxtx(const struct vrxtx_params *params,
                                  const struct common_opts  *common);
         virtual ~ultragrid_rtp_video_rxtx();
-        void join() override;
+        virtual void send_frame(std::shared_ptr<video_frame>) noexcept;
+        void join();
+        static void *receiver_thread(void *arg);
         uint32_t get_ssrc();
 
         // transcoder functions
         friend ssize_t hd_rum_decompress_write(void *state, void *buf, size_t count);
 private:
-        static void *receiver_thread(void *arg);
-        virtual void send_frame(std::shared_ptr<video_frame>) noexcept override;
         void *receiver_loop();
         static void *send_frame_async_callback(void *arg);
         virtual void send_frame_async(std::shared_ptr<video_frame>);
-        virtual void *(*get_receiver_thread() noexcept)(void *arg) override;
 
         void receiver_process_messages();
         void remove_display_from_decoders();

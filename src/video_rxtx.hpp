@@ -39,7 +39,6 @@
 #define VIDEO_RXTX_H_
 
 #include <atomic>
-#include <map>
 #include <memory>
 #include <string>
 
@@ -47,7 +46,7 @@
 #include "module.h"
 #include "types.h"    // for codec_t, video_desc, video_frame (ptr only)
 
-#define VIDEO_RXTX_ABI_VERSION 3
+#define VIDEO_RXTX_ABI_VERSION 4
 
 struct audio_desc;
 struct display;
@@ -95,30 +94,20 @@ struct vrxtx_params {
 
 struct video_rxtx_info {
         const char *long_name;
-        struct video_rxtx_i *(*create)(const struct vrxtx_params *params,
-                                       const struct common_opts  *common);
-};
+        void *(*create)(const struct vrxtx_params *params,
+                        const struct common_opts  *common);
+        void (*done)(void *state);
+        void (*send_frame)(void *state, std::shared_ptr<video_frame>);
 
-struct video_rxtx_i {
-public:
-        virtual ~video_rxtx_i() {}
-        virtual void join() {}
-
-        virtual void
-        set_audio_spec([[maybe_unused]] const struct audio_desc *desc,
-                       [[maybe_unused]] int                      audio_rx_port,
-                       [[maybe_unused]] int                      audio_tx_port,
-                       [[maybe_unused]] bool                     ipv6)
-        {
-        }
-
-private:
-        virtual void send_frame(std::shared_ptr<video_frame>) noexcept = 0;
-        virtual void *(*get_receiver_thread() noexcept)(void *arg) = 0;
-        virtual struct response *process_sender_message(struct msg_sender *) {
-                return nullptr;
-        }
-        friend struct video_rxtx;
+        // following callbacks are optional
+        void (*join_sender)(void *state);
+        void (*set_sender_audio_spec)(void                    *state,
+                                      const struct audio_desc *desc,
+                                      int audio_rx_port, int audio_tx_port,
+                                      bool ipv6);
+        struct response *(*process_sender_message)(void *state,
+                                                   struct msg_sender *);
+        void *(*receiver_routine)(void *state);
 };
 
 struct video_rxtx {
@@ -128,10 +117,10 @@ public:
         static const char *get_long_name(std::string const & short_name);
         static void *receiver_thread(void *arg) {
                 video_rxtx *rxtx = static_cast<video_rxtx *>(arg);
-                return rxtx->m_impl->get_receiver_thread()(rxtx->m_impl);
+                return rxtx->m_impl_funcs->receiver_routine(rxtx->m_impl_state);
         }
         bool supports_receiving() {
-                return m_impl->get_receiver_thread() != NULL;
+                return m_impl_funcs->receiver_routine != nullptr;
         }
         /**
          * If overridden, children must call also video_rxtx::join()
@@ -141,11 +130,13 @@ public:
                                     const struct vrxtx_params *params,
                                     const struct common_opts  *opts);
         static void list(bool full);
-        virtual void set_audio_spec(const struct audio_desc *desc,
-                                    int audio_rx_port, int audio_tx_port,
-                                    bool ipv6);
+        void set_audio_spec(const struct audio_desc *desc, int audio_rx_port,
+                            int audio_tx_port, bool ipv6);
         std::string m_port_id;
-        struct video_rxtx_i* m_impl;
+
+        const struct video_rxtx_info *m_impl_funcs;
+        void                         *m_impl_state;
+
 protected:
         video_rxtx(const struct vrxtx_params *params,
                    const struct common_opts *opts);

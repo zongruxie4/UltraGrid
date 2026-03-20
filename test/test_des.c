@@ -38,9 +38,7 @@
  * SUCH DAMAGE.
  */
 
-#include "config.h"
-#include "config_unix.h"
-#include "config_win32.h"
+#include <string.h>
 #include "debug.h"
 #include "crypto/crypt_des.h"
 #include "test_des.h"

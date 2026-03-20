@@ -57,6 +57,7 @@ unittest/run_tests
 .cache
 .clang-format
 .clang-tidy
+.clangd
 .editorconfig
 .envrc
 compile_commands.json

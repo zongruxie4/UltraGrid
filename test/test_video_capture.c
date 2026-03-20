@@ -36,9 +36,7 @@
  * SUCH DAMAGE.
  */
 
-#include "config.h"
-#include "config_unix.h"
-#include "config_win32.h"
+#include <stdio.h>
 #include "debug.h"
 #include "memory.h"
 #include "video_capture.h"

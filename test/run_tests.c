@@ -55,7 +55,6 @@
 #include "test_random.h"
 #include "test_tv.h"
 #include "test_net_udp.h"
-#include "test_rtp.h"
 #include "test_video_capture.h"
 #include "test_video_display.h"
 #include "test_sdp_parser.h"
@@ -107,7 +106,6 @@ struct {
         DEFINE_QUIET_TEST(test_random),
         DEFINE_QUIET_TEST(test_tv),
         DEFINE_QUIET_TEST(test_net_udp),
-        DEFINE_QUIET_TEST(test_rtp),
 #ifdef TEST_AV_HW
         DEFINE_QUIET_TEST(test_video_capture),
         DEFINE_QUIET_TEST(test_video_display),

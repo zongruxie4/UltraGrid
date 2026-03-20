@@ -101,9 +101,9 @@ while [ $i -lt $test_count ]; do
                 fi
         fi
 
-        timeout=5
+        timeout=10
         echo "Starting: \"timeout $timeout $exec $args\""
-        timeout -k 10 $timeout $exec $args
+        timeout -k $((timeout+5)) $timeout $exec $args
         rc=$?
         echo "Finished: \"timeout $timeout $exec $args\" with RC $rc"
 

@@ -40,9 +40,10 @@
 
 #include <stdbool.h>
 
-#include "config.h"
-#include "config_unix.h"
-#include "config_win32.h"
+#include <assert.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <stdio.h>
 #include "debug.h"
 #include "memory.h"
 

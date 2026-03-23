@@ -59,7 +59,8 @@ struct omt_rxtx_state{
 
         OMTMediaFrame send_video_frame{};
 
-        video_desc desc{};
+        video_desc send_desc{};
+        video_desc recv_desc{};
         display *display_device = nullptr;
 };
 
@@ -94,9 +95,9 @@ void omt_rxtx_done(void *state){
 void omt_rxtx_send_frame(void *state, std::shared_ptr<video_frame> f){
         auto s = static_cast<omt_rxtx_state *>(state);
         auto frame_desc = video_desc_from_frame(f.get());
-        if(!video_desc_eq(s->desc, frame_desc)){
+        if(!video_desc_eq(s->send_desc, frame_desc)){
                 log_msg(LOG_LEVEL_NOTICE, MOD_NAME "Reconf\n");
-                s->desc = frame_desc;
+                s->send_desc = frame_desc;
                 s->send_video_frame.Width = frame_desc.width;
                 s->send_video_frame.Height = frame_desc.height;
                 if(frame_desc.color_spec != UYVY){
@@ -129,19 +130,23 @@ void *omt_rxtx_recv_worker(void *state){
                 }
 
                 video_desc incoming_desc{};
-                log_msg(LOG_LEVEL_INFO, "FRAME\n");
-                log_msg(LOG_LEVEL_NOTICE, MOD_NAME "Received a video frame %dx%d %d\n", omt_frame->Width, omt_frame->Height, omt_frame->Codec);
                 incoming_desc.fps = static_cast<double>(omt_frame->FrameRateN) / omt_frame->FrameRateD;
                 incoming_desc.width = omt_frame->Width;
                 incoming_desc.height = omt_frame->Height;
                 incoming_desc.color_spec = UYVY; assert(omt_frame->Codec == OMTCodec_UYVY); //TODO
                 incoming_desc.tile_count = 1;
 
-                auto ug_frame = vf_alloc_desc(incoming_desc);
+                if(!video_desc_eq(incoming_desc, s->recv_desc)){
+                        display_reconfigure(s->display_device, incoming_desc, VIDEO_NORMAL);
+                        s->recv_desc = incoming_desc;
+                }
 
-                display_put_frame(s->display_device, ug_frame, 0);
+                auto ug_frame = display_get_frame(s->display_device);
+                memcpy(ug_frame->tiles[0].data, omt_frame->Data, omt_frame->DataLength);
 
-                vf_free(ug_frame);
+                display_put_frame(s->display_device, ug_frame, PUTF_BLOCKING);
+
+
         }
 
         return nullptr;

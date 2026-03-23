@@ -46,7 +46,14 @@
 
 #define MOD_NAME "[OMT] "
 
+namespace{
+void omt_log_callback(const char *msg){
+        log_msg(LOG_LEVEL_INFO, MOD_NAME "OMTLOG: %s\n", msg);
+}
+}
+
 omt_video_rxtx::omt_video_rxtx(std::map<std::string, param_u> const& params) : video_rxtx(params){
+        omt_setloggingcallback(omt_log_callback);
         display_device = static_cast<display *>(params.at("display_device").ptr);
         omt_recv_handle = omt_receive_create("omt://192.168.2.86:6400", static_cast<OMTFrameType>(OMTFrameType_Audio | OMTFrameType_Video),
                 OMTPreferredVideoFormat_UYVY, OMTReceiveFlags_None);

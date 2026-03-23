@@ -78,7 +78,8 @@ void *omt_rxtx_create(const vrxtx_params *params, const common_opts *common){
         s->parent = common->parent;
         omt_setloggingcallback(omt_log_callback);
         s->display_device = params->display_device;
-        s->omt_recv_handle = omt_receive_create("omt://localhost:6400", static_cast<OMTFrameType>(OMTFrameType_Audio | OMTFrameType_Video),
+        log_msg(LOG_LEVEL_INFO, MOD_NAME "Create omt receive with address %s\n", params->receiver);
+        s->omt_recv_handle = omt_receive_create(params->receiver, static_cast<OMTFrameType>(OMTFrameType_Audio | OMTFrameType_Video),
                 OMTPreferredVideoFormat_UYVY, OMTReceiveFlags_None);
         s->omt_send_handle = omt_send_create("UltraGrid", OMTQuality_Default);
 
@@ -152,6 +153,7 @@ void *omt_rxtx_recv_worker(void *state){
                 }
 
                 auto ug_frame = display_get_frame(s->display_device);
+                assert(omt_frame->Stride == vc_get_linesize(ug_frame->tiles[0].width, ug_frame->color_spec));
                 memcpy(ug_frame->tiles[0].data, omt_frame->Data, omt_frame->DataLength);
 
                 display_put_frame(s->display_device, ug_frame, PUTF_BLOCKING);

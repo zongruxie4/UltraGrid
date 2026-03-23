@@ -36,12 +36,12 @@
  */
 
 #include <cassert>
-#include "omt.hpp"
-
 #include <config.h>
+#include <libomt.h>
 
 #include "debug.h"
 #include "lib_common.h"
+#include "video_rxtx.hpp"
 #include "video_codec.h"
 #include "video_display.h"
 #include "video_frame.h"
@@ -52,14 +52,25 @@ namespace{
 void omt_log_callback(const char *msg){
         log_msg(LOG_LEVEL_INFO, MOD_NAME "OMTLOG: %s\n", msg);
 }
-}
 
-omt_video_rxtx::omt_video_rxtx(std::map<std::string, param_u> const& params) : video_rxtx(params){
+struct omt_rxtx_state{
+        omt_receive_t *omt_recv_handle = nullptr;
+        omt_send_t *omt_send_handle = nullptr;
+
+        OMTMediaFrame send_video_frame{};
+
+        video_desc desc{};
+        display *display_device = nullptr;
+};
+
+void *omt_rxtx_create(const vrxtx_params *params, const common_opts */*common*/){
+        auto s = new omt_rxtx_state();
+
         omt_setloggingcallback(omt_log_callback);
-        display_device = static_cast<display *>(params.at("display_device").ptr);
-        omt_recv_handle = omt_receive_create("omt://192.168.2.86:6400", static_cast<OMTFrameType>(OMTFrameType_Audio | OMTFrameType_Video),
+        s->display_device = params->display_device;
+        s->omt_recv_handle = omt_receive_create("omt://localhost:6400", static_cast<OMTFrameType>(OMTFrameType_Audio | OMTFrameType_Video),
                 OMTPreferredVideoFormat_UYVY, OMTReceiveFlags_None);
-        omt_send_handle = omt_send_create("UltraGrid", OMTQuality_Default);
+        s->omt_send_handle = omt_send_create("UltraGrid", OMTQuality_Default);
 
         OMTSenderInfo info = {};
         std::string productName = "UltraGrid";
@@ -68,15 +79,46 @@ omt_video_rxtx::omt_video_rxtx(std::map<std::string, param_u> const& params) : v
         productName.copy(info.ProductName, OMT_MAX_STRING_LENGTH, 0);
         manufacturer.copy(info.Manufacturer, OMT_MAX_STRING_LENGTH, 0);
         version.copy(info.Version, OMT_MAX_STRING_LENGTH, 0);
-        omt_send_setsenderinformation(omt_send_handle, &info);
-        send_video_frame.Type = OMTFrameType_Video;
-        send_video_frame.Timestamp = -1;
+        omt_send_setsenderinformation(s->omt_send_handle, &info);
+        s->send_video_frame.Type = OMTFrameType_Video;
+        s->send_video_frame.Timestamp = -1;
+
+        return s;
 }
 
-omt_video_rxtx::~omt_video_rxtx()= default;
+void omt_rxtx_done(void *state){
+        auto s = static_cast<omt_rxtx_state *>(state);
+        delete s;
+}
 
-void *omt_video_rxtx::recv_worker(void *arg){
-        auto s = static_cast<omt_video_rxtx *>(arg);
+void omt_rxtx_send_frame(void *state, std::shared_ptr<video_frame> f){
+        auto s = static_cast<omt_rxtx_state *>(state);
+        auto frame_desc = video_desc_from_frame(f.get());
+        if(!video_desc_eq(s->desc, frame_desc)){
+                log_msg(LOG_LEVEL_NOTICE, MOD_NAME "Reconf\n");
+                s->desc = frame_desc;
+                s->send_video_frame.Width = frame_desc.width;
+                s->send_video_frame.Height = frame_desc.height;
+                if(frame_desc.color_spec != UYVY){
+                        return;
+                }
+                s->send_video_frame.Codec = OMTCodec_UYVY;
+                s->send_video_frame.ColorSpace = OMTColorSpace_BT709;
+                s->send_video_frame.FrameRateN = frame_desc.fps * 1000.0;
+                s->send_video_frame.FrameRateD = 1000;
+        }
+
+        s->send_video_frame.Stride = vc_get_linesize(f->tiles[0].width, f->color_spec);
+        s->send_video_frame.Data = f->tiles[0].data;
+        s->send_video_frame.DataLength = f->tiles[0].data_len;
+
+        int ret = omt_send(s->omt_send_handle, &s->send_video_frame);
+
+        log_msg(LOG_LEVEL_INFO, MOD_NAME "Send returned %d\n", ret);
+}
+
+void *omt_rxtx_recv_worker(void *state){
+        auto s = static_cast<omt_rxtx_state *>(state);
         bool should_exit = false;
 
         while(!should_exit){
@@ -104,46 +146,18 @@ void *omt_video_rxtx::recv_worker(void *arg){
 
         return nullptr;
 }
-
-void omt_video_rxtx::send_frame(std::shared_ptr<video_frame> f) noexcept{
-        auto frame_desc = video_desc_from_frame(f.get());
-        if(!video_desc_eq(desc, frame_desc)){
-                log_msg(LOG_LEVEL_NOTICE, MOD_NAME "Reconf\n");
-                desc = frame_desc;
-                send_video_frame.Width = frame_desc.width;
-                send_video_frame.Height = frame_desc.height;
-                if(frame_desc.color_spec != UYVY){
-                        return;
-                }
-                send_video_frame.Codec = OMTCodec_UYVY;
-                send_video_frame.ColorSpace = OMTColorSpace_BT709;
-                send_video_frame.FrameRateN = frame_desc.fps * 1000.0;
-                send_video_frame.FrameRateD = 1000;
-        }
-
-        send_video_frame.Stride = vc_get_linesize(f->tiles[0].width, f->color_spec);
-        send_video_frame.Data = f->tiles[0].data;
-        send_video_frame.DataLength = f->tiles[0].data_len;
-
-        int ret = omt_send(omt_send_handle, &send_video_frame);
-
-        log_msg(LOG_LEVEL_INFO, MOD_NAME "Send returned %d\n", ret);
 }
 
-void *(*omt_video_rxtx::get_receiver_thread() noexcept)(void *arg){
-        return recv_worker;
-}
-
-namespace{
-video_rxtx *create_video_rxtx_omt(std::map<std::string, param_u> const& params){
-        return new omt_video_rxtx(params);
-}
-
-const video_rxtx_info loopback_video_rxtx_info = {
+constexpr video_rxtx_info loopback_video_rxtx_info = {
         "Open media transport",
-        create_video_rxtx_omt
+        omt_rxtx_create,
+        omt_rxtx_done,
+        omt_rxtx_send_frame,
+        nullptr,
+        nullptr,
+        nullptr,
+        omt_rxtx_recv_worker
 };
-}
 
 
 REGISTER_MODULE(omt, &loopback_video_rxtx_info, LIBRARY_CLASS_VIDEO_RXTX, VIDEO_RXTX_ABI_VERSION);

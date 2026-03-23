@@ -86,7 +86,7 @@ struct vrxtx_params {
                 .rx_port        = -1, \
                 .tx_port        = -1, \
                 .fec            = "none", \
-                .bitrate        = RATE_DEFAULT, \
+                .bitrate        = RATE_UNLIMITED, \
                 .decoder_mode   = VIDEO_NORMAL, \
                 .protocol_opts  = "", \
                 .start_time     = 0, \

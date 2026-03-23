@@ -127,6 +127,8 @@ constexpr char MOD_NAME[] = "[main] ";
 
 constexpr char DEFAULT_AUDIO_CODEC[]       = "PCM";
 constexpr int  PORT_BASE                   = 5004;
+#define RATE_DEFAULT \
+        (-3) ///< imaginary value, must not be passed to transmit module
 
 constexpr int OPT_AUDIO_CAPTURE_CHANNELS = ('a' << 8) | 'c';
 constexpr int OPT_AUDIO_DELAY            = ('A' << 8) | 'D';

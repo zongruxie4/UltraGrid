@@ -6,7 +6,7 @@
  * using default SIGALRM action which is terminate).
  */
 /*
- * Copyright (c) 2019-2025 CESNET, zájmové sdružení právnických osob
+ * Copyright (c) 2019-2026 CESNET, zájmové sdružení právnických osob
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -49,7 +49,7 @@
 EXTERN_C void alarm(unsigned int sec);
 
 #else
-#include <unistd.h>
+#include <unistd.h>           // IWYU pragma: export
 #endif /* _WIN32 */
 
 #endif // defined COMPAT_ALARM_H

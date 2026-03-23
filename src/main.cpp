@@ -74,7 +74,6 @@
 #include <getopt.h>
 #include <initializer_list>             // for initializer_list
 #include <iostream>
-#include <map>                          // for map
 #include <memory>
 #include <pthread.h>
 #include <stdexcept>
@@ -83,7 +82,6 @@
 #include <unistd.h>                     // for optarg, optind, STDERR...
 #include <unordered_map>                // for unordered_map
 #include <utility>                      // for move
-#include <vector>                       // for vector
 
 #define WANT_PTHREAD_NULL
 #include "audio/audio.h"                // for audio_options, additional_aud...

@@ -595,7 +595,7 @@ AC_ARG_WITH(cuda-compiler,
               [CUDA_COMPILER="$withval"],
               [])
 
-HOST_CC_REPORT=" ("
+HOST_CC_REPORT=" (${nvcc_major-0}.${nvcc_minor-0}, "
 case "$CUDA_COMPILER" in
 	*nvcc*)
 		;;
@@ -3695,7 +3695,7 @@ RESULT="Target: ${target?}
 # features
 start_section "Features"
 add_column "Crypto${crypto_impl?}" "${crypto?}"
-add_column "CUDA support${HOST_CC_REPORT?}" "${FOUND_CUDA?}"
+add_column "CUDA${HOST_CC_REPORT?}" "${FOUND_CUDA?}"
 add_column "Debug output" "${debug_output?}"
 add_column "iHDTV support" "${ihdtv?}"
 add_column "IPv6 support" "${ipv6?}"

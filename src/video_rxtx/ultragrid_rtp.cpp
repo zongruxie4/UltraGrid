@@ -418,9 +418,13 @@ void *ultragrid_rtp_video_rxtx::receiver_loop()
         return 0;
 }
 
-uint32_t ultragrid_rtp_video_rxtx::get_ssrc()
+uint32_t
+ultragrid_rtp_get_ssrc(void *state)
 {
-        return rtp_my_ssrc(m_network_device);
+        auto *s = static_cast<ultragrid_rtp_video_rxtx *>(state);
+        assert(s != nullptr);
+        assert(s->magic == MAGIC);
+        return rtp_my_ssrc(s->m_network_device);
 }
 
 static void *

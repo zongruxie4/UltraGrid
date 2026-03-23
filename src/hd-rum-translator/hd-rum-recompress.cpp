@@ -53,7 +53,6 @@
 #include "debug.h"
 #include "host.h"
 #include "utils/misc.h"
-#include "rtp/rtp.h"
 #include "tv.h"
 #include "video_compress.h"
 
@@ -149,13 +148,10 @@ static void recompress_port_write(recompress_output_port& port, shared_ptr<video
         double seconds = chrono::duration_cast<chrono::duration<double>>(now - port.t0).count();
         if(seconds > 5) {
                 double fps = port.frames / seconds;
-                auto  *urxtx = static_cast<ultragrid_rtp_video_rxtx *>(
-                    port.video_rxtx->m_impl_state);
-                assert(urxtx != nullptr);
                 log_msg(LOG_LEVEL_INFO, "[0x%08" PRIx32 "->%s:%d:0x%08" PRIx32 "] %d frames in %g seconds = %g FPS\n",
                                 frame->ssrc,
                                 port.host.c_str(), port.tx_port,
-                                urxtx->get_ssrc(),
+                                ultragrid_rtp_get_ssrc(port.video_rxtx->m_impl_state),
                                 port.frames, seconds, fps);
                 port.t0 = now;
                 port.frames = 0;
@@ -263,10 +259,8 @@ uint32_t recompress_get_port_ssrc(struct state_recompress *s, int idx){
         auto [compress_cfg, i] = s->index_to_port[idx];
 
         std::lock_guard<std::mutex> work_lock(s->workers[compress_cfg].ports_mut);
-        auto *urxtx = static_cast<ultragrid_rtp_video_rxtx *>(
-                   s->workers[compress_cfg].ports[i].video_rxtx->m_impl_state);
-        assert(urxtx != nullptr);
-        return urxtx->get_ssrc();
+        return ultragrid_rtp_get_ssrc(
+            s->workers[compress_cfg].ports[i].video_rxtx->m_impl_state);
 }
 
 void recompress_port_set_active(struct state_recompress *s,

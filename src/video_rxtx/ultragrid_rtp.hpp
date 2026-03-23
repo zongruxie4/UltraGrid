@@ -67,7 +67,6 @@ public:
         virtual void send_frame(std::shared_ptr<video_frame>) noexcept;
         void join();
         static void *receiver_thread(void *arg);
-        uint32_t get_ssrc();
 
         // transcoder functions
         friend ssize_t hd_rum_decompress_write(void *state, void *buf, size_t count);
@@ -110,7 +109,11 @@ private:
 
         bool m_should_exit = false;
         static void should_exit(void *state);
+
+        friend uint32_t ultragrid_rtp_get_ssrc(void *state);
 };
+
+uint32_t ultragrid_rtp_get_ssrc(void *state);
 
 #endif // VIDEO_RXTX_ULTRAGRID_RTP_H_
 

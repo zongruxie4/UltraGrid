@@ -167,5 +167,8 @@ private:
         std::atomic<codec_t> m_input_codec{};
 };
 
+const char *vrxtx_get_compression(const char *video_protocol,
+                                  const char *req_compression);
+
 #endif // VIDEO_RXTX_H_
 

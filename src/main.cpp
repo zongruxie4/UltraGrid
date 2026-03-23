@@ -1382,7 +1382,8 @@ int main(int argc, char *argv[])
                 col() << TBOLD("Audio playback   : ") << opt.audio.recv_cfg << "\n";
                 col() << TBOLD("MTU              : ") << opt.common.mtu << " B\n";
                 col() << TBOLD("Video compression: ")
-                      << IF_NOT_NULL_ELSE(opt.video.compression, "protocol default")
+                      << vrxtx_get_compression(opt.video_protocol,
+                                               opt.video.compression)
                       << "\n";
                 col() << TBOLD("Audio codec      : ")
                       << get_name_to_audio_codec(ac_params.codec) << "\n";

@@ -72,8 +72,8 @@ using std::shared_ptr;
 using std::ostringstream;
 using std::string;
 
-static const char *
-get_compression(const char *video_protocol, const char *req_compression)
+const char *
+vrxtx_get_compression(const char *video_protocol, const char *req_compression)
 {
         if (req_compression != nullptr) {
                 return req_compression;
@@ -97,7 +97,7 @@ video_rxtx::video_rxtx(const char                *protocol_name,
         module_register(&m_sender_mod, common->parent);
 
         const char *compression =
-            get_compression(protocol_name, params->compression);
+            vrxtx_get_compression(protocol_name, params->compression);
         int ret = compress_init(&m_sender_mod, compression, &m_compression);
         if(ret != 0) {
                 module_done(&m_sender_mod);

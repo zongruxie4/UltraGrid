@@ -54,19 +54,28 @@ void omt_log_callback(const char *msg){
 }
 
 struct omt_rxtx_state{
+        module *parent = nullptr;
         omt_receive_t *omt_recv_handle = nullptr;
         omt_send_t *omt_send_handle = nullptr;
 
         OMTMediaFrame send_video_frame{};
+
+        std::atomic<bool> should_exit = false;
 
         video_desc send_desc{};
         video_desc recv_desc{};
         display *display_device = nullptr;
 };
 
-void *omt_rxtx_create(const vrxtx_params *params, const common_opts */*common*/){
+void omt_should_exit_callback(void *state){
+        auto s = static_cast<omt_rxtx_state *>(state);
+        s->should_exit = true;
+}
+
+void *omt_rxtx_create(const vrxtx_params *params, const common_opts *common){
         auto s = new omt_rxtx_state();
 
+        s->parent = common->parent;
         omt_setloggingcallback(omt_log_callback);
         s->display_device = params->display_device;
         s->omt_recv_handle = omt_receive_create("omt://localhost:6400", static_cast<OMTFrameType>(OMTFrameType_Audio | OMTFrameType_Video),
@@ -120,9 +129,10 @@ void omt_rxtx_send_frame(void *state, std::shared_ptr<video_frame> f){
 
 void *omt_rxtx_recv_worker(void *state){
         auto s = static_cast<omt_rxtx_state *>(state);
-        bool should_exit = false;
+        register_should_exit_callback(s->parent,
+                                      omt_should_exit_callback, state);
 
-        while(!should_exit){
+        while(!s->should_exit){
                 auto omt_frame = omt_receive(s->omt_recv_handle, OMTFrameType_Video, 1000);
                 if(!omt_frame){
                         log_msg(LOG_LEVEL_INFO, MOD_NAME "Receive failed\n");
@@ -145,9 +155,11 @@ void *omt_rxtx_recv_worker(void *state){
                 memcpy(ug_frame->tiles[0].data, omt_frame->Data, omt_frame->DataLength);
 
                 display_put_frame(s->display_device, ug_frame, PUTF_BLOCKING);
-
-
         }
+
+        display_put_frame(s->display_device, nullptr, PUTF_BLOCKING);
+        unregister_should_exit_callback(s->parent,
+                                        omt_should_exit_callback, s);
 
         return nullptr;
 }

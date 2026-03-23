@@ -72,6 +72,17 @@ void omt_should_exit_callback(void *state){
         s->should_exit = true;
 }
 
+void set_omt_sender_info(omt_rxtx_state *s){
+        OMTSenderInfo info = {};
+        std::string productName = "UltraGrid";
+        std::string manufacturer = "CESNET";
+        std::string version = VERSION;
+        productName.copy(info.ProductName, OMT_MAX_STRING_LENGTH, 0);
+        manufacturer.copy(info.Manufacturer, OMT_MAX_STRING_LENGTH, 0);
+        version.copy(info.Version, OMT_MAX_STRING_LENGTH, 0);
+        omt_send_setsenderinformation(s->omt_send_handle, &info);
+}
+
 void *omt_rxtx_create(const vrxtx_params *params, const common_opts *common){
         auto s = new omt_rxtx_state();
 
@@ -82,15 +93,8 @@ void *omt_rxtx_create(const vrxtx_params *params, const common_opts *common){
         s->omt_recv_handle = omt_receive_create(params->receiver, static_cast<OMTFrameType>(OMTFrameType_Audio | OMTFrameType_Video),
                 OMTPreferredVideoFormat_UYVY, OMTReceiveFlags_None);
         s->omt_send_handle = omt_send_create("UltraGrid", OMTQuality_Default);
-
-        OMTSenderInfo info = {};
-        std::string productName = "UltraGrid";
-        std::string manufacturer = "CESNET";
-        std::string version = VERSION;
-        productName.copy(info.ProductName, OMT_MAX_STRING_LENGTH, 0);
-        manufacturer.copy(info.Manufacturer, OMT_MAX_STRING_LENGTH, 0);
-        version.copy(info.Version, OMT_MAX_STRING_LENGTH, 0);
-        omt_send_setsenderinformation(s->omt_send_handle, &info);
+        set_omt_sender_info(s);
+        
         s->send_video_frame.Type = OMTFrameType_Video;
         s->send_video_frame.Timestamp = -1;
 
@@ -102,22 +106,28 @@ void omt_rxtx_done(void *state){
         delete s;
 }
 
+bool send_reconfigure(omt_rxtx_state *s, struct video_desc frame_desc){
+        s->send_video_frame.Width = frame_desc.width;
+        s->send_video_frame.Height = frame_desc.height;
+        if(frame_desc.color_spec != UYVY){
+                log_msg(LOG_LEVEL_FATAL, MOD_NAME "Codec %s not supported\n", get_codec_name(frame_desc.color_spec));
+                return false;
+        }
+        s->send_video_frame.Codec = OMTCodec_UYVY;
+        s->send_video_frame.ColorSpace = OMTColorSpace_BT709;
+        s->send_video_frame.FrameRateN = frame_desc.fps * 1000.0;
+        s->send_video_frame.FrameRateD = 1000;
+        s->send_desc = frame_desc;
+        log_msg(LOG_LEVEL_NOTICE, MOD_NAME "Reconf\n");
+        return true;
+}
+
 void omt_rxtx_send_frame(void *state, std::shared_ptr<video_frame> f){
         auto s = static_cast<omt_rxtx_state *>(state);
         auto frame_desc = video_desc_from_frame(f.get());
         if(!video_desc_eq(s->send_desc, frame_desc)){
-                s->send_video_frame.Width = frame_desc.width;
-                s->send_video_frame.Height = frame_desc.height;
-                if(frame_desc.color_spec != UYVY){
-                        log_msg(LOG_LEVEL_FATAL, MOD_NAME "Codec %s not supported\n", get_codec_name(frame_desc.color_spec));
+                if (!send_reconfigure(s, frame_desc))
                         return;
-                }
-                s->send_video_frame.Codec = OMTCodec_UYVY;
-                s->send_video_frame.ColorSpace = OMTColorSpace_BT709;
-                s->send_video_frame.FrameRateN = frame_desc.fps * 1000.0;
-                s->send_video_frame.FrameRateD = 1000;
-                s->send_desc = frame_desc;
-                log_msg(LOG_LEVEL_NOTICE, MOD_NAME "Reconf\n");
         }
 
         s->send_video_frame.Stride = vc_get_linesize(f->tiles[0].width, f->color_spec);
@@ -127,6 +137,16 @@ void omt_rxtx_send_frame(void *state, std::shared_ptr<video_frame> f){
         int ret = omt_send(s->omt_send_handle, &s->send_video_frame);
 
         log_msg(LOG_LEVEL_INFO, MOD_NAME "Send returned %d\n", ret);
+}
+
+video_desc video_desc_from_omt_frame(const OMTMediaFrame *omt_frame){
+        video_desc incoming_desc{};
+        incoming_desc.fps = static_cast<double>(omt_frame->FrameRateN) / omt_frame->FrameRateD;
+        incoming_desc.width = omt_frame->Width;
+        incoming_desc.height = omt_frame->Height;
+        incoming_desc.color_spec = UYVY; assert(omt_frame->Codec == OMTCodec_UYVY); //TODO
+        incoming_desc.tile_count = 1;
+        return incoming_desc;
 }
 
 void *omt_rxtx_recv_worker(void *state){
@@ -141,12 +161,7 @@ void *omt_rxtx_recv_worker(void *state){
                         continue;
                 }
 
-                video_desc incoming_desc{};
-                incoming_desc.fps = static_cast<double>(omt_frame->FrameRateN) / omt_frame->FrameRateD;
-                incoming_desc.width = omt_frame->Width;
-                incoming_desc.height = omt_frame->Height;
-                incoming_desc.color_spec = UYVY; assert(omt_frame->Codec == OMTCodec_UYVY); //TODO
-                incoming_desc.tile_count = 1;
+                video_desc incoming_desc = video_desc_from_omt_frame(omt_frame);
 
                 if(!video_desc_eq(incoming_desc, s->recv_desc)){
                         display_reconfigure(s->display_device, incoming_desc, VIDEO_NORMAL);

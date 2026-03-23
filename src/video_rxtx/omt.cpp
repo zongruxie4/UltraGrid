@@ -38,6 +38,8 @@
 #include <cassert>
 #include "omt.hpp"
 
+#include <config.h>
+
 #include "debug.h"
 #include "lib_common.h"
 #include "video_codec.h"
@@ -59,6 +61,14 @@ omt_video_rxtx::omt_video_rxtx(std::map<std::string, param_u> const& params) : v
                 OMTPreferredVideoFormat_UYVY, OMTReceiveFlags_None);
         omt_send_handle = omt_send_create("UltraGrid", OMTQuality_Default);
 
+        OMTSenderInfo info = {};
+        std::string productName = "UltraGrid";
+        std::string manufacturer = "CESNET";
+        std::string version = VERSION;
+        productName.copy(info.ProductName, OMT_MAX_STRING_LENGTH, 0);
+        manufacturer.copy(info.Manufacturer, OMT_MAX_STRING_LENGTH, 0);
+        version.copy(info.Version, OMT_MAX_STRING_LENGTH, 0);
+        omt_send_setsenderinformation(omt_send_handle, &info);
         send_video_frame.Type = OMTFrameType_Video;
         send_video_frame.Timestamp = -1;
 }

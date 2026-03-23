@@ -5,7 +5,7 @@
  */
 /*
  * Copyright (c) 2004 University of Glasgow
- * Copyright (c) 2005-2023 CESNET, z. s .p .o.
+ * Copyright (c) 2005-2026 CESNET, zájmové sdružení právnických osob
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -177,11 +177,11 @@ int main(int argc, char **argv)
                 return 0;
         }
 
-        log_level = LOG_LEVEL_FATAL;
         struct init_data *init = NULL;
         if ((init = common_preinit(argc, argv)) == NULL) {
                 return 2;
         }
+        log_level = LOG_LEVEL_FATAL;
 
         argc -= 1;
         argv += 1;

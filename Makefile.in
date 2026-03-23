@@ -535,7 +535,7 @@ tests: $(TEST_TARGET)
 
 .PHONY: check
 check: tests
-	$(srcdir)/data/scripts/check.sh "$(TARGET)" "$(REFLECTOR_TARGET)"
+	@$(srcdir)/data/scripts/check.sh "$(TARGET)" "$(REFLECTOR_TARGET)"
 
 distcheck:
 	$(TARGET)

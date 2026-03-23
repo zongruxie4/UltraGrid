@@ -106,17 +106,18 @@ void omt_rxtx_send_frame(void *state, std::shared_ptr<video_frame> f){
         auto s = static_cast<omt_rxtx_state *>(state);
         auto frame_desc = video_desc_from_frame(f.get());
         if(!video_desc_eq(s->send_desc, frame_desc)){
-                log_msg(LOG_LEVEL_NOTICE, MOD_NAME "Reconf\n");
-                s->send_desc = frame_desc;
                 s->send_video_frame.Width = frame_desc.width;
                 s->send_video_frame.Height = frame_desc.height;
                 if(frame_desc.color_spec != UYVY){
+                        log_msg(LOG_LEVEL_FATAL, MOD_NAME "Codec %s not supported\n", get_codec_name(frame_desc.color_spec));
                         return;
                 }
                 s->send_video_frame.Codec = OMTCodec_UYVY;
                 s->send_video_frame.ColorSpace = OMTColorSpace_BT709;
                 s->send_video_frame.FrameRateN = frame_desc.fps * 1000.0;
                 s->send_video_frame.FrameRateD = 1000;
+                s->send_desc = frame_desc;
+                log_msg(LOG_LEVEL_NOTICE, MOD_NAME "Reconf\n");
         }
 
         s->send_video_frame.Stride = vc_get_linesize(f->tiles[0].width, f->color_spec);

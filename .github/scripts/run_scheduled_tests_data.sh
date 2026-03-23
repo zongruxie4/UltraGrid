@@ -13,3 +13,4 @@ add_test "-t spout:check_lib"                  Windows_only
 # reflector
 add_test -v                                    run_reflector # basic sanity test
 add_test "8M 5004"                             run_reflector,should_timeout
+add_test "8M 5004 -c lavc:c=H.264 -P 8000 ::1" run_reflector,should_timeout

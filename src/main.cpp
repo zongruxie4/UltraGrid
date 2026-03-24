@@ -872,10 +872,10 @@ parse_options_internal(int argc, char *argv[], struct ug_options *opt)
                         }
                         break;
                 case 'l':
-                        if (!parse_bitrate(optarg, &opt->video.bitrate)) {
+                        if (!parse_bitrate(optarg, &opt->video.bitrate_limit)) {
                                 return -EXIT_FAILURE;
                         }
-                        if (opt->video.bitrate == RATE_DEFAULT) {
+                        if (opt->video.bitrate_limit == RATE_DEFAULT) {
                                 return 1; // help written
                         }
                         break;
@@ -1263,10 +1263,16 @@ static int adjust_params(struct ug_options *opt) {
                         && (opt->audio.recv_port == opt->audio.send_port || opt->audio.send_port == 0)) {
                 opt->common.mtu = opt->common.mtu == 0 ? min(RTP_MAX_MTU, 65535)
                                                        : opt->common.mtu;
-                opt->video.bitrate = opt->video.bitrate == RATE_DEFAULT ? RATE_UNLIMITED : opt->video.bitrate;
+                opt->video.bitrate_limit =
+                    opt->video.bitrate_limit == RATE_DEFAULT
+                        ? RATE_UNLIMITED
+                        : opt->video.bitrate_limit;
         } else {
                 opt->common.mtu = opt->common.mtu == 0 ? 1500 : opt->common.mtu;
-                opt->video.bitrate = opt->video.bitrate == RATE_DEFAULT ? RATE_DYNAMIC : opt->video.bitrate;
+                opt->video.bitrate_limit =
+                    opt->video.bitrate_limit == RATE_DEFAULT
+                        ? RATE_DYNAMIC
+                        : opt->video.bitrate_limit;
         }
 
         return 0;

@@ -59,21 +59,21 @@ struct exporter;
 struct video_frame;
 
 struct vrxtx_params {
-        const char           *compression;    // nullptr selects proto dfl
-        enum rxtx_mode        rxtx_mode;
-        struct display       *display_device; // only iHDTV, UG RTP
-        struct vidcap        *capture_device; // iHDTV only
-        const char           *receiver;
-        int                   rx_port;
-        int                   tx_port;
-        const char           *fec;
-        long long             bitrate;
-        enum video_mode       decoder_mode;
-        const char           *protocol_opts;
-        long long             start_time;
-        long                  av_type;       // RTSP only
-        struct module        *sender_mod;    // set by video_rxtx::create
-        struct module        *receiver_mod;  // set by video_rxtx::create
+        const char     *compression; ///< nullptr selects proto dfl
+        enum rxtx_mode  rxtx_mode;
+        struct display *display_device; ///< only iHDTV, UG RTP
+        struct vidcap  *capture_device; ///< iHDTV only
+        const char     *receiver;
+        int             rx_port;
+        int             tx_port;
+        const char     *fec;
+        long long       bitrate_limit; ///< rate limiter in bps or RATE_ constantts
+        enum video_mode decoder_mode;
+        const char     *protocol_opts;
+        long long       start_time;
+        long            av_type;      ///< RTSP only
+        struct module  *sender_mod;   ///< set by video_rxtx::create
+        struct module  *receiver_mod; ///< set by video_rxtx::create
 };
 
 #define VRXTX_INIT \
@@ -86,7 +86,7 @@ struct vrxtx_params {
                 .rx_port        = -1, \
                 .tx_port        = -1, \
                 .fec            = "none", \
-                .bitrate        = RATE_UNLIMITED, \
+                .bitrate_limit  = RATE_UNLIMITED, \
                 .decoder_mode   = VIDEO_NORMAL, \
                 .protocol_opts  = "", \
                 .start_time     = 0, \

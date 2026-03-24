@@ -121,7 +121,7 @@ recompress_output_port::recompress_output_port(
         params.rx_port = rx_port;
         params.tx_port = tx_port;
         params.fec = fec;
-        params.bitrate = bitrate;
+        params.bitrate_limit = bitrate;
 
         // UltraGrid RTP - fllowing already set by VRXTX_INIT
         // params["decoder_mode"].l = VIDEO_NORMAL;

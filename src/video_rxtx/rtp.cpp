@@ -209,7 +209,7 @@ rtp_video_rxtx::rtp_video_rxtx(const struct vrxtx_params *params,
         }
 
         m_tx = tx_init(params->sender_mod, common->mtu, TX_MEDIA_VIDEO,
-                       params->fec, common->encryption, params->bitrate);
+                       params->fec, common->encryption, params->bitrate_limit);
         if (m_tx == nullptr) {
                 throw ug_runtime_error("Unable to initialize transmitter", EXIT_FAIL_TRANSMIT);
         }

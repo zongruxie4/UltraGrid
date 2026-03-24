@@ -83,20 +83,31 @@ void set_omt_sender_info(omt_rxtx_state *s){
         omt_send_setsenderinformation(s->omt_send_handle, &info);
 }
 
-void *omt_rxtx_create(const vrxtx_params *params, const common_opts *common){
-        auto s = new omt_rxtx_state();
-
-        s->parent = common->parent;
-        omt_setloggingcallback(omt_log_callback);
+void init_recv(const vrxtx_params *params, omt_rxtx_state *s){
         s->display_device = params->display_device;
         log_msg(LOG_LEVEL_INFO, MOD_NAME "Create omt receive with address %s\n", params->receiver);
         s->omt_recv_handle = omt_receive_create(params->receiver, static_cast<OMTFrameType>(OMTFrameType_Audio | OMTFrameType_Video),
                 OMTPreferredVideoFormat_UYVY, OMTReceiveFlags_None);
+}
+
+void init_send(omt_rxtx_state *s){
         s->omt_send_handle = omt_send_create("UltraGrid", OMTQuality_Default);
         set_omt_sender_info(s);
-        
         s->send_video_frame.Type = OMTFrameType_Video;
         s->send_video_frame.Timestamp = -1;
+}
+
+void *omt_rxtx_create(const vrxtx_params *params, const common_opts *common){
+        auto s = new omt_rxtx_state();
+        s->parent = common->parent;
+
+        omt_setloggingcallback(omt_log_callback);
+
+        if(params->rxtx_mode & MODE_RECEIVER)
+            init_recv(params, s);
+
+        if(params->rxtx_mode & MODE_SENDER)
+            init_send(s);
 
         return s;
 }

@@ -54,7 +54,7 @@ using omt_receive_uniq = std::unique_ptr<omt_receive_t, deleter_from_fcn<omt_rec
 using omt_send_uniq = std::unique_ptr<omt_send_t, deleter_from_fcn<omt_send_destroy>>;
 
 void omt_log_callback(const char *msg){
-        log_msg(LOG_LEVEL_INFO, MOD_NAME "OMTLOG: %s\n", msg);
+        log_msg(LOG_LEVEL_INFO, MOD_NAME "[libomt] %s\n", msg);
 }
 
 struct omt_rxtx_state{
@@ -133,7 +133,6 @@ bool send_reconfigure(omt_rxtx_state *s, struct video_desc frame_desc){
         s->send_video_frame.FrameRateN = frame_desc.fps * 1000.0;
         s->send_video_frame.FrameRateD = 1000;
         s->send_desc = frame_desc;
-        log_msg(LOG_LEVEL_NOTICE, MOD_NAME "Reconf\n");
         return true;
 }
 
@@ -149,9 +148,7 @@ void omt_rxtx_send_frame(void *state, std::shared_ptr<video_frame> f){
         s->send_video_frame.Data = f->tiles[0].data;
         s->send_video_frame.DataLength = f->tiles[0].data_len;
 
-        int ret = omt_send(s->omt_send_handle.get(), &s->send_video_frame);
-
-        log_msg(LOG_LEVEL_INFO, MOD_NAME "Send returned %d\n", ret);
+        omt_send(s->omt_send_handle.get(), &s->send_video_frame);
 }
 
 video_desc video_desc_from_omt_frame(const OMTMediaFrame *omt_frame){
@@ -166,13 +163,11 @@ video_desc video_desc_from_omt_frame(const OMTMediaFrame *omt_frame){
 
 void *omt_rxtx_recv_worker(void *state){
         auto s = static_cast<omt_rxtx_state *>(state);
-        register_should_exit_callback(s->parent,
-                                      omt_should_exit_callback, state);
+        register_should_exit_callback(s->parent, omt_should_exit_callback, s);
 
         while(!s->should_exit){
                 auto omt_frame = omt_receive(s->omt_recv_handle.get(), OMTFrameType_Video, 1000);
                 if(!omt_frame){
-                        log_msg(LOG_LEVEL_INFO, MOD_NAME "Receive failed\n");
                         continue;
                 }
 
@@ -191,8 +186,7 @@ void *omt_rxtx_recv_worker(void *state){
         }
 
         display_put_frame(s->display_device, nullptr, PUTF_BLOCKING);
-        unregister_should_exit_callback(s->parent,
-                                        omt_should_exit_callback, s);
+        unregister_should_exit_callback(s->parent, omt_should_exit_callback, s);
 
         return nullptr;
 }

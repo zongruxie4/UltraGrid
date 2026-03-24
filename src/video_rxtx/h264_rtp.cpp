@@ -75,7 +75,16 @@ h264_rtp_video_rxtx::h264_rtp_video_rxtx(const struct vrxtx_params *params,
 {
         rtsp_params.rtsp_port = (unsigned) rtsp_port;
         rtsp_params.parent = common->parent;
-        rtsp_params.avType = (rtsp_types_t) params->av_type;
+
+        auto avType = (rtsp_types_t) (params->send_audio ? rtsp_type_audio : 0);
+        avType = (rtsp_types_t) (avType |
+                                 (params->send_video ? rtsp_type_video : 0));
+        if (avType == rtsp_type_none) {
+                printf("[RTSP SERVER CHECK] no stream type... check capture devices input...\n");
+                throw 1;
+        }
+        rtsp_params.avType = avType;;
+
         rtsp_params.rtp_port_video = params->rx_port;  //server rtp port
 }
 

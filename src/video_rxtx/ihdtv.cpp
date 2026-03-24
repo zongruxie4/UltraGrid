@@ -51,6 +51,7 @@
  *
  */
 
+#include <cassert>          // for assert
 #include <cstdio>           // for NULL, printf
 #include <memory>           // for shared_ptr
 #include <string>           // for basic_string, string
@@ -151,14 +152,15 @@ ihdtv_video_rxtx::ihdtv_video_rxtx(const struct vrxtx_params *params,
         printf("Initializing ihdtv protocol\n");
 
         // we cannot act as both together, because parameter parsing would have to be revamped
-        if (params->capture_device && params->display_device) {
+        if ((params->rxtx_mode == (MODE_SENDER | MODE_RECEIVER))) {
                throw string 
                         ("Error: cannot act as both sender and receiver together in ihdtv mode");
         }
 
-        m_display_device = static_cast<struct display *>(params->display_device);
+        m_display_device = params->display_device;
 
-        if (m_display_device) {
+        if ((params->rxtx_mode & MODE_RECEIVER) != 0U) {
+                assert(params->display_device != nullptr);
                 if (ihdtv_init_rx_session
                                 (&m_rx_connection, (argc == 0) ? NULL : argv[0],
                                  (argc ==
@@ -168,7 +170,8 @@ ihdtv_video_rxtx::ihdtv_video_rxtx(const struct vrxtx_params *params,
                 }
         }
 
-        if (params->capture_device != nullptr) {
+        if ((params->rxtx_mode & MODE_SENDER) != 0U) {
+                assert(params->capture_device != nullptr);
                 if (argc == 0) {
                         throw string("Error: specify the destination address");
                 }

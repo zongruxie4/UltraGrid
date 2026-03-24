@@ -79,6 +79,9 @@ h264_sdp_video_rxtx::h264_sdp_video_rxtx(const struct vrxtx_params *params,
         LOG(LOG_LEVEL_WARNING) << "Warning: SDP support is experimental only. Things may be broken - feel free to report them but the support may be limited.\n";
         m_saved_addr = m_requested_receiver;
         m_saved_tx_port = params->tx_port;
+
+        sdp_set_properties(params->receiver, params->send_video, params->send_audio);
+
         if (int ret = sdp_set_options(opts)) {
                 throw ret == 1 ? 0 : 1;
         }

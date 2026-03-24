@@ -60,7 +60,7 @@ struct video_frame;
 
 struct vrxtx_params {
         const char     *compression; ///< nullptr selects proto dfl
-        enum rxtx_mode  rxtx_mode;
+        enum rxtx_mode  rxtx_mode;      ///< sender, receiver or both
         struct display *display_device; ///< only iHDTV, UG RTP
         struct vidcap  *capture_device; ///< iHDTV only
         const char     *receiver;
@@ -71,7 +71,8 @@ struct vrxtx_params {
         enum video_mode decoder_mode;
         const char     *protocol_opts;
         long long       start_time;
-        long            av_type;      ///< RTSP only
+        bool            send_audio;   ///< RTSP+SDP
+        bool            send_video;   ///< RTSP+SDP
         struct module  *sender_mod;   ///< set by video_rxtx::create
         struct module  *receiver_mod; ///< set by video_rxtx::create
 };
@@ -90,7 +91,8 @@ struct vrxtx_params {
                 .decoder_mode   = VIDEO_NORMAL, \
                 .protocol_opts  = "", \
                 .start_time     = 0, \
-                .av_type        = 0, \
+                .send_audio     = false, \
+                .send_video     = false, \
                 .sender_mod     = nullptr, \
                 .receiver_mod   = nullptr, \
         }

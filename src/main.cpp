@@ -1476,34 +1476,14 @@ int main(int argc, char *argv[])
 #endif /* USE_RT */
 
         try {
-                // iHDTV
-                opt.video.capture_device = (opt.video.rxtx_mode & MODE_SENDER) != 0U ? uv.capture_device : nullptr;
-                // was but overriden later to uv.display_device unconditionaly:
-                // param.display_device = (opt.video_rxtx_mode & MODE_RECEIVER) != 0U ? uv.display_device : nullptr;
-
-                //RTP
-                opt.video.start_time = start_time;
-
-                // UltraGrid RTP
-                opt.video.display_device = uv.display_device;
-
-                if (strcmp(opt.video_protocol, "rtsp") == 0) {
-                        rtsp_types_t avType = rtsp_type_none;
-                        if ((strcmp("none", opt.audio.send_cfg) != 0)) {
-                                avType = (rtsp_types_t) (avType | rtsp_type_audio); // AStream
-                        }
-                        if (strcmp("none", vidcap_params_get_driver(
-                                               opt.vidcap_params_head)) != 0) {
-                                avType = (rtsp_types_t) (avType | rtsp_type_video); // VStream
-                        }
-                        if (avType == rtsp_type_none) {
-                                printf("[RTSP SERVER CHECK] no stream type... check capture devices input...\n");
-                        }
-
-                        opt.video.av_type = avType;
-                }
-
-                sdp_set_properties(opt.video.receiver, opt.video.rxtx_mode & MODE_SENDER && strcasecmp(opt.video_protocol, "sdp") == 0, opt.audio.send_port != 0 && strcasecmp(opt.audio.proto, "sdp") == 0);
+                opt.video.capture_device = uv.capture_device; // iHDTV
+                opt.video.start_time = start_time; // RTP protocols
+                opt.video.display_device = uv.display_device; // UltraGrid RTP, iHDTV
+                // RTSP + SDP
+                opt.video.send_audio = strcmp("none", opt.audio.send_cfg) != 0;
+                opt.video.send_video =
+                    strcmp("none", vidcap_params_get_driver(
+                                       opt.vidcap_params_head)) != 0;
 
                 uv.state_video_rxtx = video_rxtx::create(opt.video_protocol, &opt.video, &opt.common);
                 if (!uv.state_video_rxtx) {

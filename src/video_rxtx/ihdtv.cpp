@@ -56,6 +56,7 @@
 #include <string>           // for basic_string, string
 #include <utility>          // for move
 
+#include "config.h"         // for HAVE_IHDTV
 #include "debug.h"          // for LOG_LEVEL_WARNING, bug_msg
 #include "host.h"           // for common_opts, register_should_exit_callback
 #include "ihdtv/ihdtv.h"    // for ihdtv_connection, ihdtv_init_rx_session
@@ -95,6 +96,12 @@ ihdtv_video_rxtx::send_frame(shared_ptr<video_frame> tx_frame) noexcept
 #endif // IHDTV
 }
 
+static void
+should_exit_callback(void *should_exit)
+{
+        *(bool *) should_exit = true;
+}
+
 void *ihdtv_video_rxtx::receiver_loop()
 {
 #ifdef HAVE_IHDTV
@@ -102,13 +109,17 @@ void *ihdtv_video_rxtx::receiver_loop()
 
         struct video_frame *frame_buffer = NULL;
 
-        while (!m_should_exit) {
+        bool should_exit = false;
+        register_should_exit_callback(m_parent, should_exit_callback, &should_exit);
+        while (!should_exit) {
                 frame_buffer = display_get_frame(m_display_device);
                 if (ihdtv_receive
                     (connection, frame_buffer->tiles[0].data, frame_buffer->tiles[0].data_len))
                         return 0;       // we've got some error. probably empty buffer
                 display_put_frame(m_display_device, frame_buffer, PUTF_BLOCKING);
         }
+        unregister_should_exit_callback(m_parent, should_exit_callback,
+                                        &should_exit);
 #endif // IHDTV
         return NULL;
 }
@@ -136,12 +147,12 @@ static void *ihdtv_sender_thread(void *arg)
 }
 #endif
 
-ihdtv_video_rxtx::ihdtv_video_rxtx([[maybe_unused]] const struct vrxtx_params *params,
-                                   [[maybe_unused]] const struct common_opts  *common)
+ihdtv_video_rxtx::ihdtv_video_rxtx(const struct vrxtx_params *params,
+                                   const struct common_opts  *common) :
+        m_parent(common->parent)
 #ifdef HAVE_IHDTV
         , m_tx_connection(), m_rx_connection()
 #endif
-
 {
 #ifdef HAVE_IHDTV
         int argc = uv_argc;
@@ -153,24 +164,24 @@ ihdtv_video_rxtx::ihdtv_video_rxtx([[maybe_unused]] const struct vrxtx_params *p
         printf("Initializing ihdtv protocol\n");
 
         // we cannot act as both together, because parameter parsing would have to be revamped
-        if (params.at("capture_device").ptr && params.at("display_device").ptr) {
+        if (params->capture_device && params->display_device) {
                throw string 
                         ("Error: cannot act as both sender and receiver together in ihdtv mode");
         }
 
-        m_display_device = static_cast<struct display *>(params.at("display_device").ptr);
+        m_display_device = static_cast<struct display *>(params->display_device);
 
         if (m_display_device) {
                 if (ihdtv_init_rx_session
                                 (&m_rx_connection, (argc == 0) ? NULL : argv[0],
                                  (argc ==
                                   0) ? NULL : ((argc == 1) ? argv[0] : argv[1]),
-                                 3000, 3001, m_common.mtu) != 0) {
+                                 3000, 3001, common->mtu) != 0) {
                         throw string("Error initializing receiver session");
                 }
         }
 
-        if (static_cast<struct display *>(params.at("capture_device").ptr) != 0) {
+        if (params->capture_device != nullptr) {
                 if (argc == 0) {
                         throw string("Error: specify the destination address");
                 }
@@ -178,7 +189,7 @@ ihdtv_video_rxtx::ihdtv_video_rxtx([[maybe_unused]] const struct vrxtx_params *p
                 if (ihdtv_init_tx_session
                                 (&m_tx_connection, argv[0],
                                  (argc == 2) ? argv[1] : argv[0],
-                                 m_common.mtu) != 0) {
+                                 common->mtu) != 0) {
                         throw string("Error initializing sender session");
                 }
         }

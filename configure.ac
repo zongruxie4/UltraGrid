@@ -2584,7 +2584,7 @@ if test "$gpustitch_req" != no && test "$FOUND_CUDA" = yes; then
         fi
 fi
 
-ENSURE_FEATURE_PRESENT([$gpustitch_req], [$gpustitch ], [GPUSTITCH not found])
+ENSURE_FEATURE_PRESENT([${gpustitch_req?}], [${gpustitch?}], [GPUSTITCH not found])
 
 # -------------------------------------------------------------------------------------------------
 # SAGE stuff
@@ -2644,7 +2644,7 @@ if test $sage_req != no; then
         fi
 fi
 
-ENSURE_FEATURE_PRESENT([$sage_req], [$sage ], [SAGE not found])
+ENSURE_FEATURE_PRESENT([${sage_req?}], [${sage?}], [SAGE not found])
 
 # -------------------------------------------------------------------------------------------------
 # AUDIO stuff
@@ -3462,6 +3462,8 @@ then
         omt=yes
         add_module rxtx_omt "src/video_rxtx/omt.o" "-lomt"
 fi
+
+ENSURE_FEATURE_PRESENT([${omt_req?}], [${omt?}], [libomt not found])
 
 # ---------------------------------------------------------------------
 # NAT-PMP

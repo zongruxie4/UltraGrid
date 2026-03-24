@@ -46,6 +46,7 @@
 #include "video_display.h"
 #include "video_frame.h"
 #include "utils/misc.h"
+#include "utils/string_view_utils.hpp"
 
 #define MOD_NAME "[OMT] "
 
@@ -69,6 +70,9 @@ struct omt_rxtx_state{
         video_desc send_desc{};
         video_desc recv_desc{};
         display *display_device = nullptr;
+
+        OMTQuality quality = OMTQuality_Default;
+        std::string sender_address;
 };
 
 void omt_should_exit_callback(void *state){
@@ -87,6 +91,40 @@ void set_omt_sender_info(omt_rxtx_state *s){
         omt_send_setsenderinformation(s->omt_send_handle.get(), &info);
 }
 
+void print_help(){
+        color_printf("Open Media Transport\n");
+        color_printf("Usage\n");
+        color_printf(TERM_BOLD TERM_FG_RED "\t-x omt" TERM_FG_RESET "[:quality=<qual>]\n" TERM_RESET);
+        color_printf("\n");
+}
+
+bool parse_params(omt_rxtx_state *s, std::string_view cfg){
+        while(!cfg.empty()){
+                auto tok = tokenize(cfg, ':', '"');
+
+                auto key = tokenize(tok, '=');
+                auto val = tokenize(tok, '=');
+
+                if(key == "help"){
+                        print_help();
+                        return false;
+                } else if(key == "quality"){
+                        if(val == "low"){
+                                s->quality = OMTQuality_Low;
+                        } else if(val == "medium"){
+                                s->quality = OMTQuality_Medium;
+                        } else if(val == "high"){
+                                s->quality = OMTQuality_High;
+                        } else{
+                                log_msg(LOG_LEVEL_FATAL, MOD_NAME "Invalid quality \"%s\"\n", std::string(val).c_str());
+                                return false;
+                        }
+                }
+        }
+
+        return true;
+}
+
 void init_recv(const vrxtx_params *params, omt_rxtx_state *s){
         s->display_device = params->display_device;
         log_msg(LOG_LEVEL_INFO, MOD_NAME "Create omt receive with address %s\n", params->receiver);
@@ -95,7 +133,7 @@ void init_recv(const vrxtx_params *params, omt_rxtx_state *s){
 }
 
 void init_send(omt_rxtx_state *s){
-        s->omt_send_handle.reset(omt_send_create("UltraGrid", OMTQuality_Default));
+        s->omt_send_handle.reset(omt_send_create("UltraGrid", s->quality));
         set_omt_sender_info(s);
         s->send_video_frame.Type = OMTFrameType_Video;
         s->send_video_frame.Timestamp = -1;
@@ -104,6 +142,10 @@ void init_send(omt_rxtx_state *s){
 void *omt_rxtx_create(const vrxtx_params *params, const common_opts *common){
         auto s = std::make_unique<omt_rxtx_state>();
         s->parent = common->parent;
+
+        if(!parse_params(s.get(), params->protocol_opts)){
+                return nullptr;
+        }
 
         omt_setloggingcallback(omt_log_callback);
 

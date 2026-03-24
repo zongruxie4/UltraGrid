@@ -194,7 +194,7 @@ void *omt_rxtx_recv_worker(void *state){
 }
 }
 
-constexpr video_rxtx_info loopback_video_rxtx_info = {
+constexpr video_rxtx_info omt_video_rxtx_info = {
         "Open media transport",
         omt_rxtx_create,
         omt_rxtx_done,
@@ -206,4 +206,4 @@ constexpr video_rxtx_info loopback_video_rxtx_info = {
 };
 
 
-REGISTER_MODULE(omt, &loopback_video_rxtx_info, LIBRARY_CLASS_VIDEO_RXTX, VIDEO_RXTX_ABI_VERSION);
+REGISTER_MODULE(omt, &omt_video_rxtx_info, LIBRARY_CLASS_VIDEO_RXTX, VIDEO_RXTX_ABI_VERSION);

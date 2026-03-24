@@ -40,9 +40,14 @@
  * * add also audio
  */
 
-#include "video_rxtx/loopback.hpp"
-
-#include <chrono>
+#include <chrono>              // for milliseconds
+#include <condition_variable>  // for condition_variable
+#include <cstring>             // for memcpy
+#include <memory>              // for shared_ptr
+#include <mutex>               // for mutex, unique_lock
+#include <ostream>             // for char_traits, basic_ostream, operator<<
+#include <queue>               // for queue
+#include <utility>             // for move
 
 #include "debug.h"
 #include "host.h"
@@ -58,13 +63,34 @@ using std::unique_lock;
 static const int BUFF_MAX_LEN = 2;
 static const char *MODULE_NAME = "[loopback] ";
 
+
+#include "types.h"
+#include "video_rxtx.hpp"
+
+class loopback_video_rxtx {
+public:
+        loopback_video_rxtx(const struct vrxtx_params *params,
+                            const struct common_opts  *common);
+        void send_frame(std::shared_ptr<video_frame>) noexcept;
+        static void *receiver_thread(void *arg);
+
+private:
+        struct module *m_parent;
+        void *receiver_loop();
+
+        struct display *m_display_device;
+        struct video_desc m_configure_desc{};
+        std::queue<std::shared_ptr<video_frame>> m_frames;
+        std::condition_variable m_frame_ready;
+        std::mutex m_lock;
+
+        bool m_should_exit = false;
+        static void should_exit(void *state);
+};
+
 loopback_video_rxtx::loopback_video_rxtx(const struct vrxtx_params *params,
                                          const struct common_opts  *common)
     : m_parent(common->parent), m_display_device(params->display_device)
-{
-}
-
-loopback_video_rxtx::~loopback_video_rxtx()
 {
 }
 

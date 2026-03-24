@@ -973,7 +973,7 @@ if test "$bluefish444_req" != no; then
         AC_CHECK_HEADERS([BlueVelvetC.h], [BLUE_H=yes], [BLUE_H=no])
         AC_CHECK_LIB($BLUEFISH444_LIB_NAME, bfcFactory, [BLUE_L=yes], [BLUE_L=no])
 
-        if test "${BLUE_H?}" = yes && "${BLUE_L?}" = yes
+        if test "${BLUE_H?}" = yes && test "${BLUE_L?}" = yes
         then
                 BLUEFISH444_LIB="$BLUEFISH444_LIB -l$BLUEFISH444_LIB_NAME"
                 add_module vidcap_bluefish444 src/video_capture/bluefish444.o "$BLUEFISH444_LIB"
@@ -2628,7 +2628,9 @@ if test $sage_req != no; then
                 AC_CHECK_LIB(sail, main, FOUND_SAGE_L=yes, FOUND_SAGE_L=no, -lquanta -I${SAGE_INC} -L${SAGE_LIB})
         fi
 
+        AC_LANG_PUSH(C++)
         AC_CHECK_HEADERS(${SAGE_INC}/sail.h, FOUND_SAGE_H=yes, FOUND_SAGE_H=no)
+        AC_LANG_POP(C++)
 
         if test $FOUND_SAGE_L = yes && test $FOUND_SAGE_H = yes
         then
@@ -2744,7 +2746,8 @@ found_zfec=no
 if test $cross_compile = no && test "$zfec_req" != no; then
         AC_CHECK_FILES([$ZFEC_PREFIX/fec.c $ZFEC_PREFIX/fec.h], [found_zfec=yes])
         if test $found_zfec = no; then
-                ZFEC_PREFIX=/usr/lib/python3/dist-packages/zfec
+                ZFEC_PREFIX=$(ls -d /usr/lib/python* 2>/dev/null |
+                        tail -n 1)/dist-packages/zfec
                 if test ! -d "$ZFEC_PREFIX"; then
                         ZFEC_PREFIX=$(echo /usr/lib/python* | sed 's/.* \(@<:@^ @:>@*\)/\1/')/site-packages/zfec
                 fi

@@ -1903,7 +1903,7 @@ AC_ARG_ENABLE(libavcodec,
 )
 
 AC_ARG_ENABLE(lavc-cuda-conv,
-      AS_HELP_STRING([--enable-lavc-cuda-conv], [enable lavc CUDA conversions (default is disable)]
+      AS_HELP_STRING([--enable-lavc-cuda-conv], [enable lavc CUDA conversions (default is disabled)]
               [Requires: libavcodec CUDA]),
         [lavc_cuda_conv_req=$enableval],
         [lavc_cuda_conv_req=no]
@@ -2525,7 +2525,7 @@ ENSURE_FEATURE_PRESENT([$cuda_dxt_req], [$cuda_dxt], [CUDA DXT not found])
 # -------------------------------------------------------------------------------------------------
 gpujpeg_to_dxt=no
 AC_ARG_ENABLE(gpujpeg_to_dxt,
-[  --disable-gpujpeg_to_dxt   disable GPUJPEG DXT transcoder (default is disable)]
+[  --enable-gpujpeg_to_dxt    disable GPUJPEG DXT transcoder (default is disabled)]
 [                          Requires: CUDA libgpujpeg],
               [gpujpeg_to_dxt_req=$enableval],
               [gpujpeg_to_dxt_req=no])
@@ -2592,13 +2592,13 @@ ENSURE_FEATURE_PRESENT([$gpustitch_req], [$gpustitch ], [GPUSTITCH not found])
 sage=no
 
 AC_ARG_ENABLE(sage,
-[  --disable-sage          disable SAGE (default is disable)]
+[  --enable-sage           disable SAGE (default is disabled)]
 [                          Requires: SAGE],
 	[sage_req=$enableval],
         [sage_req=no])
 
 AC_ARG_ENABLE(sage-native-dxt5ycocg,
-      AS_HELP_STRING([--enable-sage-native-dxt5ycocg], [Assume that SAGE supports native DXT5 YCoCg (default is disable)]),
+      AS_HELP_STRING([--enable-sage-native-dxt5ycocg], [Assume that SAGE supports native DXT5 YCoCg (default is disabled)]),
 	[native_ycocg=$enableval],
         [native_ycocg=no])
 

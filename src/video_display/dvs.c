@@ -9,7 +9,7 @@
  *          Ian Wesley-Smith <iwsmith@cct.lsu.edu>
  *          Colin Perkins    <csp@isi.edu>
  *
- * Copyright (c) 2005-2023 CESNET z.s.p.o.
+ * Copyright (c) 2005-2026 CESNET, zájmové sdružené právnických osob
  * Copyright (c) 2001-2003 University of Southern California
  *
  * Redistribution and use in source and binary forms, with or without
@@ -49,9 +49,11 @@
  *
  */
 
-#include <stdbool.h>
-
 #include <assert.h>
+#include <math.h>               // for fabs
+#include <pthread.h>            // for pthread_mutex_unlock, pthread_cond_init
+#include <stdbool.h>            // for false, true, bool
+#include <stdint.h>             // for int32_t, uint32_t
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -67,9 +69,11 @@
 #include "video_display.h"
 #include "video_display/dvs.h"
 #include "tv.h"
+#include "types.h"              // for video_desc, tile, device_info, video_...
 #include "utils/ring_buffer.h"
 
 #include "dvs_clib.h"           /* From the DVS SDK */
+#include "dvs_errors.h"         // for SV_OK
 #include "dvs_fifo.h"           /* From the DVS SDK */
 
 #define HDSP_MAGIC	0x12345678
@@ -331,7 +335,6 @@ volatile int worker_waiting;
         int                     frames;
         struct timeval          t, t0;
 
-        pthread_t thread_id;
         bool should_exit;
 };
 
@@ -805,7 +808,7 @@ static void *display_dvs_init(struct module *parent, const char *cfg, unsigned i
         
         free(name);
 
-        pthread_create(&s->thread_id, NULL, display_aggregate_run, s);
+        pthread_create(&s->thread_id, NULL, display_dvs_run, s);
         return (void *)s;
 
 error:
@@ -887,7 +890,7 @@ static void display_dvs_put_audio_frame(void *state, const struct audio_frame *f
         ring_buffer_write(s->audio_ring_buffer, frame->data, frame->data_len);
 }
 
-static int display_dvs_reconfigure_audio(void *state, int quant_samples, int channels,
+static bool display_dvs_reconfigure_audio(void *state, int quant_samples, int channels,
                 int sample_rate) {
         bool ret;
         struct state_hdsp *s = (struct state_hdsp *)state;

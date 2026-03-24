@@ -8,7 +8,7 @@
  *          Dalibor Matura   <255899@mail.muni.cz>
  *          Ian Wesley-Smith <iwsmith@cct.lsu.edu>
  *
- * Copyright (c) 2005-2023 CESNET z.s.p.o.
+ * Copyright (c) 2005-2026 CESNET, zájmové sdružení právnických osob
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, is permitted provided that the following conditions
@@ -46,9 +46,17 @@
  *
  */
 
+#include <cstdint>          // for uint32_t
+#include <cstdio>           // for printf, fprintf, stderr, perror
+#include <cstdlib>          // for free, calloc, abort
+#include <cstring>          // for NULL, strlen, memcpy, strcmp, strncmp
+#include <sys/stat.h>       // for stat
+
 #include "debug.h"
 #include "host.h"
 #include "lib_common.h"
+#include "types.h"          // for tile, video_desc, device_info, DXT1, codec_t
+#include "video_frame.h"    // for vf_alloc, vf_free, vf_get_tile
 #include "video.h"
 #include "video_display.h"
 
@@ -101,8 +109,6 @@ struct state_sage {
         volatile bool           should_exit;
         bool                    is_tx;
         bool                    deinterlace;
-
-        pthread_t               thread_id;
 };
 
 /** Prototyping */
@@ -111,7 +117,7 @@ static int display_sage_handle_events(void)
         return 0;
 }
 
-static void display_sage_run(void *arg)
+static void *display_sage_run(void *arg)
 {
         struct state_sage *s = (struct state_sage *)arg;
         s->magic = MAGIC_SAGE;
@@ -160,6 +166,7 @@ static void display_sage_run(void *arg)
                         s->frames = 0;
                 }
         }
+        return nullptr;
 }
 
 static void *display_sage_init(struct module *parent, const char *fmt, unsigned int flags)

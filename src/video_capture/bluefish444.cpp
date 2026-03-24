@@ -35,20 +35,29 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <cassert>                 // for assert
+#include <cstdint>                 // for uint32_t
+#include <cstdio>                  // for NULL, printf, snprintf
+#include <cstdlib>                 // for atoi, free, calloc
+#include <cstring>                 // for strlen, memset, strcmp, strdup
 #include <iomanip>
 #include <iostream>
+#include <pthread.h>               // for pthread_cond_signal, pthread_mutex...
 #include <queue>
 
 #include "bluefish444_common.h"
 
 #include "audio/types.h"
 #include "audio/utils.h"
+#include "compat/strings.h"         // for strcasecmp, strncasecmp
 #include "debug.h"
 #include "host.h"
 #include "lib_common.h"
 #include "tv.h"
+#include "types.h"                 // for video_frame, tile, video_desc, dev...
 #include "video.h"
 #include "video_capture.h"
+#include "video_capture_params.h"  // for vidcap_params_get_fmt, vidcap_para...
 
 #ifndef UINT
 #define UINT uint32_t

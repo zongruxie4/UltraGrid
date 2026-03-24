@@ -49,12 +49,16 @@
  *
  */
 
-#include <stdbool.h>
-#include <stdio.h>
-#include <stdint.h>
-#include <stdlib.h>
+#include <errno.h>                 // for ETIMEDOUT
+#include <ctype.h>                 // for isdigit
 #include <pthread.h>
-
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>                // for strtok, strchr, strncmp, memset
+#include <time.h>                  // for timespec
+#include <sys/time.h>              // for timeval, gettimeofday
 
 #include "host.h"
 #include "audio/types.h"
@@ -63,11 +67,13 @@
 #include "lib_common.h"
 #include "video.h"
 #include "video_capture.h"
+#include "video_capture_params.h"  // for vidcap_params_get_fmt, vidcap_para...
 #include "video_display.h"
 #include "video_display/dvs.h"
 #include "tv.h"
 #include "types.h"
 #include "dvs_clib.h"           /* From the DVS SDK */
+#include "dvs_errors.h"            // for SV_OK
 #include "dvs_fifo.h"           /* From the DVS SDK */
 
 struct vidcap_dvs_state {
@@ -411,7 +417,7 @@ static int vidcap_dvs_init(const struct vidcap_params *params, void **state)
                 }
                 s->hd_video_mode |= val;
                 if (s->mode == NULL) {
-                        log_msg(LOG_LEVEL_ERROR, "[DVS] Mode detected, however unknown. Report to " PACKAGE_BUGREPORT ".\n");
+                        bug_msg(LOG_LEVEL_ERROR, "[DVS] Mode detected, however unknown. ");
                         goto error_detect;
                 }
                 printf("[DVS] Autodetected video mode: %dx%d @ %2.2fFPS.\n", s->mode->width, s->mode->height, s->mode->fps);
@@ -667,7 +673,7 @@ static void vidcap_dvs_probe(struct device_info **available_cards, int *count, v
                 snprintf(cards[card_idx].name, sizeof cards[card_idx].name,
                                 "DVS card #%d", card_idx);
                 snprintf(cards[card_idx].extra, sizeof cards[card_idx].extra,
-                                "\"embeddedAudioAvailable\":\"t\"", card_idx);
+                                "\"embeddedAudioAvailable\":\"t\"");
 
                 sv_close(sv);
                 card_idx++;

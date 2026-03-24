@@ -3,7 +3,7 @@
  * @author Martin Pulec     <pulec@cesnet.cz>
  */
 /*
- * Copyright (c) 2013-2025 CESNET
+ * Copyright (c) 2013-2026 CESNET, zájmové sdružení právnických osob
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -46,24 +46,30 @@
 
 #include "video_display.h"
 
+#include <algorithm>             // for max
 #include <cassert>
+#include <cmath>                 // for fabs
 #include <cstdint>
+#include <cstdlib>               // for abort, atoi, calloc
 #include <cstdio>
+#include <cstring>               // for memcpy, memset, strlen, strcmp
 #include <iomanip>
 #include <iostream>
+#include <pthread.h>             // for pthread_mutex_lock, pthread_mutex_un...
 #include <queue>
 #include <sstream>
 #include <stdexcept>
-#include <string>
 #include <vector>
 
 #include "bluefish444_common.h"
 
 #include "audio/types.h"
+#include "compat/strings.h"      // for strncasecmp
 #include "debug.h"
 #include "host.h"
 #include "lib_common.h"
 #include "tv.h"
+#include "types.h"               // for video_desc, device_info, tile, inter...
 #include "utils/ring_buffer.h"
 #include "video.h"
 #include "video_display.h"

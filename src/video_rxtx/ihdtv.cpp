@@ -56,7 +56,6 @@
 #include <string>           // for basic_string, string
 #include <utility>          // for move
 
-#include "config.h"         // for HAVE_IHDTV
 #include "debug.h"          // for LOG_LEVEL_WARNING, bug_msg
 #include "host.h"           // for common_opts, register_should_exit_callback
 #include "ihdtv/ihdtv.h"    // for ihdtv_connection, ihdtv_init_rx_session
@@ -78,10 +77,8 @@ public:
 private:
         struct module *m_parent;
         void *receiver_loop();
-#ifdef HAVE_IHDTV
         ihdtv_connection m_tx_connection, m_rx_connection;
         struct display *m_display_device;
-#endif
 };
 
 using namespace std;
@@ -89,11 +86,7 @@ using namespace std;
 void
 ihdtv_video_rxtx::send_frame(shared_ptr<video_frame> tx_frame) noexcept
 {
-#ifdef HAVE_IHDTV
         ihdtv_send(&m_tx_connection, tx_frame.get(), 9000000);      // FIXME: fix the use of frame size!!
-#else // IHDTV
-        UNUSED(tx_frame);
-#endif // IHDTV
 }
 
 static void
@@ -104,7 +97,6 @@ should_exit_callback(void *should_exit)
 
 void *ihdtv_video_rxtx::receiver_loop()
 {
-#ifdef HAVE_IHDTV
         ihdtv_connection *connection = &m_rx_connection;
 
         struct video_frame *frame_buffer = NULL;
@@ -120,7 +112,6 @@ void *ihdtv_video_rxtx::receiver_loop()
         }
         unregister_should_exit_callback(m_parent, should_exit_callback,
                                         &should_exit);
-#endif // IHDTV
         return NULL;
 }
 
@@ -148,13 +139,9 @@ static void *ihdtv_sender_thread(void *arg)
 #endif
 
 ihdtv_video_rxtx::ihdtv_video_rxtx(const struct vrxtx_params *params,
-                                   const struct common_opts  *common) :
-        m_parent(common->parent)
-#ifdef HAVE_IHDTV
-        , m_tx_connection(), m_rx_connection()
-#endif
+                                   const struct common_opts  *common)
+    : m_parent(common->parent), m_tx_connection(), m_rx_connection()
 {
-#ifdef HAVE_IHDTV
         int argc = uv_argc;
         char **argv = uv_argv;
         if ((argc != 0) && (argc != 1) && (argc != 2)) {
@@ -193,9 +180,6 @@ ihdtv_video_rxtx::ihdtv_video_rxtx(const struct vrxtx_params *params,
                         throw string("Error initializing sender session");
                 }
         }
-#else
-        throw string("Support for iHDTV not compiled in");
-#endif // HAVE_IHDTV
 }
 
 ihdtv_video_rxtx::~ihdtv_video_rxtx()
@@ -207,7 +191,7 @@ create_video_rxtx_ihdtv(const struct vrxtx_params *params,
                         const struct common_opts  *common)
 {
         bug_msg(LOG_LEVEL_WARNING,
-                "Warning: iHDTV support may be currently broken");
+                "Warning: iHDTV support may be currently broken. ");
         return new ihdtv_video_rxtx(params, common);
 }
 

@@ -2634,7 +2634,7 @@ if test $sage_req != no; then
         then
             SAGE_INC=-I${SAGE_INC}
             SAGE_LIB=-"L${SAGE_LIB} -lsail -lquanta"
-            SAGE_OBJ="src/video_display/sage.o"
+            SAGE_OBJ="src/video_display/sage.o src/video_rxtx/sage.o"
             CXXFLAGS="$CXXFLAGS -DQUANTA_USE_PTHREADS -DQUANTA_THREAD_SAFE -DGLSL_YUV"
             add_module display_sage "$SAGE_OBJ" "$SAGE_LIB"
             INC="$INC $SAGE_INC"
@@ -3066,7 +3066,7 @@ ihdtv=no
 
 if test $ihdtv_req = yes
 then
-        AC_DEFINE([HAVE_IHDTV], [1], [Build with iHDTV support])
+        OBJS="$OBJS src/ihdtv/ihdtv.o src/video_rxtx/ihdtv.o "
         ihdtv=yes
 fi
 
@@ -3611,9 +3611,7 @@ if test "$build_default" != no || test "$req_files" = all; then
         src/video_display/pipe.o
         src/video_display/unix_sock.o
         src/video_rxtx/h264_sdp.o
-        src/video_rxtx/ihdtv.o
         src/video_rxtx/loopback.o
-        src/video_rxtx/sage.o
         src/vo_postprocess/3d-interlaced.o
         src/vo_postprocess/border.o
         src/vo_postprocess/crop.o

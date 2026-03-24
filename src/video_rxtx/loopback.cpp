@@ -83,9 +83,6 @@ private:
         std::queue<std::shared_ptr<video_frame>> m_frames;
         std::condition_variable m_frame_ready;
         std::mutex m_lock;
-
-        bool m_should_exit = false;
-        static void should_exit(void *state);
 };
 
 loopback_video_rxtx::loopback_video_rxtx(const struct vrxtx_params *params,
@@ -113,18 +110,19 @@ loopback_video_rxtx::send_frame(std::shared_ptr<video_frame> f) noexcept
         m_frame_ready.notify_one();
 }
 
-void loopback_video_rxtx::should_exit(void *state) {
-        auto *s          = (loopback_video_rxtx *) state;
-        s->m_should_exit = true;
+static void
+should_exit_callback(void *should_exit)
+{
+        *(bool *) should_exit = true;
 }
 
 void *loopback_video_rxtx::receiver_loop()
 {
         set_thread_name(__func__);
-        register_should_exit_callback(m_parent,
-                                      loopback_video_rxtx::should_exit, this);
+        bool should_exit = false;
+        register_should_exit_callback(m_parent, should_exit_callback, &should_exit);
 
-        while (!m_should_exit) {
+        while (!should_exit) {
                 unique_lock<mutex> lk(m_lock);
                 m_frame_ready.wait_for(lk, milliseconds(100), [this]{return m_frames.size() > 0;});
                 if (m_frames.size() == 0) {
@@ -147,8 +145,8 @@ void *loopback_video_rxtx::receiver_loop()
                 display_put_frame(m_display_device, display_f, PUTF_BLOCKING);
         }
         display_put_frame(m_display_device, nullptr, PUTF_BLOCKING);
-        unregister_should_exit_callback(m_parent,
-                                        loopback_video_rxtx::should_exit, this);
+        unregister_should_exit_callback(m_parent, should_exit_callback,
+                                        &should_exit);
         return nullptr;
 }
 

@@ -107,6 +107,9 @@ inline T get_map_val_or_default(std::map<key, T> const& map, key const& k, T con
         return def;
 }
 
+template<auto delete_fcn>
+struct deleter_from_fcn{ template<typename T> void operator()(T handle) const { delete_fcn(handle); }};
+
 /* Like std::out_ptr from C++23 */
 template<class Smart, class Pointer = typename Smart::pointer>
 class out_ptr{

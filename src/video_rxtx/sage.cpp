@@ -35,17 +35,31 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <string>
-#include <sstream>
+#include <cstring>          // for NULL, memcpy, memset, strlen
+#include <memory>           // for shared_ptr
+#include <sstream>          // for basic_ostringstream, operator<<, basic_os...
+#include <string>           // for allocator, char_traits, basic_string, string
+#include <utility>          // for move
 
-#include "host.h"
 #include "lib_common.h"
+#include "types.h"
 #include "video_display.h"
-#include "video_rxtx/sage.hpp"
+#include "video_frame.h"    // for video_desc_from_frame, video_desc_eq
 #include "video_rxtx.hpp"
-#include "video.h"
 
 using namespace std;
+
+class sage_video_rxtx {
+public:
+        sage_video_rxtx(const struct vrxtx_params *params,
+                        const struct common_opts  *common);
+        ~sage_video_rxtx();
+        void send_frame(std::shared_ptr<video_frame>) noexcept;
+
+private:
+        struct video_desc     m_saved_video_desc;
+        struct display       *m_sage_tx_device;
+};
 
 sage_video_rxtx::sage_video_rxtx(
     const struct vrxtx_params                 *params,

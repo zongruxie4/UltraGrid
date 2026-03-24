@@ -51,17 +51,37 @@
  *
  */
 
-#include <string>
+#include <cstdio>           // for NULL, printf
+#include <memory>           // for shared_ptr
+#include <string>           // for basic_string, string
+#include <utility>          // for move
 
-#include "debug.h"
-#include "host.h"           // for common_opts, uv_argc, uv_argv
-#include "lib_common.h"
-#include "ihdtv/ihdtv.h"
-#include "video_display.h"
-#include "video_capture.h"
-#include "video_rxtx.hpp"
-#include "video_rxtx/ihdtv.hpp"
-#include "video.h"
+#include "debug.h"          // for LOG_LEVEL_WARNING, bug_msg
+#include "host.h"           // for common_opts, register_should_exit_callback
+#include "ihdtv/ihdtv.h"    // for ihdtv_connection, ihdtv_init_rx_session
+#include "lib_common.h"     // for REGISTER_MODULE, library_class
+#include "types.h"          // for tile, video_frame
+#include "video_display.h"  // for PUTF_BLOCKING, display_get_frame, display...
+#include "video_rxtx.hpp"   // for vrxtx_params, VIDEO_RXTX_ABI_VERSION, vid...
+
+class ihdtv_video_rxtx {
+public:
+        ihdtv_video_rxtx(const struct vrxtx_params *params,
+                         const struct common_opts  *common);
+        ~ihdtv_video_rxtx();
+        void send_frame(std::shared_ptr<video_frame>) noexcept;
+        static void *receiver_thread(void *arg) {
+                ihdtv_video_rxtx *s = static_cast<ihdtv_video_rxtx *>(arg);
+                return s->receiver_loop();
+        }
+private:
+        struct module *m_parent;
+        void *receiver_loop();
+#ifdef HAVE_IHDTV
+        ihdtv_connection m_tx_connection, m_rx_connection;
+        struct display *m_display_device;
+#endif
+};
 
 using namespace std;
 

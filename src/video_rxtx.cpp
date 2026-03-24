@@ -242,7 +242,10 @@ video_rxtx::create(string const &proto, const struct vrxtx_params *params,
         auto params_c = *params;
         params_c.sender_mod  = &ret->m_sender_mod;
         params_c.receiver_mod  = &ret->m_receiver_mod;
-        ret->m_impl_state = vri->create(&params_c, common);
+        try {
+                ret->m_impl_state = vri->create(&params_c, common);
+        } catch (...) {
+        }
         ret->m_impl_funcs = vri;
         if (ret->m_impl_state == nullptr) {
                 delete ret;

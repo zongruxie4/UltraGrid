@@ -35,6 +35,7 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <cassert>           // for assert
 #include <memory>
 #include <sstream>
 #include <stdexcept>
@@ -116,7 +117,8 @@ video_rxtx::video_rxtx(const char                *protocol_name,
         pthread_mutex_init(&m_lock, nullptr);
 }
 
-video_rxtx::~video_rxtx() {
+video_rxtx::~video_rxtx() noexcept
+{
         join();
         if (!m_poisoned && m_compression) {
                 send(NULL);
@@ -128,15 +130,9 @@ video_rxtx::~video_rxtx() {
         module_done(&m_sender_mod);
 }
 
-void video_rxtx::start() {
-        if (pthread_create(&m_thread_id, NULL, video_rxtx::sender_thread,
-                           (void *) this) != 0) {
-                throw string("Unable to create sender thread!\n");
-        }
-        m_joined = false;
-}
-
-void video_rxtx::join() {
+void
+video_rxtx::join() noexcept
+{
         if (m_joined) {
                 return;
         }
@@ -148,7 +144,9 @@ void video_rxtx::join() {
         m_joined = true;
 }
 
-const char *video_rxtx::get_long_name(string const & short_name) {
+const char *
+video_rxtx::get_long_name(string const &short_name) noexcept
+{
         const auto *vri = static_cast<const video_rxtx_info *>(
             load_library(short_name.c_str(), LIBRARY_CLASS_VIDEO_RXTX,
                          VIDEO_RXTX_ABI_VERSION));
@@ -159,7 +157,9 @@ const char *video_rxtx::get_long_name(string const & short_name) {
         return "(ERROR)";
 }
 
-void video_rxtx::send(shared_ptr<video_frame> frame) {
+void
+video_rxtx::send(shared_ptr<video_frame> frame) noexcept
+{
         if (!frame && m_poisoned) {
                 return;
         }
@@ -232,7 +232,7 @@ void *video_rxtx::sender_loop() {
 
 video_rxtx *
 video_rxtx::create(string const &proto, const struct vrxtx_params *params,
-                   const struct common_opts *common)
+                   const struct common_opts *common) noexcept
 {
         auto vri = static_cast<const video_rxtx_info *>(load_library(proto.c_str(), LIBRARY_CLASS_VIDEO_RXTX, VIDEO_RXTX_ABI_VERSION));
         if (!vri) {
@@ -258,11 +258,16 @@ video_rxtx::create(string const &proto, const struct vrxtx_params *params,
         // immediately. The encoder is actually created by a message.
         ret->check_sender_messages();
 
-        ret->start();
+        int rc = pthread_create(&ret->m_thread_id, nullptr, video_rxtx::sender_thread,
+                           (void *) ret);
+        assert(rc == 0);
+        ret->m_joined = false;
+
         return ret;
 }
 
-void video_rxtx::list(bool full)
+void
+video_rxtx::list(bool full) noexcept
 {
         printf("Available TX protocols:\n");
         list_modules(LIBRARY_CLASS_VIDEO_RXTX, VIDEO_RXTX_ABI_VERSION, full);
@@ -271,7 +276,7 @@ void video_rxtx::list(bool full)
 void
 video_rxtx::set_audio_spec(const struct audio_desc * desc,
                            int audio_rx_port, int audio_tx_port,
-                           bool ipv6)
+                           bool ipv6) noexcept
 {
         if (m_impl_funcs->set_sender_audio_spec != nullptr) {
                 m_impl_funcs->set_sender_audio_spec(m_impl_state, desc, audio_rx_port,

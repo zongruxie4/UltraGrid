@@ -117,26 +117,28 @@ struct video_rxtx_info {
 
 struct video_rxtx {
 public:
-        virtual ~video_rxtx();
-        void send(std::shared_ptr<struct video_frame>);
-        static const char *get_long_name(std::string const & short_name);
-        static void *receiver_thread(void *arg) {
+        virtual ~video_rxtx() noexcept;
+        void               send(std::shared_ptr<struct video_frame>) noexcept;
+        static const char *get_long_name(std::string const &short_name) noexcept;
+        static void       *receiver_thread(void *arg) noexcept
+        {
                 video_rxtx *rxtx = static_cast<video_rxtx *>(arg);
                 return rxtx->m_impl_funcs->receiver_routine(rxtx->m_impl_state);
         }
-        bool supports_receiving() {
+        bool supports_receiving() noexcept
+        {
                 return m_impl_funcs->receiver_routine != nullptr;
         }
         /**
          * If overridden, children must call also video_rxtx::join()
          */
-        virtual void join();
-        static video_rxtx   *create(std::string const         &name,
-                                    const struct vrxtx_params *params,
-                                    const struct common_opts  *opts);
-        static void list(bool full);
+        virtual void       join() noexcept;
+        static video_rxtx *create(std::string const         &name,
+                                  const struct vrxtx_params *params,
+                                  const struct common_opts  *opts) noexcept;
+        static void        list(bool full) noexcept;
         void set_audio_spec(const struct audio_desc *desc, int audio_rx_port,
-                            int audio_tx_port, bool ipv6);
+                            int audio_tx_port, bool ipv6) noexcept;
         std::string m_port_id  = "default";
 
         const struct video_rxtx_info *m_impl_funcs = nullptr;
@@ -154,7 +156,6 @@ protected:
         struct exporter *m_exporter;
 
 private:
-        void start();
         static void *sender_thread(void *args);
         void *sender_loop();
 

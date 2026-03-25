@@ -5,7 +5,7 @@
  * With code taken from Olivier Mehani (set_tio()).
  */
 /*
- * Copyright (c) 2015-2025 CESNET, zájmové sdružení právnických osob
+ * Copyright (c) 2015-2026 CESNET, zájmové sdružení právnických osob
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -177,12 +177,15 @@ private:
         std::mutex m_lock;
 };
 
-keyboard_control::keyboard_control(struct module *parent) : m_impl{std::make_unique<impl>(parent)} {}
-keyboard_control::~keyboard_control() = default;
-void keyboard_control::start() {
+keyboard_control::keyboard_control(struct module *parent) noexcept
+    : m_impl{ std::make_unique<impl>(parent) }
+{
+}
+keyboard_control::~keyboard_control() noexcept = default;
+void keyboard_control::start() noexcept {
         m_impl->start();
 }
-void keyboard_control::stop() {
+void keyboard_control::stop() noexcept {
         m_impl->stop();
 }
 

@@ -3,7 +3,7 @@
  * @author Martin Pulec     <pulec@cesnet.cz>
  */
 /*
- * Copyright (c) 2015-2019 CESNET, z. s. p. o.
+ * Copyright (c) 2015-2026 CESNET, zájmové sdružení právnických osob
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,6 +43,8 @@
 struct module;
 
 #ifndef __cplusplus
+#include <inttypes.h>      // for int64_t
+#include <stdbool.h>       // for bool
 #include <stddef.h>        // for size_t
 #else
 #include <cinttypes>
@@ -51,13 +53,13 @@ struct module;
 
 class keyboard_control {
 public:
-        keyboard_control(struct module *parent);
-        ~keyboard_control();
+        keyboard_control(struct module *parent) noexcept;
+        ~keyboard_control() noexcept;
         keyboard_control(keyboard_control&&) = delete;
         keyboard_control& operator=(keyboard_control&&) = delete;
 
-        void start();
-        void stop();
+        void start() noexcept;
+        void stop() noexcept;
 
 private:
         class impl;

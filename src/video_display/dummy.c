@@ -40,6 +40,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "audio/types.h"      // for audio_frame
 #include "debug.h"
 #include "compat/c23.h"       // for nullptr, true, bool, false, size_t
 #include "host.h"
@@ -47,7 +48,7 @@
 #include "pixfmt_conv.h"
 #include "types.h"            // for codec_t, R10k, RGBA, UYVY, tile, v210
 #include "utils/color_out.h"
-#include "utils/macros.h"
+#include "utils/macros.h"     // for TOSTRING, to_fourcc, MIN
 #include "utils/misc.h"
 #include "utils/text.h"
 #include "video.h"
@@ -58,6 +59,7 @@ struct module;
 
 #define DEFAULT_DUMP_LEN 32
 #define MOD_NAME "[dummy] "
+#define MAGIC to_fourcc('V', 'D', 'd', 'm')
 
 static const codec_t default_codecs[] = {I420, UYVY, YUYV, v210, R10k, R12L, RGBA, RGB, BGR, RG48};
 
@@ -73,6 +75,7 @@ static const struct codec_profile_t {
 };
 
 struct dummy_display_state {
+        uint32_t magic;
         struct video_frame *f;
         codec_t codecs[VIDEO_CODEC_COUNT];
         size_t codec_count;
@@ -179,7 +182,10 @@ static void *display_dummy_init(struct module *parent, const char *cfg, unsigned
                 usage();
                 return INIT_NOERR;
         }
-        struct dummy_display_state s = { .codec_count = sizeof default_codecs / sizeof default_codecs[0] };
+        struct dummy_display_state s = {
+                .magic       = MAGIC,
+                .codec_count = countof(default_codecs),
+        };
         memcpy(s.codecs, default_codecs, sizeof default_codecs);
         int rgb_shift_init[] = DEFAULT_RGB_SHIFT_INIT;
         memcpy(s.rgb_shift, &rgb_shift_init, sizeof s.rgb_shift);
@@ -199,6 +205,7 @@ static void *display_dummy_init(struct module *parent, const char *cfg, unsigned
 static void display_dummy_done(void *state)
 {
         struct dummy_display_state *s = state;
+        assert(s->magic == MAGIC);
 
         vf_free(s->f);
         free(s);
@@ -300,6 +307,26 @@ static void display_dummy_probe(struct device_info **available_cards, int *count
         *count = 0;
 }
 
+static void
+display_dummy_put_audio_frame(void *state, const struct audio_frame *frame)
+{
+        struct dummy_display_state *s = state;
+        assert(s->magic == MAGIC);
+        MSG(DEBUG, "Received audio frame %d B long...\n", frame->data_len);
+}
+
+static bool
+display_dummy_reconfigure_audio(void *state, int quant_samples, int channels, int sample_rate)
+{
+        struct dummy_display_state *s = state;
+        assert(s->magic == MAGIC);
+        MSG(DEBUG,
+            "Audio reconfigure - quant samples %d, channels %d, sample rate: "
+            "%d Hz\n",
+            quant_samples, channels, sample_rate);
+        return  true;
+}
+
 static const struct video_display_info display_dummy_info = {
         display_dummy_probe,
         display_dummy_init,
@@ -309,8 +336,8 @@ static const struct video_display_info display_dummy_info = {
         display_dummy_putf,
         display_dummy_reconfigure,
         display_dummy_get_property,
-        nullptr, // _put_audio_frame
-        nullptr, // _reconfigure_audio
+        display_dummy_put_audio_frame,
+        display_dummy_reconfigure_audio,
         MOD_NAME,
 };
 

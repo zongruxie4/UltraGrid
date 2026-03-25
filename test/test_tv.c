@@ -33,11 +33,11 @@
  * SUCH DAMAGE.
  */
 
-#include "config.h"
-#include "config_unix.h"
-#include "config_win32.h"
+#include <stdio.h>
 #include "tv.h"
 #include "test_tv.h"
+
+#include "compat/usleep.h"
 
 int test_tv(void)
 {

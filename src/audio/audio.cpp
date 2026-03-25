@@ -90,6 +90,7 @@
 #include "types.h"
 #include "ug_runtime_error.hpp"
 #include "utils/color_out.h"
+#include "video_display.h"              // for DISPLAY_FLAG_AUDIO_*
 #include "utils/net.h"
 #include "utils/macros.h"               // for STR_LEN, snprintf_ch
 #include "utils/misc.h"                 // for get_stat_color
@@ -186,6 +187,7 @@ struct state_audio {
         double volume = 1.0; // receiver volume scale
         bool muted_receiver = false;
         bool muted_sender = false;
+        bool playback_is_sdi = false; // delegating to vdisplay
 
         size_t recv_buf_size = DEFAULT_AUDIO_RECV_BUF_SIZE;
 
@@ -383,6 +385,7 @@ audio_init_real(struct state_audio *s, const struct audio_options *opt,
         opts.parent = s->audio_receiver_module.get();
         int ret =
             audio_playback_init(playback_dev, &opts, &s->audio_playback_device);
+        s->playback_is_sdi = (bool) audio_get_display_flags(playback_dev);
         free(playback_dev);
         if (ret != 0) {
                 return ret;
@@ -1206,25 +1209,36 @@ void
 audio_register_aux_data(struct state_audio          *s,
                         struct additional_audio_data data)
 {
-        if (audio_playback_get_display_flags(s->audio_playback_device) != 0U) {
-                auto *sdi_playback = (struct state_sdi_playback *)
-                    audio_playback_get_state_pointer(s->audio_playback_device);
-                sdi_register_display_callbacks(
-                    sdi_playback, data.display_callbacks.udata,
-                    (void (*)(void *, const struct audio_frame *))
-                        data.display_callbacks.putf,
-                    (bool (*)(void *, int, int,
-                              int)) data.display_callbacks.reconfigure,
-                    (bool (*)(void *, int, void *,
-                              size_t *)) data.display_callbacks.get_property);
-        }
-
         s->vrxtx = data.vrxtx;
+        if (!s->playback_is_sdi) {
+                return;
+        }
+        auto *sdi_playback =
+            (struct state_sdi_playback *) audio_playback_get_state_pointer(
+                s->audio_playback_device);
+        sdi_register_display_callbacks(
+            sdi_playback, data.display_callbacks.udata,
+            (void (*)(void *,
+                      const struct audio_frame *)) data.display_callbacks.putf,
+            (bool (*)(void *, int, int,
+                      int)) data.display_callbacks.reconfigure,
+            (bool (*)(void *, int, void *,
+                      size_t *)) data.display_callbacks.get_property);
 }
 
-unsigned int audio_get_display_flags(struct state_audio *s)
+unsigned int
+audio_get_display_flags(const char *playback_dev)
 {
-        return audio_playback_get_display_flags(s->audio_playback_device);
+        if (strcasecmp(playback_dev, "embedded") == 0) {
+                return DISPLAY_FLAG_AUDIO_EMBEDDED;
+        }
+        if (strcasecmp(playback_dev, "AESEBU") == 0) {
+                return DISPLAY_FLAG_AUDIO_AESEBU;
+        }
+        if (strcasecmp(playback_dev, "analog") == 0) {
+                return DISPLAY_FLAG_AUDIO_ANALOG;
+        }
+        return 0U;
 }
 
 std::ostream& operator<<(std::ostream& os, const audio_desc& desc)

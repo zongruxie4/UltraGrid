@@ -121,22 +121,6 @@ void audio_playback_done(struct state_audio_playback *s)
         free(s);
 }
 
-unsigned int audio_playback_get_display_flags(struct state_audio_playback *s)
-{
-        if(!s)
-                return 0u;
-
-        if (strcasecmp(s->name, "embedded") == 0) {
-                return DISPLAY_FLAG_AUDIO_EMBEDDED;
-        } else if (strcasecmp(s->name, "AESEBU") == 0) {
-                return DISPLAY_FLAG_AUDIO_AESEBU;
-        } else if (strcasecmp(s->name, "analog") == 0) {
-                return DISPLAY_FLAG_AUDIO_ANALOG;
-        } else  {
-                return 0u;
-        }
-}
-
 void audio_playback_put_frame(struct state_audio_playback *s, const struct audio_frame *frame)
 {
         s->samples_played += frame->data_len / frame->ch_count / frame->bps;

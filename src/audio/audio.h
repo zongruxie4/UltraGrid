@@ -126,7 +126,7 @@ void audio_register_aux_data(struct state_audio          *s,
 
 struct audio_frame * audio_get_frame(struct state_audio *s);
 
-unsigned int audio_get_display_flags(struct state_audio *s);
+unsigned int audio_get_display_flags(const char *playback_dev);
 
 void sdp_send_change_address_message(struct module           *root,
                                      const enum module_class *path,

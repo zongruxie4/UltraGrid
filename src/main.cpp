@@ -1428,7 +1428,7 @@ int main(int argc, char *argv[])
                 goto cleanup;
         }
 
-        display_flags |= audio_get_display_flags(uv.audio);
+        display_flags |= audio_get_display_flags(opt.audio.recv_cfg);
 
         // Display initialization should be prior to modules that may use graphic card (eg. GLSL) in order
         // to initialize shared resource (X display) first

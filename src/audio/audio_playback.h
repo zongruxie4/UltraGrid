@@ -139,8 +139,6 @@ void                            audio_playback_put_frame(struct state_audio_play
 void                            audio_playback_finish(struct state_audio_playback *state);
 void                            audio_playback_done(struct state_audio_playback *state);
 
-unsigned int                    audio_playback_get_display_flags(struct state_audio_playback *s);
-
 /**
  * @returns directly state of audio capture device. Little bit silly, but it is needed for
  * SDI (embedded sound).

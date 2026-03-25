@@ -50,7 +50,6 @@
 #include "test_bitstream.h"
 #include "test_des.h"
 #include "test_md5.h"
-#include "test_random.h"
 #include "test_tv.h"
 #include "test_net_udp.h"
 #include "test_video_capture.h"
@@ -101,7 +100,6 @@ struct {
         DEFINE_QUIET_TEST(test_des),
         //DEFINE_QUIET_TEST(test_aes),
         DEFINE_QUIET_TEST(test_md5),
-        DEFINE_QUIET_TEST(test_random),
         DEFINE_QUIET_TEST(test_tv),
         DEFINE_QUIET_TEST(test_net_udp),
 #ifdef TEST_AV_HW

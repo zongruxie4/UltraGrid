@@ -1469,89 +1469,75 @@ int main(int argc, char *argv[])
 #endif /* HAVE_SCHED_SETSCHEDULER */
 #endif /* USE_RT */
 
-        try {
-                opt.video.capture_device = uv.capture_device; // iHDTV
-                opt.video.start_time = start_time; // RTP protocols
-                opt.video.display_device = uv.display_device; // UltraGrid RTP, iHDTV
-                // RTSP + SDP
-                opt.video.send_audio = strcmp("none", opt.audio.send_cfg) != 0;
-                opt.video.send_video =
-                    strcmp("none", vidcap_params_get_driver(
-                                       opt.vidcap_params_head)) != 0;
+        opt.video.capture_device = uv.capture_device; // iHDTV
+        opt.video.start_time     = start_time;        // RTP protocols
+        opt.video.display_device = uv.display_device; // UltraGrid RTP, iHDTV
+        // RTSP + SDP
+        opt.video.send_audio = strcmp("none", opt.audio.send_cfg) != 0;
+        opt.video.send_video =
+            strcmp("none", vidcap_params_get_driver(opt.vidcap_params_head)) !=
+            0;
 
-                uv.state_video_rxtx = video_rxtx::create(opt.video_protocol, &opt.video, &opt.common);
-                if (!uv.state_video_rxtx) {
-                        if (strcmp(opt.video_protocol, "help") != 0) {
-                                throw string("Requested RX/TX cannot be created (missing library?)");
-                        } else {
-                                throw 0;
-                        }
+        uv.state_video_rxtx =
+            video_rxtx::create(opt.video_protocol, &opt.video, &opt.common);
+        if (!uv.state_video_rxtx) {
+                int rc = EXIT_SUCCESS;
+                if (strcmp(opt.video_protocol, "help") != 0) {
+                        error_msg("Requested RX/TX cannot be created "
+                                     "(missing library?)\n");
+                        rc = EXIT_FAILURE;
                 }
-
-                opt.audio.vrxtx = uv.state_video_rxtx;
-                opt.audio.display = uv.display_device;
-                ret = audio_init(&uv.audio, &opt.audio, &opt.common);
-                if (ret != 0) {
-                        exit_uv(ret < 0 ? EXIT_FAIL_AUDIO : 0);
-                        goto cleanup;
-                }
-
-                if ((opt.video.rxtx_mode & MODE_RECEIVER) != 0U) {
-                        if (!uv.state_video_rxtx->supports_receiving()) {
-                                fprintf(stderr, "Selected RX/TX mode doesn't support receiving.\n");
-                                exit_uv(EXIT_FAILURE);
-                                goto cleanup;
-                        }
-                        // init module here so as it is capable of receiving messages
-                        if (pthread_create
-                                        (&receiver_thread_id, NULL, video_rxtx::receiver_thread,
-                                         (void *) uv.state_video_rxtx) != 0) {
-                                perror("Unable to create display thread!\n");
-                                exit_uv(EXIT_FAILURE);
-                                goto cleanup;
-                        }
-                }
-
-                if ((opt.video.rxtx_mode & MODE_SENDER) != 0U) {
-                        if (pthread_create
-                                        (&capture_thread_id, NULL, capture_thread,
-                                         (void *) &uv) != 0) {
-                                perror("Unable to create capture thread!\n");
-                                exit_uv(EXIT_FAILURE);
-                                goto cleanup;
-                        }
-                }
-
-                if (opt.requested_capabilities != nullptr) {
-                        print_capabilities(opt.requested_capabilities);
-                        exit_uv(EXIT_SUCCESS);
-                        goto cleanup;
-                }
-
-                audio_start(uv.audio);
-
-                control_start(control);
-                kc.start();
-
-                display_run_mainloop(uv.display_device);
-
-        } catch (ug_no_error const &e) {
-                exit_uv(0);
-        } catch (ug_runtime_error const &e) {
-                LOG(LOG_LEVEL_ERROR) << e.what() << "\n";
-                exit_uv(e.get_code());
-        } catch (runtime_error const &e) {
-                LOG(LOG_LEVEL_ERROR) << e.what() << "\n";
-                exit_uv(EXIT_FAILURE);
-        } catch (exception const &e) {
-                LOG(LOG_LEVEL_ERROR) << e.what() << "\n";
-                exit_uv(EXIT_FAILURE);
-        } catch (string const &str) {
-                LOG(LOG_LEVEL_ERROR) << str << "\n";
-                exit_uv(EXIT_FAILURE);
-        } catch (int i) {
-                exit_uv(i);
+                exit_uv(rc);
+                goto cleanup;
         }
+
+        opt.audio.vrxtx   = uv.state_video_rxtx;
+        opt.audio.display = uv.display_device;
+        ret               = audio_init(&uv.audio, &opt.audio, &opt.common);
+        if (ret != 0) {
+                exit_uv(ret < 0 ? EXIT_FAIL_AUDIO : 0);
+                goto cleanup;
+        }
+
+        if ((opt.video.rxtx_mode & MODE_RECEIVER) != 0U) {
+                if (!uv.state_video_rxtx->supports_receiving()) {
+                        fprintf(
+                            stderr,
+                            "Selected RX/TX mode doesn't support receiving.\n");
+                        exit_uv(EXIT_FAILURE);
+                        goto cleanup;
+                }
+                // init module here so as it is capable of receiving messages
+                if (pthread_create(&receiver_thread_id, NULL,
+                                   video_rxtx::receiver_thread,
+                                   (void *) uv.state_video_rxtx) != 0) {
+                        perror("Unable to create display thread!\n");
+                        exit_uv(EXIT_FAILURE);
+                        goto cleanup;
+                }
+        }
+
+        if ((opt.video.rxtx_mode & MODE_SENDER) != 0U) {
+                if (pthread_create(&capture_thread_id, NULL, capture_thread,
+                                   (void *) &uv) != 0) {
+                        perror("Unable to create capture thread!\n");
+                        exit_uv(EXIT_FAILURE);
+                        goto cleanup;
+                }
+        }
+
+        if (opt.requested_capabilities != nullptr) {
+                print_capabilities(opt.requested_capabilities);
+                exit_uv(EXIT_SUCCESS);
+                goto cleanup;
+        }
+
+        audio_start(uv.audio);
+
+        control_start(control);
+        kc.start();
+
+        display_run_mainloop(uv.display_device);
 
 cleanup:
         if (!pthread_equal(receiver_thread_id, PTHREAD_NULL)) {

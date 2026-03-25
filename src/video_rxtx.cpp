@@ -128,6 +128,8 @@ video_rxtx::~video_rxtx() noexcept
         compress_done(m_compression);
         module_done(&m_receiver_mod);
         module_done(&m_sender_mod);
+
+        pthread_mutex_destroy(&m_lock);
 }
 
 void

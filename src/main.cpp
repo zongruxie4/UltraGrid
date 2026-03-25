@@ -1482,9 +1482,10 @@ int main(int argc, char *argv[])
             video_rxtx::create(opt.video_protocol, &opt.video, &opt.common);
         if (!uv.state_video_rxtx) {
                 int rc = EXIT_SUCCESS;
-                if (strcmp(opt.video_protocol, "help") != 0) {
+                if (strcmp(opt.video_protocol, "help") != 0 &&
+                    strcmp(opt.video.protocol_opts, "help") != 0) {
                         error_msg("Requested RX/TX cannot be created "
-                                     "(missing library?)\n");
+                                  "(missing library?)\n");
                         rc = EXIT_FAILURE;
                 }
                 exit_uv(rc);

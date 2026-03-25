@@ -3,7 +3,7 @@
  * @author Martin Pulec     <pulec@cesnet.cz>
  */
 /*
- * Copyright (c) 2011-2023 CESNET z.s.p.o.
+ * Copyright (c) 2011-2026 CESNET zájmové sdružení právnických osob
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -50,11 +50,11 @@
 #include "video_display.h"
 
 struct state_sdi_playback {
-        void *udata;
-        void (*put_callback)(void *, const struct audio_frame *);
-        bool (*reconfigure_callback)(void *state, int quant_samples,
+        struct display *display;
+        void (*put_callback)(struct display *, const struct audio_frame *);
+        bool (*reconfigure_callback)(struct display *state, int quant_samples,
                                      int channels, int sample_rate);
-        bool (*get_property_callback)(void *, int, void *, size_t *);
+        bool (*get_property_callback)(struct display *, int, void *, size_t *);
 };
 
 static void audio_play_sdi_probe_common(struct device_info **available_devices, int *count, 
@@ -113,16 +113,16 @@ audio_play_sdi_init(const struct audio_playback_opts *opts)
 }
 
 void
-sdi_register_display_callbacks(void *state, void *udata,
-                               void (*putf)(void *, const struct audio_frame *),
-                               bool (*reconfigure)(void *, int, int, int),
-                               bool (*get_property)(void *, int, void *,
-                                                   size_t *))
+sdi_register_display_callbacks(
+    void *state, struct display *display,
+    void (*putf)(struct display *, const struct audio_frame *),
+    bool (*reconfigure)(struct display *, int, int, int),
+    bool (*get_property)(struct display *, int, void *, size_t *))
 {
-        struct state_sdi_playback *s = (struct state_sdi_playback *) state;
-        
-        s->udata = udata;
-        s->put_callback = putf;
+        struct state_sdi_playback *s = state;
+
+        s->display               = display;
+        s->put_callback          = putf;
         s->reconfigure_callback = reconfigure;
         s->get_property_callback = get_property;
 }
@@ -133,24 +133,23 @@ static void audio_play_sdi_put_frame(void *state, const struct audio_frame *fram
         s = (struct state_sdi_playback *) state;
 
         if(s->put_callback)
-                s->put_callback(s->udata, frame);
+                s->put_callback(s->display, frame);
 }
 
 static bool audio_play_sdi_query_format(struct state_sdi_playback *s, void *data, size_t *len)
 {
-        if (s->get_property_callback(s->udata, DISPLAY_PROPERTY_AUDIO_FORMAT, data, len)) {
+        if (s->get_property_callback(s->display, DISPLAY_PROPERTY_AUDIO_FORMAT, data, len)) {
                 return true;
-        } else {
-                log_msg(LOG_LEVEL_WARNING, "Cannot get audio format from playback card!\n");
-		struct audio_desc desc = {2, 48000, 2, AC_PCM};
-		if (*len >= sizeof desc) {
-			memcpy(data, &desc, sizeof desc);
-			*len = sizeof desc;
-                        return true;
-                } else {
-                        return false;
-                }
         }
+        log_msg(LOG_LEVEL_WARNING,
+                "Cannot get audio format from playback card!\n");
+        struct audio_desc desc = { 2, 48000, 2, AC_PCM };
+        if (*len < sizeof desc) {
+                return false;
+        }
+        memcpy(data, &desc, sizeof desc);
+        *len = sizeof desc;
+        return true;
 }
 
 static bool audio_play_sdi_ctl(void *state, int request, void *data, size_t *len)
@@ -169,7 +168,7 @@ static bool audio_play_sdi_reconfigure(void *state, struct audio_desc desc)
         struct state_sdi_playback *s = state;
 
         if(s->reconfigure_callback) {
-                return s->reconfigure_callback(s->udata, desc.bps * 8,
+                return s->reconfigure_callback(s->display, desc.bps * 8,
                                 desc.ch_count, desc.sample_rate);
         }
         return false;

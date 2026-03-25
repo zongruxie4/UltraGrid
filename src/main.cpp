@@ -1422,12 +1422,6 @@ int main(int argc, char *argv[])
                 }
         }
 
-        ret = audio_init(&uv.audio, &opt.audio, &opt.common);
-        if (ret != 0) {
-                exit_uv(ret < 0 ? EXIT_FAIL_AUDIO : 0);
-                goto cleanup;
-        }
-
         display_flags |= audio_get_display_flags(opt.audio.recv_cfg);
 
         // Display initialization should be prior to modules that may use graphic card (eg. GLSL) in order
@@ -1494,6 +1488,14 @@ int main(int argc, char *argv[])
                         }
                 }
 
+                opt.audio.vrxtx = uv.state_video_rxtx;
+                opt.audio.display = uv.display_device;
+                ret = audio_init(&uv.audio, &opt.audio, &opt.common);
+                if (ret != 0) {
+                        exit_uv(ret < 0 ? EXIT_FAIL_AUDIO : 0);
+                        goto cleanup;
+                }
+
                 if ((opt.video.rxtx_mode & MODE_RECEIVER) != 0U) {
                         if (!uv.state_video_rxtx->supports_receiving()) {
                                 fprintf(stderr, "Selected RX/TX mode doesn't support receiving.\n");
@@ -1519,13 +1521,6 @@ int main(int argc, char *argv[])
                                 goto cleanup;
                         }
                 }
-
-                struct additional_audio_data aux = {
-                        { uv.display_device, display_put_audio_frame,
-                         display_reconfigure_audio, display_ctl_property },
-                        uv.state_video_rxtx,
-                };
-                audio_register_aux_data(uv.audio, aux);
 
                 if (opt.requested_capabilities != nullptr) {
                         print_capabilities(opt.requested_capabilities);

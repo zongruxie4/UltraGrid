@@ -136,7 +136,6 @@ bool audio_playback_reconfigure(struct state_audio_playback *state,
                                 int quant_samples, int channels,
                                 int sample_rate);
 void                            audio_playback_put_frame(struct state_audio_playback *state, const struct audio_frame *frame);
-void                            audio_playback_finish(struct state_audio_playback *state);
 void                            audio_playback_done(struct state_audio_playback *state);
 
 /**

@@ -187,7 +187,6 @@ struct state_audio {
         double volume = 1.0; // receiver volume scale
         bool muted_receiver = false;
         bool muted_sender = false;
-        bool playback_is_sdi = false; // delegating to vdisplay
 
         size_t recv_buf_size = DEFAULT_AUDIO_RECV_BUF_SIZE;
 
@@ -295,7 +294,7 @@ audio_init_real(struct state_audio *s, const struct audio_options *opt,
 
         s->audio_channel_map = opt->channel_map;
         s->audio_scale = opt->scale;
-
+        s->vrxtx = opt->vrxtx;
         s->resample_to = parse_audio_codec_params(opt->codec_cfg).sample_rate;
 
         s->exporter = common->exporter;
@@ -385,10 +384,18 @@ audio_init_real(struct state_audio *s, const struct audio_options *opt,
         opts.parent = s->audio_receiver_module.get();
         int ret =
             audio_playback_init(playback_dev, &opts, &s->audio_playback_device);
-        s->playback_is_sdi = (bool) audio_get_display_flags(playback_dev);
+        bool playback_is_sdi = (audio_get_display_flags(playback_dev) &
+                                DISPLAY_FLAG_AUDIO_ANY) != 0U;
         free(playback_dev);
         if (ret != 0) {
                 return ret;
+        }
+        if (playback_is_sdi) {
+                auto *sdi_playback = (struct state_sdi_playback *)
+                    audio_playback_get_state_pointer(s->audio_playback_device);
+                sdi_register_display_callbacks(
+                    sdi_playback, opt->display, display_put_audio_frame,
+                    display_reconfigure_audio, display_ctl_property);
         }
 
         if (s->audio_tx_mode != 0) {
@@ -1203,27 +1210,6 @@ void audio_sdi_send(struct state_audio *s, struct audio_frame *frame) {
         
         sdi_capture = audio_capture_get_state_pointer(s->audio_capture_device);
         sdi_capture_new_incoming_frame(sdi_capture, frame);
-}
-
-void
-audio_register_aux_data(struct state_audio          *s,
-                        struct additional_audio_data data)
-{
-        s->vrxtx = data.vrxtx;
-        if (!s->playback_is_sdi) {
-                return;
-        }
-        auto *sdi_playback =
-            (struct state_sdi_playback *) audio_playback_get_state_pointer(
-                s->audio_playback_device);
-        sdi_register_display_callbacks(
-            sdi_playback, data.display_callbacks.udata,
-            (void (*)(void *,
-                      const struct audio_frame *)) data.display_callbacks.putf,
-            (bool (*)(void *, int, int,
-                      int)) data.display_callbacks.reconfigure,
-            (bool (*)(void *, int, void *,
-                      size_t *)) data.display_callbacks.get_property);
 }
 
 unsigned int

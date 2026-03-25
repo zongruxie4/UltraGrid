@@ -62,19 +62,21 @@
 struct state_audio;
 
 struct audio_options {
-        const char *host;
-        int         recv_port;
-        int         send_port;
-        const char *recv_cfg;
-        const char *send_cfg;
-        const char *proto;
-        const char *proto_cfg;
-        const char *fec_cfg;
-        char       *channel_map;
-        const char *scale;
-        bool        echo_cancellation;
-        const char *codec_cfg;
-        const char *filter_cfg;
+        const char        *host;
+        int                recv_port;
+        int                send_port;
+        const char        *recv_cfg;
+        const char        *send_cfg;
+        const char        *proto;
+        const char        *proto_cfg;
+        const char        *fec_cfg;
+        char              *channel_map;
+        const char        *scale;
+        bool               echo_cancellation;
+        const char        *codec_cfg;
+        const char        *filter_cfg;
+        struct video_rxtx *vrxtx;
+        struct display    *display;
 };
 
 #define AUDIO_OPTIONS_INIT \
@@ -92,6 +94,8 @@ struct audio_options {
                 .echo_cancellation = false, \
                 .codec_cfg         = "PCM", \
                 .filter_cfg        = "", \
+                .vrxtx             = nullptr, \
+                .display           = nullptr, \
         }
 
 #ifdef __cplusplus
@@ -109,20 +113,6 @@ void audio_join(struct state_audio *s);
 void audio_sdi_send(struct state_audio *s, struct audio_frame *frame);
 struct audio_frame * sdi_get_frame(void *state);
 void sdi_put_frame(void *state, struct audio_frame *frame);
-
-struct display;
-struct video_rxtx;
-struct additional_audio_data {
-        struct {
-                void *udata;
-                void (*putf)(struct display *, const struct audio_frame *);
-                bool (*reconfigure)(struct display *, int, int, int);
-                bool (*get_property)(struct display *, int, void *, size_t *);
-        } display_callbacks;
-        struct video_rxtx *vrxtx;
-};
-void audio_register_aux_data(struct state_audio          *s,
-                             struct additional_audio_data data);
 
 struct audio_frame * audio_get_frame(struct state_audio *s);
 

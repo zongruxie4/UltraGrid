@@ -192,20 +192,13 @@ static int vidcap_ug_input_init(const struct vidcap_params *cap_params, void **s
                 opt.send_port            = 0;
                 opt.recv_cfg             = "embedded";
                 opt.proto                = "ultragrid_rtp";
+                opt.display              = s->display;
+                opt.vrxtx                = s->video_rxtx.get();
 
                 if (audio_init(&s->audio, &opt, &s->common) != 0) {
                         delete s;
                         return VIDCAP_INIT_FAIL;
                 }
-
-                struct additional_audio_data aux_aud_data = {
-                        { s->display, display_put_audio_frame,
-                         display_reconfigure_audio, display_ctl_property
-
-                        },
-                        s->video_rxtx.get()
-                };
-                audio_register_aux_data(s->audio, aux_aud_data);
 
                 audio_start(s->audio);
         }

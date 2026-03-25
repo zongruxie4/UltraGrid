@@ -3,7 +3,7 @@
  * @author Martin Pulec     <pulec@cesnet.cz>
  */
 /*
- * Copyright (c) 2015-2023 CESNET, z. s. p. o.
+ * Copyright (c) 2015-2026 CESNET, zájmové sdružení právnických osob
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -96,6 +96,7 @@ audio_play_dummy_init(const struct audio_playback_opts *opts)
 static void audio_play_dummy_put_frame(void *state, const struct audio_frame *f)
 {
         struct state_dummy_aplay *s = state;
+        MSG(DEBUG, "Received audio frame %d B long...\n", f->data_len);
         if (!s->debug) {
                 return;
         }
@@ -131,7 +132,11 @@ static bool audio_play_dummy_ctl(void *state, int request, void *data, size_t *l
 
 static bool audio_play_dummy_reconfigure(void *state, struct audio_desc desc)
 {
-        UNUSED(state), UNUSED(desc);
+        UNUSED(state);
+        MSG(DEBUG,
+            "Audio reconfigure - bits %d, channels %d, sample rate: "
+            "%d Hz\n",
+            desc.bps * 8, desc.ch_count, desc.sample_rate);
         return true;
 }
 

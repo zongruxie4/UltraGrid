@@ -41,6 +41,7 @@
 #include <string.h>
 
 #include "audio/types.h"      // for audio_frame
+#include "audio/audio_playback.h"
 #include "debug.h"
 #include "compat/c23.h"       // for nullptr, true, bool, false, size_t
 #include "host.h"
@@ -87,7 +88,10 @@ struct dummy_display_state {
         bool oneshot;
         bool raw;
         int dump_to_file_skip_frames;
+        struct state_audio_playback *aplay;
 };
+
+static void display_dummy_done(void *state);
 
 static bool parse_codecs(char *str, codec_t *codecs, size_t *codec_count) {
         for (unsigned i = 0; i < sizeof codec_profiles / sizeof codec_profiles[0]; ++i) {
@@ -112,8 +116,10 @@ static bool parse_codecs(char *str, codec_t *codecs, size_t *codec_count) {
         return true;
 }
 
-static bool dummy_parse_opts(struct dummy_display_state *s, char *fmt) {
-        char *item = nullptr;
+static bool
+dummy_parse_opts(struct dummy_display_state *s, char *fmt, const char **audio_drv)
+{
+        char *item     = nullptr;
         char *save_ptr = nullptr;
         while ((item = strtok_r(fmt, ":", &save_ptr)) != nullptr) {
                 fmt = nullptr;
@@ -144,6 +150,8 @@ static bool dummy_parse_opts(struct dummy_display_state *s, char *fmt) {
                         s->raw = true;
                 } else if (strcmp(item, "discard") == 0) {
                         s->discard = true;
+                } else if (IS_KEY_PREFIX(item, "audio")) {
+                        *audio_drv = strchr(item, '=') + 1;;
                 } else {
                         log_msg(LOG_LEVEL_ERROR, MOD_NAME "Unrecognized option: %s\n", item);
                         return false;
@@ -155,51 +163,78 @@ static bool dummy_parse_opts(struct dummy_display_state *s, char *fmt) {
         return true;
 }
 
-static void usage() {
-        char desc[] = "Display " TBOLD("dummy") " only consumes the video without displaying it. A difference to avoiding "
-                        "display specification is that it forces decoding (otherwise it will be skipped altogether).\n\n"
-                        "Additionally, options " TBOLD("hexdump") " and " TBOLD("dump") " are available for debugging.\n\n";
+static void
+usage()
+{
+        char desc[] = "Display " TBOLD("dummy")
+                      " only consumes the video without displaying it. A "
+                      "difference to avoiding display specification is that it "
+                      "forces decoding (otherwise it will be skipped "
+                      "altogether).\n\nAdditionally, options " TBOLD("hexdump")
+                      " and " TBOLD("dump")
+                      " are available for debugging.\n\n";
         color_printf("%s", wrap_paragraph(desc));
         struct key_val options[] = {
-                { "codec=<codec>[,<codec2>] | codec=<setlist>", "force the use of a codec instead of default set; special set list also possible (see below)" },
-                { "rgb_shift=<r>,<g>,<b>", "if using output codec RGBA, use specified shifts instead of default (" TOSTRING(DEFAULT_R_SHIFT) ", " TOSTRING(DEFAULT_G_SHIFT) ", " TOSTRING(DEFAULT_B_SHIFT) ")" },
-                { "dump[:skip=<n>][:oneshot][:raw]", "dump first frame to file dummy.<ext> (optionally skip <n> first frames); 'oneshot' - exit after dumping the picture; 'raw' - dump raw data" },
-                { "hexdump[=<n>]", "dump first n (default " TOSTRING(DEFAULT_DUMP_LEN) ") bytes of every frame in hexadecimal format" },
-                { "discard", "realloc every frame (do not recycle)" },
-                { nullptr, nullptr}
+                { "codec=<c>[,<c2>] | codec=<set>",
+                 "force the use of a codec instead of default set; special "
+                  "set list also possible (see below)"                                      },
+                { "rgb_shift=<r>,<g>,<b>",
+                 "if using output codec RGBA, use specified shifts instead of "
+                  "default (" TOSTRING(DEFAULT_R_SHIFT) ", " TOSTRING(
+                      DEFAULT_G_SHIFT) ", " TOSTRING(DEFAULT_B_SHIFT) ")"                   },
+                { "dump[:skip=<n>][:oneshot][:raw]",
+                 "dump first frame to file dummy.<ext> (optionally skip <n> "
+                  "first frames); 'oneshot' - exit after dumping the picture; "
+                  "'raw' - dump raw data"                                                   },
+                { "hexdump[=<n>]",
+                 "dump first n (default " TOSTRING(
+                      DEFAULT_DUMP_LEN) ") bytes of every frame in hexadecimal "
+                                        "format"                                            },
+                { "discard",                         "realloc every frame (do not recycle)" },
+                { "audio=<drv>",                     "audio driver (eg. alsa)"              },
+                { nullptr,                           nullptr                                }
         };
         print_module_usage("-d dummy", options, nullptr, false);
         color_printf("\nAvailable codec sets:\n");
-        for (unsigned i = 0; i < sizeof codec_profiles / sizeof codec_profiles[0]; ++i) {
+        for (unsigned i = 0; i < countof(codec_profiles); ++i) {
                 color_printf("\t- " TBOLD("%s") "\n", codec_profiles[i].name);
         }
 }
 
 static void *display_dummy_init(struct module *parent, const char *cfg, unsigned int flags)
 {
-        UNUSED(parent); UNUSED(flags);
+        (void) parent;
         if (strcmp(cfg, "help") == 0) {
                 usage();
                 return INIT_NOERR;
         }
-        struct dummy_display_state s = {
+        struct dummy_display_state *s = malloc(sizeof *s);
+        *s = (struct dummy_display_state){
                 .magic       = MAGIC,
                 .codec_count = countof(default_codecs),
         };
-        memcpy(s.codecs, default_codecs, sizeof default_codecs);
+        memcpy(s->codecs, default_codecs, sizeof default_codecs);
         int rgb_shift_init[] = DEFAULT_RGB_SHIFT_INIT;
-        memcpy(s.rgb_shift, &rgb_shift_init, sizeof s.rgb_shift);
+        memcpy(s->rgb_shift, &rgb_shift_init, sizeof s->rgb_shift);
         char ccpy[strlen(cfg) + 1];
         strcpy(ccpy, cfg);
 
-        if (!dummy_parse_opts(&s, ccpy)) {
+        const char *audio_drv = "dummy";
+        if (!dummy_parse_opts(s, ccpy, &audio_drv)) {
+                display_dummy_done(s);
                 return nullptr;
         }
 
-        struct dummy_display_state *ret = malloc(sizeof s);
-        memcpy(ret, &s, sizeof s);
+        if (flags & DISPLAY_FLAG_AUDIO_ANY) {
+                struct audio_playback_opts opts = { 0 };
+                if (audio_playback_init(audio_drv, &opts, &s->aplay) != 0){
+                        MSG(ERROR, "Cannot intitialize audio!\n");
+                        display_dummy_done(s);
+                        return nullptr;
+                }
+        }
 
-        return ret;
+        return s;
 }
 
 static void display_dummy_done(void *state)
@@ -208,6 +243,7 @@ static void display_dummy_done(void *state)
         assert(s->magic == MAGIC);
 
         vf_free(s->f);
+        audio_playback_done(s->aplay);
         free(s);
 }
 
@@ -312,7 +348,8 @@ display_dummy_put_audio_frame(void *state, const struct audio_frame *frame)
 {
         struct dummy_display_state *s = state;
         assert(s->magic == MAGIC);
-        MSG(DEBUG, "Received audio frame %d B long...\n", frame->data_len);
+        assert(s->aplay != nullptr); // init flags didn't contain audio
+        audio_playback_put_frame(s->aplay, frame);
 }
 
 static bool
@@ -320,10 +357,7 @@ display_dummy_reconfigure_audio(void *state, int quant_samples, int channels, in
 {
         struct dummy_display_state *s = state;
         assert(s->magic == MAGIC);
-        MSG(DEBUG,
-            "Audio reconfigure - quant samples %d, channels %d, sample rate: "
-            "%d Hz\n",
-            quant_samples, channels, sample_rate);
+        audio_playback_reconfigure(s->aplay, quant_samples, channels, sample_rate);
         return  true;
 }
 

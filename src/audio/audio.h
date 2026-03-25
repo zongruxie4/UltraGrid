@@ -58,37 +58,49 @@
 #include "audio/types.h"
 #include "host.h" // common_opt
 #include "module.h"
-#include "tv.h"
 
 struct state_audio;
 
-#ifdef __cplusplus
-#include <chrono>
-
 struct audio_options {
-        const char *host = NULL;
-        int recv_port = 0;
-        int send_port = 0;
-        const char *recv_cfg = "none";
-        const char *send_cfg = "none";
-        const char *proto = "ultragrid_rtp";
-        const char *proto_cfg = "";
-        const char *fec_cfg = DEFAULT_AUDIO_FEC;
-        char *channel_map = nullptr;
-        const char *scale = DEFAULT_AUDIO_SCALE;
-        bool echo_cancellation = false;
-        const char *codec_cfg = "PCM";
-        const char *filter_cfg = "";
+        const char *host;
+        int         recv_port;
+        int         send_port;
+        const char *recv_cfg;
+        const char *send_cfg;
+        const char *proto;
+        const char *proto_cfg;
+        const char *fec_cfg;
+        char       *channel_map;
+        const char *scale;
+        bool        echo_cancellation;
+        const char *codec_cfg;
+        const char *filter_cfg;
 };
 
-int audio_init(struct state_audio **state,
-               const struct audio_options *opt,
-               const struct common_opts   *common);
-#endif
+#define AUDIO_OPTIONS_INIT \
+        { \
+                .host              = NULL, \
+                .recv_port         = 0, \
+                .send_port         = 0, \
+                .recv_cfg          = "none", \
+                .send_cfg          = "none", \
+                .proto             = "ultragrid_rtp", \
+                .proto_cfg         = "", \
+                .fec_cfg           = DEFAULT_AUDIO_FEC, \
+                .channel_map       = nullptr, \
+                .scale             = DEFAULT_AUDIO_SCALE, \
+                .echo_cancellation = false, \
+                .codec_cfg         = "PCM", \
+                .filter_cfg        = "", \
+        }
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+int audio_init(struct state_audio **state,
+               const struct audio_options *opt,
+               const struct common_opts   *common);
 
 void audio_start(struct state_audio *s);
 void audio_done(struct state_audio *s);

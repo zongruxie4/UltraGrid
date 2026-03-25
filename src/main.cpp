@@ -545,7 +545,7 @@ struct ug_options {
         struct common_opts common = { COMMON_OPTS_INIT };
 
         struct vrxtx_params video = VRXTX_INIT;
-        struct audio_options audio;
+        struct audio_options audio = AUDIO_OPTIONS_INIT;
         std::string audio_filter_cfg;
         // NULL terminated array of capture devices
         struct vidcap_params *vidcap_params_head = vidcap_params_allocate();

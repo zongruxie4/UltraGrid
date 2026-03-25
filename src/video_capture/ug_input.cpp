@@ -186,20 +186,13 @@ static int vidcap_ug_input_init(const struct vidcap_params *cap_params, void **s
         assert(s->video_rxtx);
 
         if (vidcap_params_get_flags(cap_params) & VIDCAP_FLAG_AUDIO_ANY) {
-                struct audio_options opt = {
-                        .host = "localhost",
-                        .recv_port = port + 2,
-                        .send_port = 0,
-                        .recv_cfg = "embedded",
-                        .send_cfg = "none",
-                        .proto = "ultragrid_rtp",
-                        .proto_cfg = "",
-                        .fec_cfg = "none",
-                        .channel_map = NULL,
-                        .scale = "none",
-                        .echo_cancellation = false,
-                        .codec_cfg = "PCM"
-                };
+                struct audio_options opt = AUDIO_OPTIONS_INIT;
+                opt.host                 = "localhost";
+                opt.recv_port            = port + 2;
+                opt.send_port            = 0;
+                opt.recv_cfg             = "embedded";
+                opt.proto                = "ultragrid_rtp";
+
                 if (audio_init(&s->audio, &opt, &s->common) != 0) {
                         delete s;
                         return VIDCAP_INIT_FAIL;

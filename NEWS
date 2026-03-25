@@ -1,6 +1,8 @@
 next
 ====
-* added AES67 capture
+* added AES67 capture/playback
+* support for JPEG-XS
+* support for Open Media Transport
 
 1.10
 ====

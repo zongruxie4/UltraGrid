@@ -149,12 +149,14 @@ void video_rxtx::join() {
 }
 
 const char *video_rxtx::get_long_name(string const & short_name) {
-        auto vri = static_cast<const video_rxtx_info *>(load_library(short_name.c_str(), LIBRARY_CLASS_VIDEO_RXTX, VIDEO_RXTX_ABI_VERSION));
-        if (vri) {
+        const auto *vri = static_cast<const video_rxtx_info *>(
+            load_library(short_name.c_str(), LIBRARY_CLASS_VIDEO_RXTX,
+                         VIDEO_RXTX_ABI_VERSION));
+
+        if (vri != nullptr) {
                 return vri->long_name;
-        } else {
-                return "";
         }
+        return "(ERROR)";
 }
 
 void video_rxtx::send(shared_ptr<video_frame> frame) {

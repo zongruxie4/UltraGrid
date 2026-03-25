@@ -1,6 +1,3 @@
-#include "config.h"
-#include "config_unix.h"
-#include "config_win32.h"
 #include "debug.h"
 #include "memory.h"
 #include "utils/sdp_parser.hpp"

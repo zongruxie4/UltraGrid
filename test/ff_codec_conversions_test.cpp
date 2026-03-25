@@ -1,13 +1,12 @@
 #ifdef HAVE_CONFIG_H
 #include "config.h"
-#include "config_unix.h"
-#include "config_win32.h"
 #endif
 
 #if defined HAVE_LAVC
 
 #include <algorithm>
 #include <array>
+#include <cassert>
 #include <fstream>
 #include <iostream>
 #include <random>

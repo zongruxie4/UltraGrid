@@ -1,13 +1,12 @@
 #ifdef HAVE_CONFIG_H
 #include "config.h"
-#include "config_unix.h"
-#include "config_win32.h"
 #endif
 
 extern "C" int gpujpeg_test_simple();
 
 #if defined HAVE_GPUJPEG
 #include <algorithm>
+#include <cassert>
 #include <iostream>
 #include <memory>
 #include <string>

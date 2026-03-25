@@ -3,7 +3,7 @@
  * @author Martin Pulec     <pulec@cesnet.cz>
  */
 /*
- * Copyright (c) 2015-2025 CESNET
+ * Copyright (c) 2015-2026 CESNET, zájmové sdružení právnických osob
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -97,18 +97,6 @@ audio_playback_init(const char *device, const struct audio_playback_opts *opts,
 error:
         free(s);
         return -1;
-}
-
-struct state_audio_playback *audio_playback_init_null_device(void)
-{
-        const struct audio_playback_opts opts = { 0 };
-        struct state_audio_playback *device = NULL;
-        int ret = audio_playback_init("none", &opts, &device);
-        if (ret != 0) {
-                log_msg(LOG_LEVEL_ERROR, "Unable to initialize null audio playback: %d\n", ret);
-        }
-
-        return device;
 }
 
 void audio_playback_done(struct state_audio_playback *s)

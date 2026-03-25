@@ -369,26 +369,23 @@ audio_init_real(struct state_audio *s, const struct audio_options *opt,
         }
         
         if (strcmp(opt->recv_cfg, "none") != 0) {
-                const char *cfg = "";
-                char *device = strdup(opt->recv_cfg);
-		if(strchr(device, ':')) {
-			char *delim = strchr(device, ':');
-			*delim = '\0';
-			cfg = delim + 1;
-		}
-
-                struct audio_playback_opts opts;
-                snprintf_ch(opts.cfg, "%s", cfg);
-                opts.parent = s->audio_receiver_module.get();
-                const int ret = audio_playback_init(device, &opts,
-                                                    &s->audio_playback_device);
-                free(device);
-                if (ret != 0) {
-                        return ret;
-                }
                 s->audio_tx_mode |= MODE_RECEIVER;
-        } else {
-                s->audio_playback_device = audio_playback_init_null_device();
+        }
+        const char *playback_cfg = "";
+        char       *playback_dev = strdup(opt->recv_cfg);
+        if (strchr(playback_dev, ':') != nullptr) {
+                char *delim  = strchr(playback_dev, ':');
+                *delim       = '\0';
+                playback_cfg = delim + 1;
+        }
+        struct audio_playback_opts opts{};
+        snprintf_ch(opts.cfg, "%s", playback_cfg);
+        opts.parent = s->audio_receiver_module.get();
+        int ret =
+            audio_playback_init(playback_dev, &opts, &s->audio_playback_device);
+        free(playback_dev);
+        if (ret != 0) {
+                return ret;
         }
 
         if (s->audio_tx_mode != 0) {

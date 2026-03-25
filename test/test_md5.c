@@ -35,6 +35,8 @@
  * SUCH DAMAGE.
  */
 
+#include <stdio.h>
+#include <string.h>
 #include "debug.h"
 #include "memory.h"
 #include "crypto/md5.h"

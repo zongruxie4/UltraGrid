@@ -269,19 +269,12 @@ sdp_send_change_address_message(struct module           *root,
         free_response(resp);
 }
 
-/**
- * take care that addrs can also be comma-separated list of addresses !
- * @retval  0 state successfully initialized
- * @retval <0 error occurred
- * @retval >0 success but no state was created (eg. help printed)
- */
-int audio_init(struct state_audio **ret,
-               const struct audio_options *opt,
-               const struct common_opts   *common)
+static int
+audio_init_real(struct state_audio *s, const struct audio_options *opt,
+                const struct common_opts *common)
 {
         char *tmp, *unused = NULL;
         char *addr;
-        int retval = -1;
         
         assert(opt->send_cfg != NULL);
         assert(opt->recv_cfg != NULL);
@@ -298,9 +291,6 @@ int audio_init(struct state_audio **ret,
                 return 1;
         }
 
-        struct state_audio *s =
-            new state_audio(common->parent, common->start_time);
-
         s->audio_channel_map = opt->channel_map;
         s->audio_scale = opt->scale;
 
@@ -313,11 +303,10 @@ int audio_init(struct state_audio **ret,
                 s->echo_state = echo_cancellation_init();
                 fprintf(stderr, "Echo cancellation is currently experimental "
                                 "and may not work as expected.");
-                goto error;
+                return -1; // this shouldn't be here or reformulate msg above
 #else
                 fprintf(stderr, "Speex not compiled in. Could not enable echo cancellation.\n");
-                delete s;
-                goto error;
+                return -1;
 #endif /* HAVE_SPEEXDSP */
         } else {
                 s->echo_state = NULL;
@@ -329,7 +318,7 @@ int audio_init(struct state_audio **ret,
                 while(item = tokenize(cfg_sv, '#'), !item.empty()) {
                         if(!s->filter_chain.emplace_new(item)) {
                                 log_msg(LOG_LEVEL_ERROR, MOD_NAME "Failed to init audio filter\n");
-                                goto error;
+                                return -1;
                         }
                 }
         }
@@ -364,15 +353,14 @@ int audio_init(struct state_audio **ret,
                 int ret = audio_capture_init(s->audio_sender_module.get(), device, cfg, &s->audio_capture_device);
                 free(device);
                 if (ret != 0) {
-                        retval = ret;
-                        goto error;
+                        return ret;
                 }
                 s->tx_session = tx_init(
                     s->audio_sender_module.get(), common->mtu, TX_MEDIA_AUDIO,
                     opt->fec_cfg, common->encryption, 0 /* unused */);
                 if(!s->tx_session) {
                         fprintf(stderr, "Unable to initialize audio transmit.\n");
-                        goto error;
+                        return -1;
                 }
 
                 s->audio_tx_mode |= MODE_SENDER;
@@ -396,8 +384,7 @@ int audio_init(struct state_audio **ret,
                                                     &s->audio_playback_device);
                 free(device);
                 if (ret != 0) {
-                        retval = ret;
-                        goto error;
+                        return ret;
                 }
                 s->audio_tx_mode |= MODE_RECEIVER;
         } else {
@@ -409,7 +396,7 @@ int audio_init(struct state_audio **ret,
                                                 &s->audio_network_parameters))
                                 == nullptr) {
                         LOG(LOG_LEVEL_ERROR) << MOD_NAME << "Unable to open audio network\n";
-                        goto error;
+                        return -1;
                 }
         }
         if ((s->audio_tx_mode & MODE_RECEIVER) != 0U) {
@@ -421,7 +408,7 @@ int audio_init(struct state_audio **ret,
 
         if ((s->audio_tx_mode & MODE_SENDER) != 0U || "help"s == opt->codec_cfg) {
                 if ((s->audio_encoder = audio_codec_init_cfg(opt->codec_cfg, AUDIO_CODER)) == nullptr) {
-                        goto error;
+                        return -1;
                 }
         }
 
@@ -435,38 +422,47 @@ int audio_init(struct state_audio **ret,
                 s->sender = NET_STANDARD;
                 if (strcasecmp(opt->proto, "sdp") == 0) {
                         if (sdp_set_options(opt->proto_cfg) != 0) {
-                                goto error;
+                                return -1;
                         }
                 }
         } else if (strcasecmp(opt->proto, "JACK") == 0) {
 #ifndef HAVE_JACK_TRANS
                 fprintf(stderr, "[Audio] JACK transport requested, "
                                 "but JACK support isn't compiled.\n");
-                goto error;
+                return -1;
 #else
                 s->sender = NET_JACK;
                 s->receiver = NET_JACK;
 #endif
         } else if (s->audio_tx_mode != 0) {
                 log_msg(LOG_LEVEL_ERROR, "Unknown audio protocol: %s\n", opt->proto);
-                goto error;
+                return -1;
         }
 
+        return 0;
+}
+
+/**
+ * take care that addrs can also be comma-separated list of addresses !
+ * @retval  0 state successfully initialized
+ * @retval <0 error occurred
+ * @retval >0 success but no state was created (eg. help printed)
+ */
+int
+audio_init(struct state_audio **state, const struct audio_options *opt,
+                const struct common_opts *common) {
+        auto *s = new state_audio(common->parent, common->start_time);
         register_should_exit_callback(common->parent, should_exit_audio, s);
 
-        *ret = s;
-        return 0;
-
-error:
-        if(s->tx_session)
-                tx_done(s->tx_session);
-        if(s->audio_participants) {
-                pdb_destroy(&s->audio_participants);
+        int rc = audio_init_real(s, opt, common);
+        if (rc == 0) {
+                *state = s;
+                return 0;
         }
 
-        audio_codec_done(s->audio_encoder);
-        delete s;
-        return retval;
+        audio_done(s);
+
+        return rc;
 }
 
 void audio_start(struct state_audio *s) {

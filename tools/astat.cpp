@@ -1,10 +1,8 @@
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-#include "config_unix.h"
-#include "config_win32.h"
 #include "compat/platform_pipe.h"
 
+#include <cstring>
+#include <cassert>
+#include <cmath>
 #include <stdlib.h>
 #include <stdio.h>
 #include <thread>

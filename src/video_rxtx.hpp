@@ -110,8 +110,6 @@ struct video_rxtx_info {
                                       const struct audio_desc *desc,
                                       int audio_rx_port, int audio_tx_port,
                                       bool ipv6);
-        struct response *(*process_sender_message)(void *state,
-                                                   struct msg_sender *);
         void *(*receiver_routine)(void *state);
 };
 

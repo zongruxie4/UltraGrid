@@ -117,13 +117,6 @@ video_rxtx::video_rxtx(const char                *protocol_name,
         pthread_mutex_init(&m_lock, nullptr);
 }
 
-static void flush_messages(struct module *mod) {
-        struct message *m = nullptr;
-        while ((m = check_message(mod)) != nullptr) {
-                free_message(m, nullptr);
-        }
-}
-
 video_rxtx::~video_rxtx() noexcept
 {
         join();
@@ -134,7 +127,6 @@ video_rxtx::~video_rxtx() noexcept
         m_impl_funcs->done(m_impl_state);
         compress_done(m_compression);
         module_done(&m_receiver_mod);
-        flush_messages(&m_sender_mod);
         module_done(&m_sender_mod);
 
         pthread_mutex_destroy(&m_lock);
@@ -202,11 +194,12 @@ void video_rxtx::check_sender_messages() {
                                 r = new_response(RESPONSE_OK,
                                                  oss.str().c_str());
                         }
-                } else { // delegate to implementations
-                        if (m_impl_funcs->process_sender_message != nullptr) {
-                                r = m_impl_funcs->process_sender_message(
-                                    m_impl_state, msg);
-                        }
+                } else {
+                        char buf[200];
+                        snprintf_ch(buf, "Unexpected sender message type %d",
+                                    msg->type);
+                        MSG(WARNING, "%s\n", buf);
+                        r = new_response(RESPONSE_BAD_REQUEST, buf);
                 }
 
                 free_message(msg_external, r);
@@ -263,10 +256,6 @@ video_rxtx::create(string const &proto, const struct vrxtx_params *params,
                 delete ret;
                 return nullptr;
         }
-
-        // The idea of doing that is to display help on '-f ldgm:help' even if UG would exit
-        // immediately. The encoder is actually created by a message.
-        ret->check_sender_messages();
 
         int rc = pthread_create(&ret->m_thread_id, nullptr, video_rxtx::sender_thread,
                            (void *) ret);

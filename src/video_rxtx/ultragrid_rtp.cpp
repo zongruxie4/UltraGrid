@@ -112,6 +112,7 @@ void *ultragrid_rtp_video_rxtx::receiver_thread(void *arg) {
 void
 ultragrid_rtp_video_rxtx::send_frame(shared_ptr<video_frame> tx_frame) noexcept
 {
+        rtp_process_sender_messages();
         m_used = true;
         if (m_fec_state) {
                 tx_frame = m_fec_state->encode(tx_frame);
@@ -457,7 +458,6 @@ static const struct video_rxtx_info ultragrid_rtp_video_rxtx_info = {
         .send_frame             = send_frame,
         .join_sender            = join,
         .set_sender_audio_spec  = nullptr,
-        .process_sender_message = rtp_process_sender_message,
         .receiver_routine       = ultragrid_rtp_video_rxtx::receiver_thread,
 };
 

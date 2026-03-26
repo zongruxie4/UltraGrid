@@ -123,6 +123,7 @@ void h264_sdp_video_rxtx::sdp_add_video(codec_t codec)
 void
 h264_sdp_video_rxtx::send_frame(shared_ptr<video_frame> tx_frame) noexcept
 {
+        rtp_process_sender_messages();
         if (!is_codec_opaque(tx_frame->color_spec)) {
 		if (m_sent_compress_change) {
 			return;
@@ -223,7 +224,6 @@ static const struct video_rxtx_info h264_sdp_video_rxtx_info = {
         .send_frame             = send_frame,
         .join_sender            = nullptr,
         .set_sender_audio_spec  = set_audio_spec,
-        .process_sender_message = rtp_process_sender_message,
         .receiver_routine       = nullptr,
 };
 

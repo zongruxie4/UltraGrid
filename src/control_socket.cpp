@@ -518,10 +518,12 @@ static int process_msg(struct control_state *s, fd_t client_fd, char *message, s
                         msg_audio->tx_port = msg->tx_port + 2;
                 }
 
-                enum module_class path_sender[] = { MODULE_CLASS_SENDER, MODULE_CLASS_NONE };
+                enum module_class path_sender_video[] = { MODULE_CLASS_SENDER,
+                                                          MODULE_CLASS_DATA,
+                                                          MODULE_CLASS_NONE };
                 enum module_class path_sender_audio[] = { MODULE_CLASS_AUDIO, MODULE_CLASS_SENDER, MODULE_CLASS_NONE };
                 memcpy(path_audio, path, sizeof(path_audio));
-                append_message_path(path, sizeof(path), path_sender);
+                append_message_path(path, sizeof(path), path_sender_video);
                 append_message_path(path_audio, sizeof(path_audio), path_sender_audio);
 
                 resp =
@@ -546,10 +548,12 @@ static int process_msg(struct control_state *s, fd_t client_fd, char *message, s
                 struct msg_sender *msg_audio = (struct msg_sender *) malloc(sizeof(struct msg_sender));
                 memcpy(msg_audio, msg, sizeof(struct msg_sender));
 
-                enum module_class path_sender[] = { MODULE_CLASS_SENDER, MODULE_CLASS_NONE };
+                enum module_class path_sender_video[] = { MODULE_CLASS_SENDER,
+                                                          MODULE_CLASS_DATA,
+                                                          MODULE_CLASS_NONE };
                 enum module_class path_sender_audio[] = { MODULE_CLASS_AUDIO, MODULE_CLASS_SENDER, MODULE_CLASS_NONE };
                 memcpy(path_audio, path, sizeof(path_audio));
-                append_message_path(path, sizeof(path), path_sender);
+                append_message_path(path, sizeof(path), path_sender_video);
                 append_message_path(path_audio, sizeof(path_audio), path_sender_audio);
 
                 resp =

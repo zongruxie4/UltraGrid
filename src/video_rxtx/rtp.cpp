@@ -186,6 +186,19 @@ rtp_video_rxtx::process_sender_message(struct msg_sender *msg)
         return new_response(RESPONSE_OK, nullptr);
 }
 
+void
+rtp_video_rxtx::rtp_process_sender_messages()
+{
+        struct message *msg_external = nullptr;
+        while((msg_external = check_message(&m_rtp_sender_mod))) {
+                struct response *r = nullptr;
+                auto *msg = (struct msg_sender *) msg_external;
+                process_sender_message(msg);
+
+                free_message(msg_external, r);
+        }
+}
+
 rtp_video_rxtx::rtp_video_rxtx(const struct vrxtx_params *params,
                                const struct common_opts  *common) :
         m_force_ip_version(common->force_ip_version),
@@ -208,11 +221,21 @@ rtp_video_rxtx::rtp_video_rxtx(const struct vrxtx_params *params,
                                        EXIT_FAIL_NETWORK);
         }
 
-        m_tx = tx_init(params->sender_mod, common->mtu, TX_MEDIA_VIDEO,
+        module_init_default(&m_rtp_sender_mod);
+        m_rtp_sender_mod.cls = MODULE_CLASS_DATA;
+        module_register(&m_rtp_sender_mod, params->sender_mod);
+
+        m_tx = tx_init(&m_rtp_sender_mod, common->mtu, TX_MEDIA_VIDEO,
                        params->fec, common->encryption, params->bitrate_limit);
         if (m_tx == nullptr) {
                 throw ug_runtime_error("Unable to initialize transmitter", EXIT_FAIL_TRANSMIT);
         }
+
+        // The idea of doing that is to display help on '-f ldgm:help' even if UG would exit
+        // immediately. The encoder is actually created by a message.
+        // Also for `-x sdp:help` the message will get discarded and the warning that message quie
+        rtp_process_sender_messages();
+
 }
 
 rtp_video_rxtx::~rtp_video_rxtx()
@@ -230,6 +253,7 @@ rtp_video_rxtx::~rtp_video_rxtx()
         }
 
         delete m_fec_state;
+        module_done(&m_rtp_sender_mod);
 }
 
 void rtp_video_rxtx::display_buf_increase_warning(int size)
@@ -313,7 +337,3 @@ void rtp_video_rxtx::destroy_rtp_device(struct rtp *network_device)
         rtp_done(network_device);
 }
 
-struct response *rtp_process_sender_message(void *state, struct msg_sender *msg) {
-        auto *s = static_cast<rtp_video_rxtx*>(state);
-        return s->process_sender_message(msg);
-}

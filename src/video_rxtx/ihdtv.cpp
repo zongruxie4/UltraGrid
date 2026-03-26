@@ -217,7 +217,6 @@ static const struct video_rxtx_info ihdtv_video_rxtx_info = {
         .send_frame             = send_frame,
         .join_sender            = nullptr,
         .set_sender_audio_spec  = nullptr,
-        .process_sender_message = nullptr,
         .receiver_routine       = ihdtv_video_rxtx::receiver_thread,
 };
 

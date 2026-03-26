@@ -117,6 +117,13 @@ video_rxtx::video_rxtx(const char                *protocol_name,
         pthread_mutex_init(&m_lock, nullptr);
 }
 
+static void flush_messages(struct module *mod) {
+        struct message *m = nullptr;
+        while ((m = check_message(mod)) != nullptr) {
+                free_message(m, nullptr);
+        }
+}
+
 video_rxtx::~video_rxtx() noexcept
 {
         join();
@@ -127,6 +134,7 @@ video_rxtx::~video_rxtx() noexcept
         m_impl_funcs->done(m_impl_state);
         compress_done(m_compression);
         module_done(&m_receiver_mod);
+        flush_messages(&m_sender_mod);
         module_done(&m_sender_mod);
 
         pthread_mutex_destroy(&m_lock);

@@ -174,6 +174,7 @@ static void compress_process_message(struct compress_state *proxy, struct msg_ch
                 }
 
         } else {
+                assert(data->what == CHANGE_COMPRESS);
                 struct compress_state_real *new_state;
                 char config[1024];
                 strncpy(config, data->config_string, sizeof(config));

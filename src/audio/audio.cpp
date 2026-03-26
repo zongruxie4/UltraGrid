@@ -393,9 +393,7 @@ audio_init_real(struct state_audio *s, const struct audio_options *opt,
         if (playback_is_sdi) {
                 auto *sdi_playback = (struct state_sdi_playback *)
                     audio_playback_get_state_pointer(s->audio_playback_device);
-                sdi_register_display_callbacks(
-                    sdi_playback, opt->display, display_put_audio_frame,
-                    display_reconfigure_audio, display_ctl_property);
+                sdi_register_display(sdi_playback, opt->display);
         }
 
         if (s->audio_tx_mode != 0) {

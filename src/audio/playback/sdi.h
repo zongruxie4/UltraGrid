@@ -36,21 +36,12 @@
  */
 
 #ifdef __cplusplus
-#include <cstddef>
 extern "C" {
-#else
-#include <stdbool.h>
-#include <stddef.h>
- #endif
+#endif
 
-struct audio_frame;
 struct display;
 
-void sdi_register_display_callbacks(
-    void *state, struct display *display,
-    void (*putf)(struct display *, const struct audio_frame *),
-    bool (*reconfigure)(struct display *, int, int, int),
-    bool (*get_property)(struct display *, int, void *, size_t *));
+void sdi_register_display(void *state, struct display *display);
 
 #ifdef __cplusplus
 }

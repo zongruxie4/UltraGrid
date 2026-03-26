@@ -43,6 +43,7 @@
 
 #include "audio/types.h"           // for audio_desc, audio_frame (ptr only)
 #include "audio/audio_playback.h"
+#include "compat/c23.h"
 #include "debug.h"
 #include "host.h"                  // for INIT_NOERR
 #include "lib_common.h"
@@ -51,10 +52,6 @@
 
 struct state_sdi_playback {
         struct display *display;
-        void (*put_callback)(struct display *, const struct audio_frame *);
-        bool (*reconfigure_callback)(struct display *state, int quant_samples,
-                                     int channels, int sample_rate);
-        bool (*get_property_callback)(struct display *, int, void *, size_t *);
 };
 
 static void audio_play_sdi_probe_common(struct device_info **available_devices, int *count, 
@@ -106,39 +103,30 @@ audio_play_sdi_init(const struct audio_playback_opts *opts)
                 audio_play_sdi_help("analog");
                 return INIT_NOERR;
         }
-        struct state_sdi_playback *s = malloc(sizeof(struct state_sdi_playback));
-        s->put_callback = NULL;
-        s->reconfigure_callback = NULL;
+        struct state_sdi_playback *s = calloc(1, sizeof *s);
         return s;
 }
 
 void
-sdi_register_display_callbacks(
-    void *state, struct display *display,
-    void (*putf)(struct display *, const struct audio_frame *),
-    bool (*reconfigure)(struct display *, int, int, int),
-    bool (*get_property)(struct display *, int, void *, size_t *))
+sdi_register_display(void *state, struct display *display)
 {
         struct state_sdi_playback *s = state;
-
-        s->display               = display;
-        s->put_callback          = putf;
-        s->reconfigure_callback = reconfigure;
-        s->get_property_callback = get_property;
+        s->display = display;
 }
 
 static void audio_play_sdi_put_frame(void *state, const struct audio_frame *frame)
 {
-        struct state_sdi_playback *s;
-        s = (struct state_sdi_playback *) state;
+        struct state_sdi_playback *s = state;
 
-        if(s->put_callback)
-                s->put_callback(s->display, frame);
+        if (s->display) {
+                display_put_audio_frame(s->display, frame);
+        }
 }
 
 static bool audio_play_sdi_query_format(struct state_sdi_playback *s, void *data, size_t *len)
 {
-        if (s->get_property_callback(s->display, DISPLAY_PROPERTY_AUDIO_FORMAT, data, len)) {
+        if (display_ctl_property(s->display, DISPLAY_PROPERTY_AUDIO_FORMAT,
+                                 data, len)) {
                 return true;
         }
         log_msg(LOG_LEVEL_WARNING,
@@ -167,9 +155,9 @@ static bool audio_play_sdi_reconfigure(void *state, struct audio_desc desc)
 {
         struct state_sdi_playback *s = state;
 
-        if(s->reconfigure_callback) {
-                return s->reconfigure_callback(s->display, desc.bps * 8,
-                                desc.ch_count, desc.sample_rate);
+        if (s->display) {
+                return display_reconfigure_audio(
+                    s->display, desc.bps * 8, desc.ch_count, desc.sample_rate);
         }
         return false;
 }

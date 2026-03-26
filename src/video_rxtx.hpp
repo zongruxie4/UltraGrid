@@ -102,6 +102,7 @@ struct video_rxtx_info {
         void *(*create)(const struct vrxtx_params *params,
                         const struct common_opts  *common);
         void (*done)(void *state);
+        /// this may be set optional if we had some receive-only mod
         void (*send_frame)(void *state, std::shared_ptr<video_frame>);
 
         // following callbacks are optional
@@ -118,15 +119,6 @@ public:
         virtual ~video_rxtx() noexcept;
         void               send(std::shared_ptr<struct video_frame>) noexcept;
         static const char *get_long_name(std::string const &short_name) noexcept;
-        static void       *receiver_thread(void *arg) noexcept
-        {
-                video_rxtx *rxtx = static_cast<video_rxtx *>(arg);
-                return rxtx->m_impl_funcs->receiver_routine(rxtx->m_impl_state);
-        }
-        bool supports_receiving() noexcept
-        {
-                return m_impl_funcs->receiver_routine != nullptr;
-        }
         /**
          * If overridden, children must call also video_rxtx::join()
          */
@@ -160,12 +152,14 @@ private:
         struct compress_state *m_compression = nullptr;
         pthread_mutex_t m_lock;
 
-        pthread_t m_thread_id = PTHREAD_NULL;
-        bool      m_poisoned  = false;
-        bool      m_joined    = true;
+        pthread_t m_sender_thread_id   = PTHREAD_NULL;
+        bool      m_sender_poisoned    = false;
+        bool      m_sender_joined      = true;
+        pthread_t m_receiver_thread_id = PTHREAD_NULL;
 
         video_desc       m_video_desc{};
         std::atomic<codec_t> m_input_codec{};
+
 };
 
 const char *vrxtx_get_compression(const char *video_protocol,

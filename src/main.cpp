@@ -1335,7 +1335,6 @@ int main(int argc, char *argv[])
 #endif
         ug_options opt{};
 
-        pthread_t receiver_thread_id = PTHREAD_NULL;
         pthread_t capture_thread_id  = PTHREAD_NULL;
 
         unsigned display_flags = 0;
@@ -1500,24 +1499,6 @@ int main(int argc, char *argv[])
                 goto cleanup;
         }
 
-        if ((opt.video.rxtx_mode & MODE_RECEIVER) != 0U) {
-                if (!uv.state_video_rxtx->supports_receiving()) {
-                        fprintf(
-                            stderr,
-                            "Selected RX/TX mode doesn't support receiving.\n");
-                        exit_uv(EXIT_FAILURE);
-                        goto cleanup;
-                }
-                // init module here so as it is capable of receiving messages
-                if (pthread_create(&receiver_thread_id, NULL,
-                                   video_rxtx::receiver_thread,
-                                   (void *) uv.state_video_rxtx) != 0) {
-                        perror("Unable to create display thread!\n");
-                        exit_uv(EXIT_FAILURE);
-                        goto cleanup;
-                }
-        }
-
         if ((opt.video.rxtx_mode & MODE_SENDER) != 0U) {
                 if (pthread_create(&capture_thread_id, NULL, capture_thread,
                                    (void *) &uv) != 0) {
@@ -1541,10 +1522,6 @@ int main(int argc, char *argv[])
         display_run_mainloop(uv.display_device);
 
 cleanup:
-        if (!pthread_equal(receiver_thread_id, PTHREAD_NULL)) {
-                pthread_join(receiver_thread_id, NULL);
-        }
-
         if (!pthread_equal(capture_thread_id, PTHREAD_NULL)) {
                 pthread_join(capture_thread_id, NULL);
         }

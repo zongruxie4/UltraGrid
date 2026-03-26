@@ -119,8 +119,12 @@ video_rxtx::video_rxtx(const char                *protocol_name,
 
 video_rxtx::~video_rxtx() noexcept
 {
+        if (!pthread_equal(m_receiver_thread_id, PTHREAD_NULL)) {
+                pthread_join(m_receiver_thread_id, nullptr);
+        }
+
         join();
-        if (!m_poisoned && m_compression) {
+        if (!m_sender_poisoned && m_compression != nullptr) {
                 send(NULL);
                 compress_pop(m_compression);
         }
@@ -135,15 +139,20 @@ video_rxtx::~video_rxtx() noexcept
 void
 video_rxtx::join() noexcept
 {
-        if (m_joined) {
+        if (!pthread_equal(m_receiver_thread_id, PTHREAD_NULL)) {
+                pthread_join(m_receiver_thread_id, nullptr);
+                m_receiver_thread_id = PTHREAD_NULL;
+        }
+
+        if (m_sender_joined) {
                 return;
         }
         send(NULL); // pass poisoned pill
-        pthread_join(m_thread_id, NULL);
+        pthread_join(m_sender_thread_id, NULL);
         if (m_impl_funcs != nullptr && m_impl_funcs->join_sender != nullptr) {
                 m_impl_funcs->join_sender(m_impl_state);
         }
-        m_joined = true;
+        m_sender_joined = true;
 }
 
 const char *
@@ -162,11 +171,11 @@ video_rxtx::get_long_name(string const &short_name) noexcept
 void
 video_rxtx::send(shared_ptr<video_frame> frame) noexcept
 {
-        if (!frame && m_poisoned) {
+        if (!frame && m_sender_poisoned) {
                 return;
         }
         if (!frame) {
-                m_poisoned = true;
+                m_sender_poisoned = true;
         } else {
                 m_input_codec = frame->color_spec;
         }
@@ -257,10 +266,23 @@ video_rxtx::create(string const &proto, const struct vrxtx_params *params,
                 return nullptr;
         }
 
-        int rc = pthread_create(&ret->m_thread_id, nullptr, video_rxtx::sender_thread,
+        if ((params->rxtx_mode & MODE_RECEIVER) != 0U) {
+                if (ret->m_impl_funcs->receiver_routine == nullptr) {
+                        MSG(ERROR,
+                            "Selected RX/TX mode doesn't support receiving.\n");
+                        delete ret;
+                        return nullptr;
+                }
+                int rc = pthread_create(&ret->m_receiver_thread_id, nullptr,
+                                        ret->m_impl_funcs->receiver_routine,
+                                        ret->m_impl_state);
+                assert(rc == 0);
+        }
+
+        int rc = pthread_create(&ret->m_sender_thread_id, nullptr, video_rxtx::sender_thread,
                            (void *) ret);
         assert(rc == 0);
-        ret->m_joined = false;
+        ret->m_sender_joined = false;
 
         return ret;
 }

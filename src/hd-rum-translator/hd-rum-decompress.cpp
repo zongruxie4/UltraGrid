@@ -88,7 +88,6 @@ struct state_transcoder_decompress final : public frame_recv_delegate {
 
         struct display *display = nullptr;
         struct control_state *control = nullptr;
-        thread         receiver_thread;
 
         void frame_arrived(struct video_frame *f, struct audio_frame *a) override;
 
@@ -228,7 +227,6 @@ void *hd_rum_decompress_init(struct module *parent, struct hd_rum_output_conf co
                 assert(s->video_rxtx);
 
                 s->worker_thread = thread(&state_transcoder_decompress::worker, s);
-                s->receiver_thread = thread(&video_rxtx::receiver_thread, s->video_rxtx);
                 display_run_new_thread(s->display);
 
                 if (capture_filter_init(parent, capture_filter, &s->capture_filter_state) != 0) {
@@ -245,8 +243,6 @@ void *hd_rum_decompress_init(struct module *parent, struct hd_rum_output_conf co
 
 void hd_rum_decompress_done(void *state) {
         auto *s = static_cast<state_transcoder_decompress *>(state);
-
-        s->receiver_thread.join();
 
         {
                 unique_lock<mutex> l(s->lock);

@@ -222,19 +222,17 @@ void *hd_rum_decompress_init(struct module *parent, struct hd_rum_output_conf co
         params.decoder_mode = VIDEO_NORMAL;
         params.display_device = s->display;
 
-        try {
-                s->video_rxtx =  video_rxtx::create("ultragrid_rtp", &params, &s->common);
-                assert(s->video_rxtx);
+        s->video_rxtx =
+            video_rxtx::create("ultragrid_rtp", &params, &s->common);
+        assert(s->video_rxtx);
 
-                s->worker_thread = thread(&state_transcoder_decompress::worker, s);
-                display_run_new_thread(s->display);
+        s->worker_thread = thread(&state_transcoder_decompress::worker, s);
+        display_run_new_thread(s->display);
 
-                if (capture_filter_init(parent, capture_filter, &s->capture_filter_state) != 0) {
-                        log_msg(LOG_LEVEL_ERROR, "Unable to initialize capture filter!\n");
-                        return nullptr;
-                }
-        } catch (const std::string& error_msg) {
-                LOG(LOG_LEVEL_ERROR) << error_msg << "\n";
+        if (capture_filter_init(parent, capture_filter,
+                                &s->capture_filter_state) != 0) {
+                log_msg(LOG_LEVEL_ERROR,
+                        "Unable to initialize capture filter!\n");
                 return nullptr;
         }
 

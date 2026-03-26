@@ -37,6 +37,8 @@
 
 #include "audio/playback/sdi.h"
 
+#include <assert.h>                // for assert
+#include <stdint.h>                // for uint32_t
 #include <stdio.h>                 // for printf, snprintf
 #include <stdlib.h>                // for free, calloc, malloc
 #include <string.h>                // for strcmp, strncpy, memcpy
@@ -50,7 +52,10 @@
 #include "types.h"                 // for device_info
 #include "video_display.h"
 
+#define MAGIC to_fourcc('A', 'P', 's', 'd')
+
 struct state_sdi_playback {
+        uint32_t        magic;
         struct display *display;
 };
 
@@ -104,6 +109,7 @@ audio_play_sdi_init(const struct audio_playback_opts *opts)
                 return INIT_NOERR;
         }
         struct state_sdi_playback *s = calloc(1, sizeof *s);
+        s->magic = MAGIC;
         return s;
 }
 
@@ -117,10 +123,7 @@ sdi_register_display(void *state, struct display *display)
 static void audio_play_sdi_put_frame(void *state, const struct audio_frame *frame)
 {
         struct state_sdi_playback *s = state;
-
-        if (s->display) {
-                display_put_audio_frame(s->display, frame);
-        }
+        display_put_audio_frame(s->display, frame);
 }
 
 static bool audio_play_sdi_query_format(struct state_sdi_playback *s, void *data, size_t *len)
@@ -131,7 +134,7 @@ static bool audio_play_sdi_query_format(struct state_sdi_playback *s, void *data
         }
         log_msg(LOG_LEVEL_WARNING,
                 "Cannot get audio format from playback card!\n");
-        struct audio_desc desc = { 2, 48000, 2, AC_PCM };
+        struct audio_desc desc = { 2, kHz48, 2, AC_PCM };
         if (*len < sizeof desc) {
                 return false;
         }
@@ -154,17 +157,18 @@ static bool audio_play_sdi_ctl(void *state, int request, void *data, size_t *len
 static bool audio_play_sdi_reconfigure(void *state, struct audio_desc desc)
 {
         struct state_sdi_playback *s = state;
+        assert(s->magic == MAGIC);
+        assert(s->display != nullptr);
 
-        if (s->display) {
-                return display_reconfigure_audio(
-                    s->display, desc.bps * 8, desc.ch_count, desc.sample_rate);
-        }
-        return false;
+        return display_reconfigure_audio(s->display, desc.bps * 8,
+                                         desc.ch_count, desc.sample_rate);
 }
 
-static void audio_play_sdi_done(void *s)
+static void audio_play_sdi_done(void *state)
 {
-        UNUSED(s);
+        struct state_sdi_playback *s = state;
+        assert(s->magic == MAGIC);
+        free(s);
 }
 
 static const struct audio_playback_info aplay_sdi_info_embedded = {

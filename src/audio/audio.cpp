@@ -274,9 +274,6 @@ static int
 audio_init_real(struct state_audio *s, const struct audio_options *opt,
                 const struct common_opts *common)
 {
-        char *tmp, *unused = NULL;
-        char *addr;
-        
         assert(opt->send_cfg != NULL);
         assert(opt->recv_cfg != NULL);
 
@@ -326,12 +323,9 @@ audio_init_real(struct state_audio *s, const struct audio_options *opt,
         s->opts = *common;
         
         assert(opt->host != nullptr);
-        tmp = strdup(opt->host);
         s->audio_participants = pdb_init("audio", &audio_offset);
-        addr = strtok_r(tmp, ",", &unused);
-        assert(addr != nullptr);
 
-        s->audio_network_parameters.addr = strdup(addr);
+        s->audio_network_parameters.addr = strdup(opt->host);
         s->audio_network_parameters.recv_port = opt->recv_port;
         s->audio_network_parameters.send_port = opt->send_port;
         s->audio_network_parameters.participants = s->audio_participants;
@@ -339,7 +333,6 @@ audio_init_real(struct state_audio *s, const struct audio_options *opt,
         s->audio_network_parameters.mcast_if =
             strlen(s->opts.mcast_if) > 0 ? s->opts.mcast_if : nullptr;
         s->audio_network_parameters.ttl = s->opts.ttl;
-        free(tmp);
 
         if (strcmp(opt->send_cfg, "none") != 0) {
                 const char *cfg = "";

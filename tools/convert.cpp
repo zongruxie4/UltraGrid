@@ -1,12 +1,12 @@
 #include <cassert>
 #include <chrono>
 #include <cstring>
+#include <cstdio>
 #include <fstream>
 #include <iostream>
 #include <string>
 #include <vector>
 
-#include "../src/config_unix.h"
 #include "../src/video_codec.h"
 #include "../src/video_frame.h"
 

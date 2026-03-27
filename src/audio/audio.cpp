@@ -301,10 +301,9 @@ audio_init_real(struct state_audio *s, const struct audio_options *opt,
 
         if (opt->echo_cancellation) {
 #ifdef HAVE_SPEEXDSP
+                log_msg(LOG_LEVEL_WARNING, MOD_NAME "Echo cancellation is currently experimental "
+                                "and may not work as expected.\n");
                 s->echo_state = echo_cancellation_init();
-                fprintf(stderr, "Echo cancellation is currently experimental "
-                                "and may not work as expected.");
-                return -1; // this shouldn't be here or reformulate msg above
 #else
                 fprintf(stderr, "Speex not compiled in. Could not enable echo cancellation.\n");
                 return -1;

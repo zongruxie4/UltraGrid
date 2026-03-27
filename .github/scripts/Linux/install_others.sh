@@ -35,24 +35,6 @@ Install_NDI_SDK_v6_Linux.tar.gz -o /var/tmp/Install_NDI_SDK_Linux.tar.gz
         sudo cp -r NDI\ SDK\ for\ Linux/include/* /usr/local/include/
 )}
 
-# TODO: currently needed for Debian 11, which is used for ARM builds
-#       remove when not needed
-install_pipewire() {(
-        if { [ "$ID" = ubuntu ] && [ "$VERSION_ID" = 20.04 ]; } ||
-                { [ "${ID_LIKE-$ID}" = debian ] && [ "$VERSION_ID" -le 11 ]; }
-        then
-                sudo apt -y install libdbus-1-dev meson
-                git clone https://github.com/PipeWire/pipewire
-                cd pipewire
-                git checkout 19bcdaebe29b95edae2b285781dab1cc841be638 # last one supporting meson 0.53.2 in U20.04
-                ./autogen.sh -Dtests=disabled
-                make -j "$(nproc)"
-                sudo make install
-        else
-                sudo apt -y install libpipewire-0.3-dev
-        fi
-)}
-
 install_svt_jpegxs() {(
         git clone --depth 1 https://github.com/OpenVisualCloud/SVT-JPEG-XS
         # when built in U22.04, the stack is set as executable for some reason,
@@ -86,7 +68,7 @@ if [ $# -eq 1 ] && { [ "$1" = -h ] || [ "$1" = --help ] || [ "$1" = help ]; }; t
 fi
 
 if [ $# -eq 0 ] || [ $show_help ]; then
-        set -- gpujpeg ndi pipewire svt_jpegxs vulkan ximea
+        set -- gpujpeg ndi svt_jpegxs vulkan ximea
 fi
 
 if [ $show_help ]; then
@@ -95,7 +77,7 @@ if [ $show_help ]; then
         printf "\t%s [<features>] | [ -h | --help | help ]\n" "$0"
         printf "\nInstall all aditional dependencies (without arguments) or install one explicitly.\n"
         printf "\nAvailable ones: %s%s%s\n" "$(tput bold)" "$*" "$(tput sgr0)"
-        return 0
+        exit 0
 fi
 
 cd /var/tmp

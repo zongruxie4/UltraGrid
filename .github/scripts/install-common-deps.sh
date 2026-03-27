@@ -8,8 +8,13 @@ case "$(uname -s)" in
         CYGWIN*|MINGW32*|MSYS*|MINGW*)
                 win=yes
                 ;;
-
 esac
+
+if [ -f /etc/os-release ]; then
+        . /etc/os-release
+else
+        ID=
+fi
 
 if ! command -v nproc >/dev/null; then
         nproc() { sysctl -n hw.logicalcpu; } # mac
@@ -52,8 +57,10 @@ download_build_aja() {(
 )}
 
 install_aja() {(
-        if [ "$(uname -s)" = Linux ]; then
+        if [ "$ID" = ubuntu ]; then
                 sudo apt install libudev-dev
+        elif [ "$ID" = almalinux ]; then
+                sudo dnf -y install systemd-devel
         fi
         if [ ! -d libajantv2 ]; then
                 download_build_aja

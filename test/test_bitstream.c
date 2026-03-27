@@ -33,9 +33,9 @@
  * SUCH DAMAGE.
  */
 
-#include "config.h"
-#include "config_unix.h"
-#include "config_win32.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
 #include "debug.h"
 #include "memory.h"
 #include "bitstream.h"

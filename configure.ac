@@ -1625,7 +1625,6 @@ ENSURE_FEATURE_PRESENT([$rtsp_req], [$rtsp], [rtsp not found, check curl depende
 # -------------------------------------------------------------------------------------------------
 rtsp_server=no
 livemedia=no
-livemedia_prefix=/usr
 
 AC_ARG_ENABLE(rtsp_server,
 [  --enable-rtsp-server    enables RTSP server support (default is auto)]
@@ -1637,8 +1636,16 @@ AC_ARG_ENABLE(rtsp_server,
 AC_ARG_WITH(live555,
             [  --with-live555=DIR      specify location of live555],
             [livemedia_prefix=$withval],
-            [livemedia_prefix=/usr/local],
+            [livemedia_prefix=],
         )
+
+if test -z "$livemedia_prefix"; then
+       if test -d /usr/local/include/liveMedia; then
+               livemedia_prefix=/usr/local
+       else
+               livemedia_prefix=/usr
+       fi
+fi
 
 if test $rtsp_server_req != no; then
         AC_LANG_PUSH(C++)

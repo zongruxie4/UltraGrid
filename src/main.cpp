@@ -542,8 +542,7 @@ struct ug_options {
         ~ug_options() {
                 vidcap_params_free(vidcap_params_head);
         }
-        struct common_opts common = { COMMON_OPTS_INIT };
-
+        struct common_opts common = COMMON_OPTS_INIT;
         struct vrxtx_params video = VRXTX_INIT;
         struct audio_options audio = AUDIO_OPTIONS_INIT;
         std::string audio_filter_cfg;
@@ -924,8 +923,10 @@ parse_options_internal(int argc, char *argv[], struct ug_options *opt)
                         snprintf_ch(opt->common.mcast_if, "%s", optarg);
                         break;
                 case OPT_AUDIO_HOST:
-                        opt->audio.host = optarg;
-                        break;
+                        bug_msg(LOG_LEVEL_ERROR,
+                                "Separate audio host has been removed. Let us "
+                                "if you use this feature. ");
+                        return -1;
                 case 'E':
                         opt->should_export = true;
                         opt->export_opts = optarg;
@@ -1023,7 +1024,7 @@ parse_options_internal(int argc, char *argv[], struct ug_options *opt)
         }
 
         if (argc > 0) {
-                opt->video.receiver = argv[0];
+                opt->common.receiver = argv[0];
         }
 
         return 0;
@@ -1059,7 +1060,7 @@ adjust_ports(struct ug_options *opt, unsigned audio_rxtx_mode)
 {
         // use dyn ports if unset, sending only to ourselves or neither
         // sending nor receiving
-        if (is_host_loopback(opt->video.receiver)) {
+        if (is_host_loopback(opt->common.receiver)) {
                 const unsigned mode_both = MODE_RECEIVER | MODE_SENDER;
                 const bool     v_send_and_rcv =
                     (opt->video.rxtx_mode & mode_both) == mode_both;
@@ -1178,8 +1179,7 @@ adjust_params_holepunch(struct ug_options *opt)
 
         log_msg(LOG_LEVEL_INFO, "[holepunch] remote: %s\n rx: %d\n tx: %d\n",
                         punched_host, opt->video.rx_port, opt->video.tx_port);
-        opt->video.receiver = punched_host;
-        opt->audio.host = punched_host;
+        opt->common.receiver = punched_host;
         return 0;
 #endif //HAVE_LIBJUICE
 }
@@ -1188,11 +1188,11 @@ static int adjust_params(struct ug_options *opt) {
         unsigned int audio_rxtx_mode = 0;
         if (opt->is_server) {
                 commandline_params["udp-disable-multi-socket"] = string();
-                if (opt->video.receiver != nullptr) {
+                if (opt->common.receiver != nullptr) {
                         LOG(LOG_LEVEL_ERROR) << "Receiver must not be given in server mode!\n";
                         return EXIT_FAIL_USAGE;
                 }
-                opt->video.receiver = IN6_BLACKHOLE_SERVER_MODE_STR;
+                opt->common.receiver = IN6_BLACKHOLE_SERVER_MODE_STR;
                 if (strcmp(opt->requested_display, "none") == 0 && strcmp("none", vidcap_params_get_driver(opt->vidcap_params_head)) != 0) {
                         opt->requested_display = "dummy";
                 }
@@ -1202,7 +1202,7 @@ static int adjust_params(struct ug_options *opt) {
         }
         if (opt->is_client) {
                 commandline_params["udp-disable-multi-socket"] = string();
-                if (opt->video.receiver == nullptr) {
+                if (opt->common.receiver == nullptr) {
                         LOG(LOG_LEVEL_ERROR) << "Server address required in client mode!\n";
                         return EXIT_FAIL_USAGE;
                 }
@@ -1215,12 +1215,8 @@ static int adjust_params(struct ug_options *opt) {
                 }
         }
 
-        if (opt->video.receiver == nullptr) {
-                opt->video.receiver = "localhost";
-        }
-
-        if (opt->audio.host == nullptr) {
-                opt->audio.host = opt->video.receiver;
+        if (opt->common.receiver == nullptr) {
+                opt->common.receiver = "localhost";
         }
 
         if (!is_ipv6_supported()) {
@@ -1268,7 +1264,7 @@ static int adjust_params(struct ug_options *opt) {
         // If we are sure that this UltraGrid is sending to itself we can optimize some parameters
         // (aka "-m 9000 -l unlimited"). If ports weren't equal it is possible that we are sending
         // to a reflector, that is why we require equal ports (we are a receiver as well).
-        if (is_host_loopback(opt->video.receiver)
+        if (is_host_loopback(opt->common.receiver)
                         && (opt->video.rx_port == opt->video.tx_port || opt->video.tx_port == 0)
                         && (opt->audio.recv_port == opt->audio.send_port || opt->audio.send_port == 0)) {
                 opt->common.mtu = opt->common.mtu == 0 ? min(RTP_MAX_MTU, 65535)
@@ -1423,7 +1419,7 @@ int main(int argc, char *argv[])
 
         if(!opt.nat_traverse_config
                         || strncmp(opt.nat_traverse_config, "holepunch", strlen("holepunch")) != 0){
-                nat_traverse = start_nat_traverse(opt.nat_traverse_config, opt.video.receiver, opt.video.rx_port, opt.audio.recv_port);
+                nat_traverse = start_nat_traverse(opt.nat_traverse_config, opt.common.receiver, opt.video.rx_port, opt.audio.recv_port);
                 if(!nat_traverse){
                         exit_uv(1);
                         goto cleanup;

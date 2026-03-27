@@ -80,7 +80,7 @@ h264_sdp_video_rxtx::h264_sdp_video_rxtx(const struct vrxtx_params *params,
         m_saved_addr = m_requested_receiver;
         m_saved_tx_port = params->tx_port;
 
-        sdp_set_properties(params->receiver, params->send_video, params->send_audio);
+        sdp_set_properties(common->receiver, params->send_video, params->send_audio);
 
         if (int ret = sdp_set_options(opts)) {
                 throw ret == 1 ? 0 : 1;

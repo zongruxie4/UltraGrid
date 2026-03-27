@@ -322,10 +322,10 @@ audio_init_real(struct state_audio *s, const struct audio_options *opt,
 
         s->opts = *common;
         
-        assert(opt->host != nullptr);
+        assert(common->receiver != nullptr);
         s->audio_participants = pdb_init("audio", &audio_offset);
 
-        s->audio_network_parameters.addr = strdup(opt->host);
+        s->audio_network_parameters.addr = strdup(common->receiver);
         s->audio_network_parameters.recv_port = opt->recv_port;
         s->audio_network_parameters.send_port = opt->send_port;
         s->audio_network_parameters.participants = s->audio_participants;

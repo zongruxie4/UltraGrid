@@ -54,7 +54,6 @@ struct vrxtx_params {
         enum rxtx_mode  rxtx_mode;      ///< sender, receiver or both
         struct display *display_device; ///< only iHDTV, UG RTP
         struct vidcap  *capture_device; ///< iHDTV only
-        const char     *receiver;
         int             rx_port;
         int             tx_port;
         const char     *fec;
@@ -73,7 +72,6 @@ struct vrxtx_params {
                 .rxtx_mode      = RXTX_MODE_NONE, \
                 .display_device = nullptr, \
                 .capture_device = nullptr, \
-                .receiver       = nullptr, \
                 .rx_port        = -1, \
                 .tx_port        = -1, \
                 .fec            = "none", \

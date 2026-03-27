@@ -448,7 +448,7 @@ static void *writer(void *arg)
                 }
                 char *compress = strtok_r(NULL, " ", &save_ptr);
 
-                struct common_opts opts = { COMMON_OPTS_INIT };
+                struct common_opts opts = COMMON_OPTS_INIT;
                 int idx = create_output_port(s,
                         host, 0, tx_port, s->bufsize, &opts,
                         compress, nullptr, RATE_UNLIMITED, s->server_socket != nullptr);
@@ -608,7 +608,7 @@ struct host_opts {
     const char *compression;
     char *fec;
     long long int bitrate;
-    struct common_opts common_opts = { COMMON_OPTS_INIT };
+    struct common_opts common_opts = COMMON_OPTS_INIT;
 };
 
 struct cmdline_parameters {

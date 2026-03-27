@@ -182,13 +182,13 @@ static int vidcap_ug_input_init(const struct vidcap_params *cap_params, void **s
         struct vrxtx_params params = VRXTX_INIT;
 
         // common
-        struct common_opts common = { COMMON_OPTS_INIT };
+        struct common_opts common = COMMON_OPTS_INIT;
         common.parent = vidcap_params_get_parent(cap_params);
         params.rxtx_mode = MODE_RECEIVER;
 
         //RTP
         // should be localhost and RX TX ports the same (here dynamic) in order to work like a pipe
-        params.receiver = "localhost";
+        common.receiver = "localhost";
         params.rx_port = port;
         params.tx_port = 0;
         // following 3 already set by VRTX_INIT
@@ -203,7 +203,6 @@ static int vidcap_ug_input_init(const struct vidcap_params *cap_params, void **s
 
         if (vidcap_params_get_flags(cap_params) & VIDCAP_FLAG_AUDIO_ANY) {
                 struct audio_options opt = AUDIO_OPTIONS_INIT;
-                opt.host                 = "localhost";
                 opt.recv_port            = port + 2;
                 opt.send_port            = 0;
                 opt.recv_cfg             = "embedded";

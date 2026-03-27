@@ -164,6 +164,7 @@ void hang_signal_handler(int sig);
 #endif
 
 struct common_opts {
+        const char      *receiver;
         struct module   *parent;
         char             encryption[STR_LEN];
         char             mcast_if[STR_LEN];
@@ -172,12 +173,20 @@ struct common_opts {
         int              force_ip_version;
         struct exporter *exporter;
         time_ns_t        start_time;
-#define COMMON_OPTS_INIT \
-        /* .parent = */ 0, \
-        /* .encryption = */ "", /* .mcast_if = */ "", /* .mtu = */ 1500, \
-        /* .ttl = */ -1,  /* .force_ip_version = */ 0, /* .exporter = */ 0, \
-        /* .start_time = */  get_time_in_ns(),
 };
+
+#define COMMON_OPTS_INIT \
+        { \
+                .receiver         = nullptr, \
+                .parent           = nullptr, \
+                .encryption       = "", \
+                .mcast_if         = "", \
+                .mtu              = 1500, \
+                .ttl              = -1, \
+                .force_ip_version = 0, \
+                .exporter         = nullptr, \
+                .start_time       = get_time_in_ns(), \
+        }
 
 #ifdef __cplusplus
 #include <string>

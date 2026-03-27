@@ -62,7 +62,6 @@
 struct state_audio;
 
 struct audio_options {
-        const char        *host;
         int                recv_port;
         int                send_port;
         const char        *recv_cfg;
@@ -81,7 +80,6 @@ struct audio_options {
 
 #define AUDIO_OPTIONS_INIT \
         { \
-                .host              = NULL, \
                 .recv_port         = 0, \
                 .send_port         = 0, \
                 .recv_cfg          = "none", \

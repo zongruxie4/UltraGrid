@@ -119,7 +119,8 @@ recompress_output_port::recompress_output_port(
         params.rxtx_mode = MODE_SENDER;
 
         //RTP
-        params.receiver = this->host.c_str();
+        struct common_opts common_copy = *common;
+        common_copy.receiver = this->host.c_str();
         params.rx_port = rx_port;
         params.tx_port = tx_port;
         params.fec = fec;
@@ -130,7 +131,7 @@ recompress_output_port::recompress_output_port(
         // params["display_device"].ptr = nullptr;
 
         struct video_rxtx *rxtx = nullptr;
-        int rc = vrxtx_init("ultragrid_rtp", &params, common, &rxtx);
+        int rc = vrxtx_init("ultragrid_rtp", &params, &common_copy, &rxtx);
         if (rc != 0) {
                 throw rc;
         }

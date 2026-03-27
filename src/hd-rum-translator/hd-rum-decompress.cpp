@@ -96,7 +96,7 @@ struct state_transcoder_decompress final {
 
         struct capture_filter *capture_filter_state = nullptr;
 
-        struct common_opts common = { COMMON_OPTS_INIT };
+        struct common_opts common = COMMON_OPTS_INIT;
 };
 
 void state_transcoder_decompress::frame_arrived(void *state, struct video_frame *f, struct audio_frame *a)
@@ -218,7 +218,7 @@ void *hd_rum_decompress_init(struct module *parent, struct hd_rum_output_conf co
 
         //RTP
         // should be localhost and RX TX ports the same (here dynamic) in order to work like a pipe
-        params.receiver = "localhost";
+        s->common.receiver = "localhost";
         params.rx_port = 0;
         params.tx_port = 0;
         // params["video_delay"].vptr = nullptr;

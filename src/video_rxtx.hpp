@@ -70,7 +70,6 @@ struct vrxtx_params {
         long long       bitrate_limit; ///< rate limiter in bps or RATE_ constantts
         enum video_mode decoder_mode;
         const char     *protocol_opts;
-        long long       start_time;
         bool            send_audio;   ///< RTSP+SDP
         bool            send_video;   ///< RTSP+SDP
         struct module  *sender_mod;   ///< set by video_rxtx::create
@@ -90,7 +89,6 @@ struct vrxtx_params {
                 .bitrate_limit  = RATE_UNLIMITED, \
                 .decoder_mode   = VIDEO_NORMAL, \
                 .protocol_opts  = "", \
-                .start_time     = 0, \
                 .send_audio     = false, \
                 .send_video     = false, \
                 .sender_mod     = nullptr, \

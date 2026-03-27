@@ -1341,8 +1341,6 @@ int main(int argc, char *argv[])
         struct control_state *control = NULL;
         int ret;
 
-        time_ns_t start_time = get_time_in_ns();
-
         struct ug_nat_traverse *nat_traverse = nullptr;
 
 #ifndef _WIN32
@@ -1469,7 +1467,6 @@ int main(int argc, char *argv[])
 #endif /* USE_RT */
 
         opt.video.capture_device = uv.capture_device; // iHDTV
-        opt.video.start_time     = start_time;        // RTP protocols
         opt.video.display_device = uv.display_device; // UltraGrid RTP, iHDTV
         // RTSP + SDP
         opt.video.send_audio = strcmp("none", opt.audio.send_cfg) != 0;

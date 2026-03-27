@@ -24,6 +24,10 @@ continuous/GPUJPEG-Linux.tar.xz
 
 # Install NDI
 install_ndi() {(
+        if [ ! -f Install_NDI_SDK_Linux.tar.gz ]; then
+                curl -Lf https://downloads.ndi.tv/SDK/NDI_SDK_Linux/\
+Install_NDI_SDK_v6_Linux.tar.gz -o /var/tmp/Install_NDI_SDK_Linux.tar.gz
+        fi
         tar -xzf Install_NDI_SDK_Linux.tar.gz
         # shellcheck disable=SC2125
         installer=./Install*NDI*sh
@@ -47,21 +51,6 @@ install_pipewire() {(
         else
                 sudo apt -y install libpipewire-0.3-dev
         fi
-)}
-
-install_rav1e() {(
-        # TODO: use avx2 later
-        if expr "${UG_ARCH-}" : '.*avx' >/dev/null; then
-                avx2=avx2
-        fi
-        fpattern="librav1e.*linux-${avx2-sse4}.tar.gz"
-        "${GITHUB_WORKSPACE-.}"/.github/scripts/download-gh-asset.sh xiph/rav1e \
-                "$fpattern" librav1e.tar.gz
-        sudo tar xaf librav1e.tar.gz -C /usr/local
-        sudo rm -rf /usr/local/lib/librav1e.so*
-        sudo sed -i -e 's-prefix=dist-prefix=/usr/local-' \
-                -e 's/-lrav1e/-lrav1e -lm -pthread/' \
-                /usr/local/lib/pkgconfig/rav1e.pc
 )}
 
 install_svt_jpegxs() {(
@@ -97,7 +86,7 @@ if [ $# -eq 1 ] && { [ "$1" = -h ] || [ "$1" = --help ] || [ "$1" = help ]; }; t
 fi
 
 if [ $# -eq 0 ] || [ $show_help ]; then
-        set -- gpujpeg ndi pipewire rav1e svt_jpegxs vulkan ximea
+        set -- gpujpeg ndi pipewire svt_jpegxs vulkan ximea
 fi
 
 if [ $show_help ]; then

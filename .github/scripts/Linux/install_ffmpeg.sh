@@ -85,6 +85,21 @@ install_onevpl() {(
         sudo cmake --build . --config Release --target install
 )}
 
+install_rav1e() {(
+        # TODO: use avx2 later
+        if expr "${UG_ARCH-}" : '.*avx' >/dev/null; then
+                avx2=avx2
+        fi
+        fpattern="librav1e.*linux-${avx2-sse4}.tar.gz"
+        "${GITHUB_WORKSPACE-.}"/.github/scripts/download-gh-asset.sh xiph/rav1e \
+                "$fpattern" librav1e.tar.gz
+        sudo tar xaf librav1e.tar.gz -C /usr/local
+        sudo rm -rf /usr/local/lib/librav1e.so*
+        sudo sed -i -e 's-prefix=dist-prefix=/usr/local-' \
+                -e 's/-lrav1e/-lrav1e -lm -pthread/' \
+                /usr/local/lib/pkgconfig/rav1e.pc
+)}
+
 # build FFmpeg deps + FFmpeg itself
 build_install() {
         rm -rf $cache_dir
@@ -98,6 +113,7 @@ build_install() {
         install_nv_codec_headers
         install_oapv
         install_onevpl
+        install_rav1e
         install_svt
         # apply patches
         find "$GITHUB_WORKSPACE/.github/scripts/Linux/ffmpeg-patches" \
@@ -141,6 +157,7 @@ install_cached() {
         sudo cmake --install SVT-VP9/Build
         sudo cmake --build oneVPL/build --config Release --target install
         sudo cmake --install openapv/build
+        install_rav1e
 
         sudo make install
         sudo ldconfig

@@ -54,15 +54,9 @@ void display_buf_increase_warning(int size);
 
 struct rtp_rxtx_common {
         struct rtp     *network_device;
-        int             force_ip_version;
-        char           *mcast_if;
-        int             ttl;
         pthread_mutex_t network_devices_lock;
         struct tx      *tx;
         struct pdb     *participants;
-        char           *requested_receiver;
-        int             rx_port;
-        int             tx_port;
         struct fec     *fec_state;
         int             rxtx_mode;
         bool            used; ///< at least one frame was sent
@@ -74,6 +68,7 @@ struct rtp_rxtx_common *rtp_rxtx_common_init(const struct vrxtx_params *params,
 void                    rtp_rxtx_common_done(struct rtp_rxtx_common *state);
 
 void rtp_process_sender_messages(struct rtp_rxtx_common *s);
+void rtp_rxtx_set_pbuf_delay(struct rtp_rxtx_common *s, double delay);
 
 
 #endif // VIDEO_RXTX_RTP_H_

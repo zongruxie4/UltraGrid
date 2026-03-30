@@ -68,9 +68,18 @@
 
 using std::ostringstream;
 using std::string;
+using ultragrid::pthread_mutex_guard;
 
 struct rtp_rxtx_common_priv_state {
         uint32_t magic;
+
+        // stored for reconfiguration
+        int   force_ip_version;
+        char *mcast_if;
+        int   ttl;
+        char *requested_receiver;
+        int   rx_port;
+        int   tx_port;
 
         struct rtp_rxtx_common info;
         /// This is child of vrxtx sender module to process specific messages.
@@ -94,17 +103,16 @@ rtp_process_sender_message(struct rtp_rxtx_common *s, struct msg_sender *msg)
                 assert(s->priv->info.rxtx_mode == MODE_SENDER); // sender only
                 ultragrid::pthread_mutex_guard lock(s->network_devices_lock);
                 auto             *old_device   = s->network_device;
-                char *old_receiver              = s->requested_receiver;
-                s->requested_receiver           = msg->receiver;
-                s->network_device               = initialize_network(
-                    s->requested_receiver, s->rx_port,
-                    s->tx_port, s->participants,
-                    s->force_ip_version,
-                    s->mcast_if, s->ttl);
+                char *old_receiver = s->priv->requested_receiver;
+                s->priv->requested_receiver = strdup(msg->receiver);
+                s->network_device           = initialize_network(
+                    s->priv->requested_receiver, s->priv->rx_port,
+                    s->priv->tx_port, s->participants,
+                    s->priv->force_ip_version, s->priv->mcast_if, s->priv->ttl);
                 if (s->network_device == nullptr) {
                         s->network_device     = old_device;
-                        free(s->requested_receiver);
-                        s->requested_receiver = old_receiver;
+                        free(s->priv->requested_receiver);
+                        s->priv->requested_receiver = old_receiver;
                         MSG(ERROR, "Failed receiver to %s.\n", msg->receiver);
                         return new_response(RESPONSE_INT_SERV_ERR,
                                             "Changing receiver failed!");
@@ -117,21 +125,21 @@ rtp_process_sender_message(struct rtp_rxtx_common *s, struct msg_sender *msg)
                 assert(s->rxtx_mode == MODE_SENDER); // sender only
                 ultragrid::pthread_mutex_guard lock(s->network_devices_lock);
                 auto             *old_device = s->network_device;
-                auto              old_port   = s->tx_port;
+                auto              old_port   = s->priv->tx_port;
 
-                s->tx_port = msg->tx_port;
+                s->priv->tx_port = msg->tx_port;
                 if (msg->rx_port != 0) {
-                        s->rx_port = msg->rx_port;
+                        s->priv->rx_port = msg->rx_port;
                 }
                 s->network_device = initialize_network(
-                    s->requested_receiver, s->rx_port,
-                    s->tx_port, s->participants,
-                    s->force_ip_version,
-                    s->mcast_if, s->ttl);
+                    s->priv->requested_receiver, s->priv->rx_port,
+                    s->priv->tx_port, s->participants,
+                    s->priv->force_ip_version,
+                    s->priv->mcast_if, s->priv->ttl);
 
                 if (s->network_device == nullptr) {
                         s->network_device   = old_device;
-                        s->tx_port = old_port;
+                        s->priv->tx_port = old_port;
                         MSG(ERROR, "Failed to Change TX port to %d.\n",
                             msg->tx_port);
                         return new_response(RESPONSE_INT_SERV_ERR,
@@ -173,10 +181,10 @@ rtp_process_sender_message(struct rtp_rxtx_common *s, struct msg_sender *msg)
                 const uint32_t    old_ssrc   = rtp_my_ssrc(s->network_device);
                 auto             *old_device = s->network_device;
                 s->network_device             = initialize_network(
-                    s->requested_receiver, s->rx_port,
-                    s->tx_port, s->participants,
-                    s->force_ip_version,
-                    s->mcast_if, s->ttl);
+                    s->priv->requested_receiver, s->priv->rx_port,
+                    s->priv->tx_port, s->participants,
+                    s->priv->force_ip_version,
+                    s->priv->mcast_if, s->priv->ttl);
                 if (s->network_device == nullptr) {
                         s->network_device = old_device;
                         MSG(ERROR, "Unable to change SSRC!\n");
@@ -223,19 +231,19 @@ struct rtp_rxtx_common *rtp_rxtx_common_init(const struct vrxtx_params *params,
         s->priv = priv;
         s->priv->magic = MAGIC;
         pthread_mutex_init(&s->network_devices_lock, nullptr);
-        s->force_ip_version   = common->force_ip_version,
-        s->mcast_if           = strdup(common->mcast_if);
-        s->ttl                = common->ttl;
-        s->requested_receiver = strdup(common->receiver),
-        s->rx_port   = params->rx_port,
-        s->tx_port   = params->tx_port,
-        s->rxtx_mode          = params->rxtx_mode;
+        s->priv->force_ip_version   = common->force_ip_version,
+        s->priv->mcast_if           = strdup(common->mcast_if);
+        s->priv->ttl                = common->ttl;
+        s->priv->requested_receiver = strdup(common->receiver),
+        s->priv->rx_port            = params->rx_port,
+        s->priv->tx_port            = params->tx_port;
+        s->rxtx_mode                = params->rxtx_mode;
 
         s->participants = pdb_init("video", &video_offset);
 
         s->network_device = initialize_network(
-            s->requested_receiver, s->rx_port,
-            s->tx_port, s->participants, common->force_ip_version,
+            s->priv->requested_receiver, s->priv->rx_port,
+            s->priv->tx_port, s->participants, common->force_ip_version,
             common->mcast_if, common->ttl);
         if (s->network_device == nullptr) {
                 rtp_rxtx_common_done(s);
@@ -281,8 +289,8 @@ rtp_rxtx_common_done(struct rtp_rxtx_common *s)
         }
 
         delete s->fec_state;
-        free(s->mcast_if);
-        free(s->requested_receiver);
+        free(s->priv->mcast_if);
+        free(s->priv->requested_receiver);
         module_done(&priv->m_rtp_sender_mod);
 
         pthread_mutex_destroy(&s->network_devices_lock);
@@ -371,4 +379,17 @@ static void
 destroy_rtp_device(struct rtp *network_device)
 {
         rtp_done(network_device);
+}
+
+void rtp_rxtx_set_pbuf_delay(struct rtp_rxtx_common *s, double delay) {
+        pthread_mutex_guard lock(s->network_devices_lock);
+        pdb_iter_t          it;
+        /// @todo should be set only to relevant participant,
+        /// not all
+        struct pdb_e *cp = pdb_iter_init(s->participants, &it);
+        while (cp != nullptr) {
+                pbuf_set_playout_delay(cp->playout_buffer, delay);
+
+                cp = pdb_iter_next(&it);
+        }
 }

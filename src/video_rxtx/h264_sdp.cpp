@@ -84,7 +84,7 @@ h264_sdp_video_rxtx::h264_sdp_video_rxtx(const struct vrxtx_params *params,
                 throw ret == 1 ? 0 : 1;
         }
         m_rtp_common = rtp_rxtx_common_init(params, common);
-        m_saved_addr = m_rtp_common->requested_receiver;
+        m_saved_addr = common->receiver;
 }
 
 h264_sdp_video_rxtx::~h264_sdp_video_rxtx() {

@@ -50,14 +50,7 @@
 
 #define INITIAL_VIDEO_SEND_BUFFER_SIZE  (1024*1024)
 
-struct rtp;
-struct fec;
-
-struct rtp *initialize_network(const char *addr, int recv_port, int send_port,
-                               struct pdb *participants, int force_ip_version,
-                               const char *mcast_if, int ttl);
-void        destroy_rtp_device(struct rtp *network_device);
-void        display_buf_increase_warning(int size);
+void display_buf_increase_warning(int size);
 
 struct rtp_rxtx_common {
         struct rtp     *network_device;

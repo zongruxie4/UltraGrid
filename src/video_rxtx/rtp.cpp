@@ -80,6 +80,12 @@ struct rtp_rxtx_common_priv_state {
         struct module m_rtp_sender_mod;
 };
 
+static struct rtp *initialize_network(const char *addr, int recv_port,
+                                      int send_port, struct pdb *participants,
+                                      int         force_ip_version,
+                                      const char *mcast_if, int ttl);
+static void        destroy_rtp_device(struct rtp *network_device);
+
 static struct response *
 rtp_process_sender_message(struct rtp_rxtx_common *s, struct msg_sender *msg)
 {
@@ -322,7 +328,7 @@ void display_buf_increase_warning(int size)
 #undef SYSCTL_ENTRY
 }
 
-struct rtp *
+static struct rtp *
 initialize_network(const char *addr, int recv_port, int send_port,
                    struct pdb *participants, int force_ip_version,
                    const char *mcast_if, int ttl)
@@ -361,7 +367,7 @@ initialize_network(const char *addr, int recv_port, int send_port,
         return device;
 }
 
-void
+static void
 destroy_rtp_device(struct rtp *network_device)
 {
         rtp_done(network_device);

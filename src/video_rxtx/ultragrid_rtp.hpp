@@ -58,7 +58,7 @@ typedef SSIZE_T ssize_t;
 #include "tv.h"                // for time_ns_t
 #include "types.h"             // for video_frame (ptr only), video_mode
 
-class ultragrid_rtp_video_rxtx : public rtp_video_rxtx {
+class ultragrid_rtp_video_rxtx {
 public:
         const uint32_t magic;
         ultragrid_rtp_video_rxtx(const struct vrxtx_params *params,
@@ -71,6 +71,7 @@ public:
         // transcoder functions
         friend ssize_t hd_rum_decompress_write(void *state, void *buf, size_t count);
 private:
+        struct rtp_rxtx_common *m_rtp_common;
         void *receiver_loop();
         static void *send_frame_async_callback(void *arg);
         virtual void send_frame_async(std::shared_ptr<video_frame>);
@@ -111,9 +112,12 @@ private:
         static void should_exit(void *state);
 
         friend uint32_t ultragrid_rtp_get_ssrc(void *state);
+        friend int      ultragrid_rtp_send_raw_rtp_data(void *state, char *buf,
+                                                        int count);
 };
 
 uint32_t ultragrid_rtp_get_ssrc(void *state);
+int ultragrid_rtp_send_raw_rtp_data(void *state, char *buf, int count);
 
 #endif // VIDEO_RXTX_ULTRAGRID_RTP_H_
 

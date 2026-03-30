@@ -48,15 +48,16 @@
 #include "types.h"             // for VIDEO_CODEC_NONE, codec_t, video_frame...
 #include "video_rxtx/rtp.hpp"
 
-class h264_sdp_video_rxtx : public rtp_video_rxtx {
+class h264_sdp_video_rxtx {
 public:
         h264_sdp_video_rxtx(const struct vrxtx_params *params,
                             const struct common_opts  *common);
-        ~h264_sdp_video_rxtx() override = default;
-        virtual void send_frame(std::shared_ptr<video_frame>) noexcept;
+        ~h264_sdp_video_rxtx();
+        void send_frame(std::shared_ptr<video_frame>) noexcept;
         void set_audio_spec(const struct audio_desc *desc, int audio_rx_port,
                             int audio_tx_port, bool ipv6);
 private:
+        struct rtp_rxtx_common *m_rtp_common;
         static void change_address_callback(void *udata, const char *address);
         void sdp_add_video(codec_t codec);
         codec_t m_sdp_configured_codec = VIDEO_CODEC_NONE;

@@ -72,12 +72,10 @@ using std::string;
 
 h264_sdp_video_rxtx::h264_sdp_video_rxtx(const struct vrxtx_params *params,
                                          const struct common_opts  *common)
-        : rtp_video_rxtx(params, common),
-        m_parent(common->parent)
+        : m_parent(common->parent)
 {
         auto opts = params->protocol_opts;
         LOG(LOG_LEVEL_WARNING) << "Warning: SDP support is experimental only. Things may be broken - feel free to report them but the support may be limited.\n";
-        m_saved_addr = m_requested_receiver;
         m_saved_tx_port = params->tx_port;
 
         sdp_set_properties(common->receiver, params->send_video, params->send_audio);
@@ -85,6 +83,12 @@ h264_sdp_video_rxtx::h264_sdp_video_rxtx(const struct vrxtx_params *params,
         if (int ret = sdp_set_options(opts)) {
                 throw ret == 1 ? 0 : 1;
         }
+        m_rtp_common = rtp_rxtx_common_init(params, common);
+        m_saved_addr = m_rtp_common->requested_receiver;
+}
+
+h264_sdp_video_rxtx::~h264_sdp_video_rxtx() {
+        rtp_rxtx_common_done(m_rtp_common);
 }
 
 void h264_sdp_video_rxtx::change_address_callback(void *udata, const char *address)
@@ -104,7 +108,7 @@ void h264_sdp_video_rxtx::change_address_callback(void *udata, const char *addre
 void h264_sdp_video_rxtx::sdp_add_video(codec_t codec)
 {
         const int rc = ::sdp_add_video(
-            rtp_is_ipv6(m_network_device), m_saved_tx_port, codec,
+            rtp_is_ipv6(m_rtp_common->network_device), m_saved_tx_port, codec,
             h264_sdp_video_rxtx::change_address_callback, this);
         if (rc == -2) {
                 throw ug_runtime_error("[SDP] Unsupported video codec for SDP (allowed H.264 and JPEG)!\n");
@@ -123,7 +127,7 @@ void h264_sdp_video_rxtx::sdp_add_video(codec_t codec)
 void
 h264_sdp_video_rxtx::send_frame(shared_ptr<video_frame> tx_frame) noexcept
 {
-        rtp_process_sender_messages();
+        rtp_process_sender_messages(m_rtp_common);
         if (!is_codec_opaque(tx_frame->color_spec)) {
 		if (m_sent_compress_change) {
 			return;
@@ -149,22 +153,24 @@ h264_sdp_video_rxtx::send_frame(shared_ptr<video_frame> tx_frame) noexcept
         }
 
         if (m_sdp_configured_codec == H264) {
-                tx_send_h264(m_tx, tx_frame.get(), m_network_device);
+                tx_send_h264(m_rtp_common->tx, tx_frame.get(),
+                             m_rtp_common->network_device);
         } else {
-                tx_send_jpeg(m_tx, tx_frame.get(), m_network_device);
+                tx_send_jpeg(m_rtp_common->tx, tx_frame.get(),
+                             m_rtp_common->network_device);
         }
-        if ((m_rxtx_mode & MODE_RECEIVER) ==
-            0) { // send RTCP (receiver thread would otherwise do this)
+        if (m_rtp_common->rxtx_mode & MODE_RECEIVER) {
+                // send RTCP (receiver thread would otherwise do this)
                 uint32_t ts = get_std_video_local_mediatime();
                 time_ns_t curr_time = get_time_in_ns();
-                rtp_update(m_network_device, curr_time);
-                rtp_send_ctrl(m_network_device, ts, nullptr, curr_time);
+                rtp_update(m_rtp_common->network_device, curr_time);
+                rtp_send_ctrl(m_rtp_common->network_device, ts, nullptr, curr_time);
 
                 // receive RTCP
                 struct timeval timeout;
                 timeout.tv_sec = 0;
                 timeout.tv_usec = 0;
-                rtp_recv_r(m_network_device, &timeout, ts);
+                rtp_recv_r(m_rtp_common->network_device, &timeout, ts);
         }
 }
 

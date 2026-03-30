@@ -69,7 +69,6 @@ using std::shared_ptr;
 
 h264_rtp_video_rxtx::h264_rtp_video_rxtx(const struct vrxtx_params *params,
                             const struct common_opts *common, int rtsp_port) :
-        rtp_video_rxtx(params, common),
         m_parent(common->parent),
         m_start_time(common->start_time)
 {
@@ -86,6 +85,7 @@ h264_rtp_video_rxtx::h264_rtp_video_rxtx(const struct vrxtx_params *params,
         rtsp_params.avType = avType;;
 
         rtsp_params.rtp_port_video = params->rx_port;  //server rtp port
+        m_rtp_common = rtp_rxtx_common_init(params, common);
 }
 
 /**
@@ -128,7 +128,7 @@ h264_rtp_video_rxtx::configure_rtsp_server_video()
 void
 h264_rtp_video_rxtx::send_frame(shared_ptr<video_frame> tx_frame) noexcept
 {
-        rtp_process_sender_messages();
+        rtp_process_sender_messages(m_rtp_common);
         // requestt compress reconfiguration if receivng raw data
         if (!is_codec_opaque(tx_frame->color_spec)) {
                 if (!m_sent_compress_change) {
@@ -152,25 +152,27 @@ h264_rtp_video_rxtx::send_frame(shared_ptr<video_frame> tx_frame) noexcept
                 return;
         }
 
-        tx_send_std(m_tx, tx_frame.get(), m_network_device);
+        tx_send_std(m_rtp_common->tx, tx_frame.get(),
+                    m_rtp_common->network_device);
 
-        if ((m_rxtx_mode & MODE_RECEIVER) == 0) { // send RTCP (receiver thread would otherwise do this
+        if (m_rtp_common->rxtx_mode & MODE_RECEIVER) { // send RTCP (receiver thread would otherwise do this
                 time_ns_t curr_time = get_time_in_ns();
                 uint32_t ts = (curr_time - m_start_time) / 100'000 * 9; // at 90000 Hz
-                rtp_update(m_network_device, curr_time);
-                rtp_send_ctrl(m_network_device, ts, nullptr, curr_time);
+                rtp_update(m_rtp_common->network_device, curr_time);
+                rtp_send_ctrl(m_rtp_common->network_device, ts, nullptr, curr_time);
 
                 // receive RTCP
                 struct timeval timeout;
                 timeout.tv_sec = 0;
                 timeout.tv_usec = 0;
-                rtp_recv_r(m_network_device, &timeout, ts);
+                rtp_recv_r(m_rtp_common->network_device, &timeout, ts);
         }
 }
 
 h264_rtp_video_rxtx::~h264_rtp_video_rxtx()
 {
         free(m_rtsp_server);
+        rtp_rxtx_common_done(m_rtp_common);
 }
 
 void h264_rtp_video_rxtx::join()

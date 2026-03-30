@@ -37,8 +37,6 @@
 
 #include <cassert>
 #include <cinttypes>
-#include <map>
-#include <mutex>
 #include <sstream>
 #include <string>
 
@@ -55,6 +53,7 @@
 #include "rtp/video_decoders.h"
 #include "transmit.h"
 #include "ug_runtime_error.hpp"
+#include "utils/lock_guard.h"    // for ultragrid::pthread_mutex_guard
 #include "utils/misc.h"          // for format_in_si_units
 #include "utils/net.h" // IN6_BLACKHOLE_STR
 #include "video.h"
@@ -64,58 +63,69 @@
 #include "video_rxtx.h"
 #include "video_rxtx/rtp.hpp"
 
+#define MAGIC to_fourcc('V', 'X', 'r', ' ')
 #define MOD_NAME "[video_rxtx/rtp] "
 
-using std::lock_guard;
-using std::map;
-using std::mutex;
 using std::ostringstream;
 using std::string;
 
-struct response *
-rtp_video_rxtx::process_sender_message(struct msg_sender *msg)
+struct rtp_rxtx_common_priv_state {
+        uint32_t magic;
+
+        struct rtp_rxtx_common info;
+        /// This is child of vrxtx sender module to process specific messages.
+        /// The receiver module is used directly (vrxtx doesn't process any
+        /// message and also the send/receive handling is not entirely
+        /// symetric).
+        struct module m_rtp_sender_mod;
+};
+
+static struct response *
+rtp_process_sender_message(struct rtp_rxtx_common *s, struct msg_sender *msg)
 {
         switch (msg->type) {
         case SENDER_MSG_CHANGE_RECEIVER: {
-                assert(m_rxtx_mode == MODE_SENDER); // sender only
-                lock_guard<mutex> lock(m_network_devices_lock);
-                auto             *old_device   = m_network_device;
-                auto              old_receiver = m_requested_receiver;
-                m_requested_receiver           = msg->receiver;
-                m_network_device               = initialize_network(
-                    m_requested_receiver.c_str(), m_recv_port_number,
-                    m_send_port_number, m_participants,
-                    m_force_ip_version,
-                    m_mcast_if.c_str(), m_ttl);
-                if (m_network_device == nullptr) {
-                        m_network_device     = old_device;
-                        m_requested_receiver = std::move(old_receiver);
+                assert(s->priv->info.rxtx_mode == MODE_SENDER); // sender only
+                ultragrid::pthread_mutex_guard lock(s->network_devices_lock);
+                auto             *old_device   = s->network_device;
+                char *old_receiver              = s->requested_receiver;
+                s->requested_receiver           = msg->receiver;
+                s->network_device               = initialize_network(
+                    s->requested_receiver, s->rx_port,
+                    s->tx_port, s->participants,
+                    s->force_ip_version,
+                    s->mcast_if, s->ttl);
+                if (s->network_device == nullptr) {
+                        s->network_device     = old_device;
+                        free(s->requested_receiver);
+                        s->requested_receiver = old_receiver;
                         MSG(ERROR, "Failed receiver to %s.\n", msg->receiver);
                         return new_response(RESPONSE_INT_SERV_ERR,
                                             "Changing receiver failed!");
                 }
                 MSG(NOTICE, "Changed receiver to %s.\n", msg->receiver);
                 destroy_rtp_device(old_device);
+                free(old_receiver);
         } break;
         case SENDER_MSG_CHANGE_PORT: {
-                assert(m_rxtx_mode == MODE_SENDER); // sender only
-                lock_guard<mutex> lock(m_network_devices_lock);
-                auto             *old_device = m_network_device;
-                auto              old_port   = m_send_port_number;
+                assert(s->rxtx_mode == MODE_SENDER); // sender only
+                ultragrid::pthread_mutex_guard lock(s->network_devices_lock);
+                auto             *old_device = s->network_device;
+                auto              old_port   = s->tx_port;
 
-                m_send_port_number = msg->tx_port;
+                s->tx_port = msg->tx_port;
                 if (msg->rx_port != 0) {
-                        m_recv_port_number = msg->rx_port;
+                        s->rx_port = msg->rx_port;
                 }
-                m_network_device = initialize_network(
-                    m_requested_receiver.c_str(), m_recv_port_number,
-                    m_send_port_number, m_participants,
-                    m_force_ip_version,
-                    m_mcast_if.c_str(), m_ttl);
+                s->network_device = initialize_network(
+                    s->requested_receiver, s->rx_port,
+                    s->tx_port, s->participants,
+                    s->force_ip_version,
+                    s->mcast_if, s->ttl);
 
-                if (m_network_device == nullptr) {
-                        m_network_device   = old_device;
-                        m_send_port_number = old_port;
+                if (s->network_device == nullptr) {
+                        s->network_device   = old_device;
+                        s->tx_port = old_port;
                         MSG(ERROR, "Failed to Change TX port to %d.\n",
                             msg->tx_port);
                         return new_response(RESPONSE_INT_SERV_ERR,
@@ -125,15 +135,15 @@ rtp_video_rxtx::process_sender_message(struct msg_sender *msg)
                 destroy_rtp_device(old_device);
         } break;
         case SENDER_MSG_CHANGE_FEC: {
-                lock_guard<mutex> lock(m_network_devices_lock);
-                auto             *old_fec_state = m_fec_state;
-                m_fec_state                     = nullptr;
+                ultragrid::pthread_mutex_guard lock(s->network_devices_lock);
+                auto             *old_fec_state = s->fec_state;
+                s->fec_state                     = nullptr;
                 if (strcmp(msg->fec_cfg, "flush") == 0) {
                         delete old_fec_state;
                         break;
                 }
-                m_fec_state = fec::create_from_config(msg->fec_cfg, false);
-                if (m_fec_state == nullptr) {
+                s->fec_state = fec::create_from_config(msg->fec_cfg, false);
+                if (s->fec_state == nullptr) {
                         int rc = 0;
                         if (strstr(msg->fec_cfg, "help") == nullptr) {
                                 MSG(ERROR, "Unable to initialize FEC!\n");
@@ -142,27 +152,27 @@ rtp_video_rxtx::process_sender_message(struct msg_sender *msg)
 
                         // Exit only if we failed because of command line
                         // params, not control port msg
-                        if (m_used) {
+                        if (s->used) {
                                 exit_uv(rc);
                         }
 
-                        m_fec_state = old_fec_state;
+                        s->fec_state = old_fec_state;
                         return new_response(RESPONSE_INT_SERV_ERR, nullptr);
                 }
                 delete old_fec_state;
                 MSG(NOTICE, "Fec changed successfully\n");
         } break;
         case SENDER_MSG_RESET_SSRC: {
-                lock_guard<mutex> lock(m_network_devices_lock);
-                const uint32_t    old_ssrc   = rtp_my_ssrc(m_network_device);
-                auto             *old_device = m_network_device;
-                m_network_device             = initialize_network(
-                    m_requested_receiver.c_str(), m_recv_port_number,
-                    m_send_port_number, m_participants,
-                    m_force_ip_version,
-                    m_mcast_if.c_str(), m_ttl);
-                if (m_network_device == nullptr) {
-                        m_network_device = old_device;
+                ultragrid::pthread_mutex_guard lock(s->network_devices_lock);
+                const uint32_t    old_ssrc   = rtp_my_ssrc(s->network_device);
+                auto             *old_device = s->network_device;
+                s->network_device             = initialize_network(
+                    s->requested_receiver, s->rx_port,
+                    s->tx_port, s->participants,
+                    s->force_ip_version,
+                    s->mcast_if, s->ttl);
+                if (s->network_device == nullptr) {
+                        s->network_device = old_device;
                         MSG(ERROR, "Unable to change SSRC!\n");
                         return new_response(RESPONSE_INT_SERV_ERR, nullptr);
                 }
@@ -170,7 +180,7 @@ rtp_video_rxtx::process_sender_message(struct msg_sender *msg)
                 MSG(NOTICE,
                     "Changed SSRC from 0x%08" PRIx32 " to "
                     "0x%08" PRIx32 ".\n",
-                    old_ssrc, rtp_my_ssrc(m_network_device));
+                    old_ssrc, rtp_my_ssrc(s->network_device));
         } break;
         case SENDER_MSG_GET_STATUS:
         case SENDER_MSG_MUTE:
@@ -186,75 +196,95 @@ rtp_video_rxtx::process_sender_message(struct msg_sender *msg)
         return new_response(RESPONSE_OK, nullptr);
 }
 
-void
-rtp_video_rxtx::rtp_process_sender_messages()
+void rtp_process_sender_messages(struct rtp_rxtx_common *s)
 {
         struct message *msg_external = nullptr;
-        while((msg_external = check_message(&m_rtp_sender_mod))) {
+        while ((msg_external = check_message(&s->priv->m_rtp_sender_mod)) !=
+               nullptr) {
                 auto *msg = (struct msg_sender *) msg_external;
-                struct response *r = process_sender_message(msg);
+                struct response *r = rtp_process_sender_message(s, msg);
                 free_message(msg_external, r);
         }
 }
 
-rtp_video_rxtx::rtp_video_rxtx(const struct vrxtx_params *params,
-                               const struct common_opts  *common) :
-        m_force_ip_version(common->force_ip_version),
-        m_mcast_if(common->mcast_if),
-        m_ttl(common->ttl),
-        m_requested_receiver(common->receiver),
-        m_recv_port_number(params->rx_port),
-        m_send_port_number(params->tx_port),
-        m_fec_state(NULL),
-        m_rxtx_mode(params->rxtx_mode)
+struct rtp_rxtx_common *rtp_rxtx_common_init(const struct vrxtx_params *params,
+                       const struct common_opts  *common)
 {
-        m_participants = pdb_init("video", &video_offset);
+        auto *priv = (struct rtp_rxtx_common_priv_state *) calloc(
+            1, sizeof(struct rtp_rxtx_common_priv_state));
+        struct rtp_rxtx_common *s = &priv->info;
 
-        m_network_device = initialize_network(
-            m_requested_receiver.c_str(), m_recv_port_number,
-            m_send_port_number, m_participants, common->force_ip_version,
+        s->priv = priv;
+        s->priv->magic = MAGIC;
+        pthread_mutex_init(&s->network_devices_lock, nullptr);
+        s->force_ip_version   = common->force_ip_version,
+        s->mcast_if           = strdup(common->mcast_if);
+        s->ttl                = common->ttl;
+        s->requested_receiver = strdup(common->receiver),
+        s->rx_port   = params->rx_port,
+        s->tx_port   = params->tx_port,
+        s->rxtx_mode          = params->rxtx_mode;
+
+        s->participants = pdb_init("video", &video_offset);
+
+        s->network_device = initialize_network(
+            s->requested_receiver, s->rx_port,
+            s->tx_port, s->participants, common->force_ip_version,
             common->mcast_if, common->ttl);
-        if (m_network_device == nullptr) {
+        if (s->network_device == nullptr) {
+                rtp_rxtx_common_done(s);
                 throw ug_runtime_error("Unable to open network",
                                        EXIT_FAIL_NETWORK);
         }
 
-        module_init_default(&m_rtp_sender_mod);
-        m_rtp_sender_mod.cls = MODULE_CLASS_DATA;
-        module_register(&m_rtp_sender_mod, params->sender_mod);
+        module_init_default(&priv->m_rtp_sender_mod);
+        priv->m_rtp_sender_mod.cls = MODULE_CLASS_DATA;
+        module_register(&priv->m_rtp_sender_mod, params->sender_mod);
 
-        m_tx = tx_init(&m_rtp_sender_mod, common->mtu, TX_MEDIA_VIDEO,
+        s->tx = tx_init(&priv->m_rtp_sender_mod, common->mtu, TX_MEDIA_VIDEO,
                        params->fec, common->encryption, params->bitrate_limit);
-        if (m_tx == nullptr) {
-                throw ug_runtime_error("Unable to initialize transmitter", EXIT_FAIL_TRANSMIT);
+        if (s->tx == nullptr) {
+                rtp_rxtx_common_done(s);
+                throw ug_runtime_error("Unable to initialize transmitter",
+                                       EXIT_FAIL_TRANSMIT);
         }
 
         // The idea of doing that is to display help on '-f ldgm:help' even if UG would exit
         // immediately. The encoder is actually created by a message.
         // Also for `-x sdp:help` the message will get discarded and the warning that message quie
-        rtp_process_sender_messages();
+        rtp_process_sender_messages(s);
 
+        return s;
 }
 
-rtp_video_rxtx::~rtp_video_rxtx()
+void
+rtp_rxtx_common_done(struct rtp_rxtx_common *s)
 {
-        if (m_tx) {
-                tx_done(m_tx);
+        auto *priv = s->priv;
+        assert(priv->magic == MAGIC);
+        if (s->tx != nullptr) {
+                tx_done(s->tx);
         }
 
-        m_network_devices_lock.lock();
-        destroy_rtp_device(m_network_device);
-        m_network_devices_lock.unlock();
+        pthread_mutex_lock(&s->network_devices_lock);
+        destroy_rtp_device(s->network_device);
+        pthread_mutex_unlock(&s->network_devices_lock);
 
-        if (m_participants != NULL) {
-                pdb_destroy(&m_participants);
+        if (s->participants != nullptr) {
+                pdb_destroy(&s->participants);
         }
 
-        delete m_fec_state;
-        module_done(&m_rtp_sender_mod);
+        delete s->fec_state;
+        free(s->mcast_if);
+        free(s->requested_receiver);
+        module_done(&priv->m_rtp_sender_mod);
+
+        pthread_mutex_destroy(&s->network_devices_lock);
+
+        free(priv);
 }
 
-void rtp_video_rxtx::display_buf_increase_warning(int size)
+void display_buf_increase_warning(int size)
 {
         log_msg(LOG_LEVEL_INFO, "\n***\nUnable to set buffer size to %sB.\n",
                 format_in_si_units(size));
@@ -292,9 +322,10 @@ void rtp_video_rxtx::display_buf_increase_warning(int size)
 #undef SYSCTL_ENTRY
 }
 
-struct rtp *rtp_video_rxtx::initialize_network(const char *addr, int recv_port,
-                int send_port, struct pdb *participants, int force_ip_version,
-                const char *mcast_if, int ttl)
+struct rtp *
+initialize_network(const char *addr, int recv_port, int send_port,
+                   struct pdb *participants, int force_ip_version,
+                   const char *mcast_if, int ttl)
 {
         double rtcp_bw = 5 * 1024 * 1024;       /* FIXME */
 
@@ -330,8 +361,8 @@ struct rtp *rtp_video_rxtx::initialize_network(const char *addr, int recv_port,
         return device;
 }
 
-void rtp_video_rxtx::destroy_rtp_device(struct rtp *network_device)
+void
+destroy_rtp_device(struct rtp *network_device)
 {
         rtp_done(network_device);
 }
-

@@ -38,13 +38,9 @@
 #ifndef VIDEO_RXTX_RTP_H_
 #define VIDEO_RXTX_RTP_H_
 
-#include "module.h"            // for module
-#include "tv.h"
-#include "utils/macros.h"      // for to_fourcc
-#include "video_rxtx.h"
+#include <pthread.h>
 
-#include <mutex>
-#include <string>
+#include "video_rxtx.h"
 
 #ifdef __APPLE__
 #define INITIAL_VIDEO_RECV_BUFFER_SIZE  5944320
@@ -57,43 +53,35 @@
 struct rtp;
 struct fec;
 
-class rtp_video_rxtx {
-        friend struct video_rxtx;
-public:
-        const uint32_t magic = to_fourcc('V', 'X', 'r', ' ');
-        rtp_video_rxtx(const struct vrxtx_params *params,
-                       const struct common_opts  *common);
-        virtual ~rtp_video_rxtx();
+struct rtp *initialize_network(const char *addr, int recv_port, int send_port,
+                               struct pdb *participants, int force_ip_version,
+                               const char *mcast_if, int ttl);
+void        destroy_rtp_device(struct rtp *network_device);
+void        display_buf_increase_warning(int size);
 
-        static struct rtp *initialize_network(const char *addrs, int recv_port_base,
-                        int send_port_base, struct pdb *participants, int force_ip_version,
-                        const char *mcast_if, int ttl);
-        static void destroy_rtp_device(struct rtp * network_devices);
-        static void display_buf_increase_warning(int size);
-        void rtp_process_sender_messages();
-
-protected:
-        struct rtp *m_network_device; // ULTRAGRID_RTP
-        int         m_force_ip_version;
-        std::string m_mcast_if;
-        int         m_ttl;
-        std::mutex m_network_devices_lock;
-        struct tx *m_tx;
-        struct pdb *m_participants;
-        std::string      m_requested_receiver;
-        int              m_recv_port_number;
-        int              m_send_port_number;
-        fec             *m_fec_state;
-        int              m_rxtx_mode;
-        bool             m_used = false; ///< at least one frame was sent
-private:
-        struct response *process_sender_message(struct msg_sender *msg);
-        /// This is child of vrxtx sender module to process specific messages.
-        /// The receiver module is used directly (vrxtx doesn't process any
-        /// message and also the send/receive handling is not entirely
-        /// symetric).
-        struct module m_rtp_sender_mod;
+struct rtp_rxtx_common {
+        struct rtp     *network_device;
+        int             force_ip_version;
+        char           *mcast_if;
+        int             ttl;
+        pthread_mutex_t network_devices_lock;
+        struct tx      *tx;
+        struct pdb     *participants;
+        char           *requested_receiver;
+        int             rx_port;
+        int             tx_port;
+        struct fec     *fec_state;
+        int             rxtx_mode;
+        bool            used; ///< at least one frame was sent
+        struct rtp_rxtx_common_priv_state *priv;
 };
+
+struct rtp_rxtx_common *rtp_rxtx_common_init(const struct vrxtx_params *params,
+                       const struct common_opts  *common);
+void                    rtp_rxtx_common_done(struct rtp_rxtx_common *state);
+
+void rtp_process_sender_messages(struct rtp_rxtx_common *s);
+
 
 #endif // VIDEO_RXTX_RTP_H_
 

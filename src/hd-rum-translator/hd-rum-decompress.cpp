@@ -137,11 +137,8 @@ ssize_t hd_rum_decompress_write(void *state, void *buf, size_t count)
 {
         auto *s = static_cast<state_transcoder_decompress *>(state);
 
-        auto *ultragrid_rtp = static_cast<ultragrid_rtp_video_rxtx *>(
-            vrxtx_get_impl_state(s->video_rxtx));
-        assert(ultragrid_rtp != nullptr);
-        return rtp_send_raw_rtp_data(ultragrid_rtp->m_network_device,
-                                     (char *) buf, count);
+        return ultragrid_rtp_send_raw_rtp_data(
+            vrxtx_get_impl_state(s->video_rxtx), (char *) buf, count);
 }
 
 void state_transcoder_decompress::worker()

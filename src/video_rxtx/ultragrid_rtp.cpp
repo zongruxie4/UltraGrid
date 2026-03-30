@@ -179,24 +179,26 @@ void ultragrid_rtp_video_rxtx::receiver_process_messages()
         struct msg_receiver *msg;
         while ((msg = (struct msg_receiver *) check_message(m_receiver_mod))) {
                 lock_guard<mutex> lock(m_network_devices_lock);
-                struct response *r = NULL;
+                struct response  *r = nullptr;
 
                 switch (msg->type) {
-                case RECEIVER_MSG_VIDEO_PROP_CHANGED:
-                        {
-                                pdb_iter_t it;
-                                /// @todo should be set only to relevant participant, not all
-                                struct pdb_e *cp = pdb_iter_init(m_participants, &it);
-                                while (cp) {
-                                        pbuf_set_playout_delay(cp->playout_buffer,
-                                                        1.0 / msg->new_desc.fps);
+                case RECEIVER_MSG_VIDEO_PROP_CHANGED: {
+                        pdb_iter_t it;
+                        /// @todo should be set only to relevant participant,
+                        /// not all
+                        struct pdb_e *cp = pdb_iter_init(m_participants, &it);
+                        while (cp) {
+                                pbuf_set_playout_delay(cp->playout_buffer,
+                                                       1.0 / msg->new_desc.fps);
 
-                                        cp = pdb_iter_next(&it);
-                                }
+                                cp = pdb_iter_next(&it);
                         }
                         break;
+                }
                 default:
-                        assert(0 && "Wrong message passed to ultragrid_rtp_video_rxtx::receiver_process_messages()");
+                        assert(0 && "Wrong message passed to "
+                                    "ultragrid_rtp_video_rxtx::receiver_"
+                                    "process_messages()");
                 }
 
                 free_message((struct message *) msg, r ? r : new_response(RESPONSE_OK, NULL));

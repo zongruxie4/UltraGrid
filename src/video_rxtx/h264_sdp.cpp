@@ -61,6 +61,7 @@
 #include "utils/sdp.h"
 #include "video_codec.h"         // for is_codec_opaque
 #include "video_rxtx.h"
+#include "video_rxtx/rtp.hpp"
 
 #define DEFAULT_SDP_COMPRESSION "lavc:codec=MJPG:safe"
 #define MOD_NAME "[vrxtx/sdp] "
@@ -127,7 +128,7 @@ void h264_sdp_video_rxtx::sdp_add_video(codec_t codec)
 void
 h264_sdp_video_rxtx::send_frame(shared_ptr<video_frame> tx_frame) noexcept
 {
-        rtp_process_sender_messages(m_rtp_common);
+        rtp_rxtx_sender_do_housekeeping(m_rtp_common);
         if (!is_codec_opaque(tx_frame->color_spec)) {
 		if (m_sent_compress_change) {
 			return;

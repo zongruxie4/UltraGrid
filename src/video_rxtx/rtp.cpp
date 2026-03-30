@@ -87,6 +87,8 @@ struct rtp_rxtx_common_priv_state {
         /// message and also the send/receive handling is not entirely
         /// symetric).
         struct module m_rtp_sender_mod;
+
+        bool used;
 };
 
 static struct rtp *initialize_network(const char *addr, int recv_port,
@@ -166,7 +168,7 @@ rtp_process_sender_message(struct rtp_rxtx_common *s, struct msg_sender *msg)
 
                         // Exit only if we failed because of command line
                         // params, not control port msg
-                        if (s->used) {
+                        if (s->priv->used) {
                                 exit_uv(rc);
                         }
 
@@ -210,8 +212,10 @@ rtp_process_sender_message(struct rtp_rxtx_common *s, struct msg_sender *msg)
         return new_response(RESPONSE_OK, nullptr);
 }
 
-void rtp_process_sender_messages(struct rtp_rxtx_common *s)
+void rtp_rxtx_sender_do_housekeeping(struct rtp_rxtx_common *s)
 {
+        s->priv->used = true;
+
         struct message *msg_external = nullptr;
         while ((msg_external = check_message(&s->priv->m_rtp_sender_mod)) !=
                nullptr) {
@@ -266,7 +270,7 @@ struct rtp_rxtx_common *rtp_rxtx_common_init(const struct vrxtx_params *params,
         // The idea of doing that is to display help on '-f ldgm:help' even if UG would exit
         // immediately. The encoder is actually created by a message.
         // Also for `-x sdp:help` the message will get discarded and the warning that message quie
-        rtp_process_sender_messages(s);
+        rtp_rxtx_sender_do_housekeeping(s);
 
         return s;
 }

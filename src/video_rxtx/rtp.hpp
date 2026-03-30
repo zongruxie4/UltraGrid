@@ -59,7 +59,6 @@ struct rtp_rxtx_common {
         struct pdb     *participants;
         struct fec     *fec_state;
         int             rxtx_mode;
-        bool            used; ///< at least one frame was sent
         struct rtp_rxtx_common_priv_state *priv;
 };
 
@@ -67,7 +66,7 @@ struct rtp_rxtx_common *rtp_rxtx_common_init(const struct vrxtx_params *params,
                        const struct common_opts  *common);
 void                    rtp_rxtx_common_done(struct rtp_rxtx_common *state);
 
-void rtp_process_sender_messages(struct rtp_rxtx_common *s);
+void rtp_rxtx_sender_do_housekeeping(struct rtp_rxtx_common *s);
 void rtp_rxtx_set_pbuf_delay(struct rtp_rxtx_common *s, double delay);
 
 

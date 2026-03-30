@@ -128,7 +128,7 @@ h264_rtp_video_rxtx::configure_rtsp_server_video()
 void
 h264_rtp_video_rxtx::send_frame(shared_ptr<video_frame> tx_frame) noexcept
 {
-        rtp_process_sender_messages(m_rtp_common);
+        rtp_rxtx_sender_do_housekeeping(m_rtp_common);
         // requestt compress reconfiguration if receivng raw data
         if (!is_codec_opaque(tx_frame->color_spec)) {
                 if (!m_sent_compress_change) {

@@ -58,6 +58,7 @@
 #include "tfrc.h"
 #include "transmit.h"
 #include "tv.h"
+#include "utils/color_out.h"     // for TBOLD, color_printf
 #include "utils/macros.h"      // for to_fourcc
 #include "utils/thread.h"
 #include "video_display.h"
@@ -428,12 +429,24 @@ ultragrid_rtp_get_ssrc(void *state)
         return rtp_my_ssrc(s->m_network_device);
 }
 
+static void usage() {
+        color_printf("Transport " TBOLD("ultragrid_rtp")
+                     " doesn't take any options.\n\n");
+        color_printf("Usage:\n\t" TBOLD("-x ultragrid_rtp")
+                     "\n");
+}
+
 static void *
 create_video_rxtx_ultragrid_rtp(const struct vrxtx_params *params,
                                 const struct common_opts  *common)
 {
+        if (strlen(params->protocol_opts) != 0) {
+                usage();
+                return nullptr;
+        }
         return new ultragrid_rtp_video_rxtx(params, common);
 }
+
 static void done(void *state) {
         auto *s = static_cast<ultragrid_rtp_video_rxtx *>(state);
         delete s;

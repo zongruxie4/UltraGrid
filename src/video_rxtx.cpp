@@ -103,7 +103,8 @@ video_rxtx::video_rxtx(const char                *protocol_name,
         if(ret != 0) {
                 module_done(&m_sender_mod);
                 if(ret < 0) {
-                        error_msg("Error initializing compression.\n");
+                        error_msg("Error initializing compression %s.\n",
+                                  compression);
                         throw -1;
                 }
                 throw 1;
@@ -255,8 +256,8 @@ video_rxtx::create(string const &proto, const struct vrxtx_params *params,
         auto vri = static_cast<const video_rxtx_info *>(load_library(proto.c_str(), LIBRARY_CLASS_VIDEO_RXTX, VIDEO_RXTX_ABI_VERSION));
         if (!vri) {
                 if (proto != "help") {
-                        error_msg("Requested RX/TX cannot be created "
-                                  "(missing library?)\n");
+                        error_msg("Requested RX/TX %s cannot be created "
+                                  "(missing library?)\n", proto.c_str());
                         throw -1;
                 }
                 throw 1;

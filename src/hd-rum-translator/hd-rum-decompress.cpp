@@ -64,6 +64,7 @@
 #include "utils/profile_timer.hpp"
 
 static constexpr int MAX_QUEUE_SIZE = 2;
+#define MOD_NAME "[hd-rum-decompress] "
 
 using std::condition_variable;
 using std::condition_variable;
@@ -203,7 +204,7 @@ void *hd_rum_decompress_init(struct module *parent, struct hd_rum_output_conf co
                 break;
         }
 
-        assert(ret == 0 && "Unable to initialize auxiliary display");
+        assert(ret == 0 && MOD_NAME "Unable to initialize auxiliary display");
 
         struct vrxtx_params params = VRXTX_INIT;
 
@@ -222,18 +223,17 @@ void *hd_rum_decompress_init(struct module *parent, struct hd_rum_output_conf co
         params.decoder_mode = VIDEO_NORMAL;
         params.display_device = s->display;
 
-        s->video_rxtx =
-            video_rxtx::create("ultragrid_rtp", &params, &s->common);
-        assert(s->video_rxtx);
+        ret =
+            vrxtx_init("ultragrid_rtp", &params, &s->common, &s->video_rxtx);
+        assert(ret == 0 && MOD_NAME "Unable to initialize RXTX");
 
         s->worker_thread = thread(&state_transcoder_decompress::worker, s);
         display_run_new_thread(s->display);
 
         if (capture_filter_init(parent, capture_filter,
                                 &s->capture_filter_state) != 0) {
-                log_msg(LOG_LEVEL_ERROR,
-                        "Unable to initialize capture filter!\n");
-                return nullptr;
+                MSG(FATAL, "Unable to initialize capture filter!\n");
+                abort();
         }
 
         return s;

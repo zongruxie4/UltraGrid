@@ -180,9 +180,10 @@ static int vidcap_ug_input_init(const struct vidcap_params *cap_params, void **s
         // params["decoder_mode"].l = VIDEO_NORMAL;
         params.display_device = s->display;
 
-        s->video_rxtx = unique_ptr<video_rxtx>(
-            video_rxtx::create("ultragrid_rtp", &params, &s->common));
-        assert(s->video_rxtx);
+        struct video_rxtx *rxtx = nullptr;
+        int rc = vrxtx_init("ultragrid_rtp", &params, &s->common, &rxtx);
+        assert(rc == 0);
+        s->video_rxtx = unique_ptr<video_rxtx>(rxtx);
 
         if (vidcap_params_get_flags(cap_params) & VIDCAP_FLAG_AUDIO_ANY) {
                 struct audio_options opt = AUDIO_OPTIONS_INIT;

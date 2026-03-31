@@ -191,10 +191,8 @@ rtp_video_rxtx::rtp_process_sender_messages()
 {
         struct message *msg_external = nullptr;
         while((msg_external = check_message(&m_rtp_sender_mod))) {
-                struct response *r = nullptr;
                 auto *msg = (struct msg_sender *) msg_external;
-                process_sender_message(msg);
-
+                struct response *r = process_sender_message(msg);
                 free_message(msg_external, r);
         }
 }

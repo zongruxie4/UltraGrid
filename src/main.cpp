@@ -1474,14 +1474,10 @@ int main(int argc, char *argv[])
             strcmp("none", vidcap_params_get_driver(opt.vidcap_params_head)) !=
             0;
 
-        uv.state_video_rxtx =
-            video_rxtx::create(opt.video_protocol, &opt.video, &opt.common);
-        if (uv.state_video_rxtx == nullptr ||
-            uv.state_video_rxtx == (video_rxtx *) INIT_NOERR) {
-                int rc = uv.state_video_rxtx == nullptr ? EXIT_FAILURE
-                                                        : EXIT_SUCCESS;
-                uv.state_video_rxtx = nullptr;
-                exit_uv(rc);
+        ret = vrxtx_init(opt.video_protocol, &opt.video, &opt.common,
+                        &uv.state_video_rxtx);
+        if (ret != 0) {
+                exit_uv(ret < 0 ? EXIT_FAILURE : EXIT_SUCCESS);
                 goto cleanup;
         }
 

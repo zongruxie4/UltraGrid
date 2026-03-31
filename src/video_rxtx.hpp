@@ -123,7 +123,7 @@ public:
         virtual void       join() noexcept;
         static video_rxtx *create(std::string const         &name,
                                   const struct vrxtx_params *params,
-                                  const struct common_opts  *opts) noexcept;
+                                  const struct common_opts  *opts) noexcept(false);
         static void        list(bool full) noexcept;
         void set_audio_spec(const struct audio_desc *desc, int audio_rx_port,
                             int audio_tx_port, bool ipv6) noexcept;
@@ -157,11 +157,20 @@ private:
 
         video_desc       m_video_desc{};
         std::atomic<codec_t> m_input_codec{};
-
 };
 
+#ifndef _cplusplus
+extern "C" {
+#endif
+
+int vrxtx_init(const char *proto_name, const struct vrxtx_params *params,
+               const struct common_opts *opts, struct video_rxtx **state);
 const char *vrxtx_get_compression(const char *video_protocol,
                                   const char *req_compression);
+
+#ifndef _cplusplus
+}
+#endif
 
 #endif // VIDEO_RXTX_H_
 

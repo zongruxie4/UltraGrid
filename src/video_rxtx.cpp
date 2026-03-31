@@ -103,11 +103,10 @@ video_rxtx::video_rxtx(const char                *protocol_name,
         if(ret != 0) {
                 module_done(&m_sender_mod);
                 if(ret < 0) {
-                        throw string("Error initializing compression.");
+                        error_msg("Error initializing compression.\n");
+                        throw -1;
                 }
-                if(ret > 0) {
-                        throw EXIT_SUCCESS;
-                }
+                throw 1;
         }
 
         module_init_default(&m_receiver_mod);
@@ -245,34 +244,25 @@ void *video_rxtx::sender_loop() {
 }
 
 /**
- * @retval nullptr    if video_rxtx initialization failed
- * @retval INIT_NOERR if help requested and shown (no state created,
-                      beware not to delete the INIT_NOERR ptr)
- * @retval other      the vrxtx state
+ // * @returns the vrxtx state (not nullptr)
+ * @throws 1 help shown
+ * @throws -1 on error
  */
 video_rxtx *
 video_rxtx::create(string const &proto, const struct vrxtx_params *params,
-                   const struct common_opts *common) noexcept
+                   const struct common_opts *common) noexcept(false)
 {
         auto vri = static_cast<const video_rxtx_info *>(load_library(proto.c_str(), LIBRARY_CLASS_VIDEO_RXTX, VIDEO_RXTX_ABI_VERSION));
         if (!vri) {
                 if (proto != "help") {
                         error_msg("Requested RX/TX cannot be created "
                                   "(missing library?)\n");
-                        return nullptr;
+                        throw -1;
                 }
-                return (video_rxtx *) INIT_NOERR;
+                throw 1;
         }
 
-        video_rxtx *ret = nullptr;
-        try {
-                ret = new video_rxtx(proto.c_str(), params, common);
-        } catch (const string &s) { // video compress init faillure
-                MSG(ERROR, "%s\n", s.c_str());
-                return nullptr;
-        } catch (...) { // video compress init help
-                return (video_rxtx *) INIT_NOERR;
-        }
+        video_rxtx *ret = new video_rxtx(proto.c_str(), params, common);
 
         auto params_c = *params;
         params_c.sender_mod  = &ret->m_sender_mod;
@@ -285,9 +275,9 @@ video_rxtx::create(string const &proto, const struct vrxtx_params *params,
         if (ret->m_impl_state == nullptr) {
                 delete ret;
                 if (strcmp(params->protocol_opts, "help") == 0) {
-                        return (video_rxtx *) INIT_NOERR;
+                        throw 1;
                 }
-                return nullptr;
+                throw -1;
         }
 
         if ((params->rxtx_mode & MODE_RECEIVER) != 0U) {
@@ -295,7 +285,7 @@ video_rxtx::create(string const &proto, const struct vrxtx_params *params,
                         MSG(ERROR,
                             "Selected RX/TX mode doesn't support receiving.\n");
                         delete ret;
-                        return nullptr;
+                        throw -1;
                 }
                 int rc = pthread_create(&ret->m_receiver_thread_id, nullptr,
                                         ret->m_impl_funcs->receiver_routine,
@@ -329,4 +319,22 @@ video_rxtx::set_audio_spec(const struct audio_desc * desc,
         } else {
                 MSG(INFO, "video RXTX not h264_rtp, not setting audio...\n");
         }
+}
+
+/**
+ * @retunrs -1 error; 0 OK; 1 help shown (as usual)
+ */
+int vrxtx_init(const char *proto_name, const struct vrxtx_params *params,
+               const struct common_opts *opts, struct video_rxtx **state) {
+        static video_rxtx *ret = nullptr;
+        try {
+                ret = video_rxtx::create(proto_name, params, opts);
+        } catch (int rc) {
+                return rc;
+        } catch (...) {
+                MSG(ERROR, "unexpected exception!\n");
+                return -1;
+        }
+        *state = ret;
+        return 0;
 }

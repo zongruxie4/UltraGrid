@@ -1,4 +1,6 @@
 #!/bin/sh -eu
+# SPDX-License-Identifier: BSD-3-Clause
+# Copyright (c) 2026 CESNET, zájmové sdružení právnických osob
 #
 # THis scripts is called by .github/workflows/semi-weeekly_tests.yml
 # The idea is to do some further functional UltraGrid tests
@@ -17,7 +19,7 @@ ubuntu_packages="
     openbox\
     xvfb"
 
-case "$RUNNER_OS" in
+case "${RUNNER_OS-}" in
         Linux)
                 sudo apt update
                 sudo apt -y install $ubuntu_packages
@@ -53,10 +55,28 @@ case "$RUNNER_OS" in
 hd-rum-transcode
 esac
 
-curl -LOf https://github.com/CESNET/UltraGrid/releases/download/continuous/\
+if [ "${RUNNER_OS-}" ]; then
+        curl -LOf https://github.com/CESNET/UltraGrid/releases/download/continuous/\
 "$ug_build"
-
-prepare
+        prepare
+else # for INTERACTIVE use only (debugging)
+        if [ "${1-}" = help ] || [ "${1-}" = "-h" ] || [ "${1-}" = "--help" ]
+        then
+                echo "Usage (interactive only, not CI):"
+                printf "\t%s <path_to_uv> <path_to_hd_rum_transcode>\n" "$0"
+                exit 0
+        fi
+        run_uv=${1?Please provide path to uv as first argument}
+        run_reflector=${2?Please provide path to hd-rum-trancode as second argument}
+        sys=$(uname -s)
+        if [ "$sys" = Linux ]; then
+                RUNNER_OS=Linux
+        elif [ "$sys" = Darwin ]; then
+                RUNNER_OS=macOS
+        else
+                RUNNER_OS=Windows
+        fi
+fi
 
 ## used by run_test_data.sh
 ## @param $1 args
@@ -90,6 +110,7 @@ while [ $i -lt $test_count ]; do
 
         exec=$run_uv
         tool=uv
+        # shellcheck disable=SC2154 # set by eval
         if expr -- "$opts" : '.*run_reflector' >/dev/null; then
                 tool=reflector
                 exec=$run_reflector
@@ -102,7 +123,9 @@ while [ $i -lt $test_count ]; do
         fi
 
         timeout=10
+        # shellcheck disable=SC2154 # set by eval
         echo "Starting: \"timeout $timeout $exec $args\""
+        # shellcheck disable=SC2086 # intentional - split words
         timeout -k $((timeout+5)) $timeout $exec $args
         rc=$?
         echo "Finished: \"timeout $timeout $exec $args\" with RC $rc"
@@ -129,3 +152,4 @@ while [ $i -lt $test_count ]; do
         fi
 done
 
+printf "\n\n%s: all tests succeeded!\n\n" "$0"

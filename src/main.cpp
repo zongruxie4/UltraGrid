@@ -1476,14 +1476,11 @@ int main(int argc, char *argv[])
 
         uv.state_video_rxtx =
             video_rxtx::create(opt.video_protocol, &opt.video, &opt.common);
-        if (!uv.state_video_rxtx) {
-                int rc = EXIT_SUCCESS;
-                if (strcmp(opt.video_protocol, "help") != 0 &&
-                    strcmp(opt.video.protocol_opts, "help") != 0) {
-                        error_msg("Requested RX/TX cannot be created "
-                                  "(missing library?)\n");
-                        rc = EXIT_FAILURE;
-                }
+        if (uv.state_video_rxtx == nullptr ||
+            uv.state_video_rxtx == (video_rxtx *) INIT_NOERR) {
+                int rc = uv.state_video_rxtx == nullptr ? EXIT_FAILURE
+                                                        : EXIT_SUCCESS;
+                uv.state_video_rxtx = nullptr;
                 exit_uv(rc);
                 goto cleanup;
         }

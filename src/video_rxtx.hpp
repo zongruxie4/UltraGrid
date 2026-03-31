@@ -135,7 +135,7 @@ public:
 protected:
         video_rxtx(const char *protocol_name,
                    const struct vrxtx_params *params,
-                   const struct common_opts *opts);
+                   const struct common_opts *opts) noexcept(false);
         void check_sender_messages();
 
         struct module m_sender_mod;

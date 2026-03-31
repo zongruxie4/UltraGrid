@@ -90,7 +90,7 @@ vrxtx_get_compression(const char *video_protocol, const char *req_compression)
 
 video_rxtx::video_rxtx(const char                *protocol_name,
                        const struct vrxtx_params *params,
-                       const struct common_opts  *common)
+                       const struct common_opts  *common) noexcept(false)
     : m_exporter(common->exporter)
 {
         module_init_default(&m_sender_mod);
@@ -128,7 +128,9 @@ video_rxtx::~video_rxtx() noexcept
                 send(NULL);
                 compress_pop(m_compression);
         }
-        m_impl_funcs->done(m_impl_state);
+        if (m_impl_funcs != nullptr && m_impl_state != nullptr) {
+                m_impl_funcs->done(m_impl_state);
+        }
         compress_done(m_compression);
         module_done(&m_receiver_mod);
         module_done(&m_sender_mod);
@@ -242,16 +244,35 @@ void *video_rxtx::sender_loop() {
         return NULL;
 }
 
+/**
+ * @retval nullptr    if video_rxtx initialization failed
+ * @retval INIT_NOERR if help requested and shown (no state created,
+                      beware not to delete the INIT_NOERR ptr)
+ * @retval other      the vrxtx state
+ */
 video_rxtx *
 video_rxtx::create(string const &proto, const struct vrxtx_params *params,
                    const struct common_opts *common) noexcept
 {
         auto vri = static_cast<const video_rxtx_info *>(load_library(proto.c_str(), LIBRARY_CLASS_VIDEO_RXTX, VIDEO_RXTX_ABI_VERSION));
         if (!vri) {
-                return nullptr;
+                if (proto != "help") {
+                        error_msg("Requested RX/TX cannot be created "
+                                  "(missing library?)\n");
+                        return nullptr;
+                }
+                return (video_rxtx *) INIT_NOERR;
         }
 
-        auto *ret = new video_rxtx(proto.c_str(), params, common);
+        video_rxtx *ret = nullptr;
+        try {
+                ret = new video_rxtx(proto.c_str(), params, common);
+        } catch (const string &s) { // video compress init faillure
+                MSG(ERROR, "%s\n", s.c_str());
+                return nullptr;
+        } catch (...) { // video compress init help
+                return (video_rxtx *) INIT_NOERR;
+        }
 
         auto params_c = *params;
         params_c.sender_mod  = &ret->m_sender_mod;
@@ -263,6 +284,9 @@ video_rxtx::create(string const &proto, const struct vrxtx_params *params,
         ret->m_impl_funcs = vri;
         if (ret->m_impl_state == nullptr) {
                 delete ret;
+                if (strcmp(params->protocol_opts, "help") == 0) {
+                        return (video_rxtx *) INIT_NOERR;
+                }
                 return nullptr;
         }
 

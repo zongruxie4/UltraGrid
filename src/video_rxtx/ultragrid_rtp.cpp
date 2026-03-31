@@ -37,13 +37,21 @@
 
 #include "video_rxtx/ultragrid_rtp.hpp"
 
-#include <cassert>               // for assert
-#include <cstdio>                // for fprintf, stderr
-#include <cstdlib>               // for free, calloc
-#include <string>                // for basic_string, operator<, operator==
-#include <utility>               // for pair
+#include <cassert>             // for assert
+#include <condition_variable>  // for condition_variable
+#include <cstddef>             // for size_t
+#include <cstdint>             // for uint32_t
+#include <cstdio>              // for fprintf, stderr
+#include <cstdlib>             // for free, calloc
+#include <cstring>             // for strcmp
+#include <list>                // for list
+#include <memory>              // for shared_ptr
+#include <mutex>               // for mutex
+#include <string>              // for basic_string, operator<, operator==
+#include <utility>             // for pair
 // IWYU pragma: no_include <sys/time.h> # via tv.h
 // IWYU pragma: no_include <iterator>   # std::pair is rather in utility
+
 
 #include "control_socket.h"
 #include "debug.h"
@@ -58,11 +66,13 @@
 #include "tfrc.h"
 #include "transmit.h"
 #include "tv.h"
+#include "types.h"             // for video_frame (ptr only), video_mode
 #include "utils/color_out.h"     // for TBOLD, color_printf
 #include "utils/macros.h"      // for to_fourcc
 #include "utils/thread.h"
 #include "video_display.h"
 #include "video_rxtx.hpp"
+#include "video_rxtx/rtp.hpp"  // for rtp_video_rxtx
 #include "ug_runtime_error.hpp"
 #include "utils/worker.h"
 

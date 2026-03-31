@@ -44,7 +44,6 @@
 #include <cstddef>             // for size_t
 #include <cstdint>             // for uint32_t
 #include <list>
-#include <map>
 #include <memory>              // for shared_ptr
 #include <mutex>
 #include <string>
@@ -56,6 +55,7 @@ typedef SSIZE_T ssize_t;
 #include <sys/types.h>         // for ssize_t
 #endif
 
+#include "tv.h"                // for time_ns_t
 #include "types.h"             // for video_frame (ptr only), video_mode
 
 class ultragrid_rtp_video_rxtx : public rtp_video_rxtx {

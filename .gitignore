@@ -59,7 +59,7 @@ unittest/run_tests
 .clang-tidy
 .clangd
 .editorconfig
-.envrc
+.env*
 compile_commands.json
 compile_flags.txt
 .vscode

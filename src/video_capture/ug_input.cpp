@@ -227,12 +227,11 @@ static void vidcap_ug_input_done(void *state)
         assert(s->magic == MAGIC);
 
         audio_join(s->audio);
+        s->video_rxtx->join();
 
-        display_put_frame(s->display, nullptr, 0);
+        // display_put_frame(s->display, nullptr, 0); // already done by ultragrid_rtp_video_rxtx::receiver_loop
         display_join(s->display);
         display_done(s->display);
-
-        s->video_rxtx->join();
 
         while (!s->frame_queue.empty()) {
                 auto item = s->frame_queue.front();

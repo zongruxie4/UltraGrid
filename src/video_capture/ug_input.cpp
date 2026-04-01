@@ -54,7 +54,7 @@
 #include "lib_common.h"            // for REGISTER_MODULE, library_class
 #include "types.h"                 // for VIDEO_CODEC_NONE, codec_t, device_...
 #include "utils/color_out.h"       // for TBOLD, color_printf, TRED
-#include "utils/macros.h"          // for IS_KEY_PREFIX, snprintf_ch
+#include "utils/macros.h"          // for to_fourcc, IS_KEY_PREFIX, snprintf_ch
 #include "video_capture.h"         // for VIDCAP_INIT_FAIL, VIDCAP_INIT_NOERR
 #include "video_capture_params.h"  // for vidcap_params_get_fmt, vidcap_para...
 #include "video_codec.h"           // for get_codec_from_name, get_codec_name
@@ -63,6 +63,7 @@
 #include "video_frame.h"           // for VIDEO_FRAME_DISPOSE, vf_free
 #include "video_rxtx.hpp"          // for video_rxtx, vrxtx_params, VRXTX_INIT
 
+#define MAGIC to_fourcc('V', 'C', 'u', 'i')
 #define MOD_NAME "[ug_input] "
 static constexpr int MAX_QUEUE_SIZE = 2;
 
@@ -75,14 +76,13 @@ using std::string;
 using std::unique_ptr;
 
 struct ug_input_state final {
+        uint32_t magic = MAGIC;
         mutex lock;
         queue<pair<struct video_frame *, struct audio_frame *>> frame_queue;
         struct display *display = nullptr;
 
         unique_ptr<struct video_rxtx> video_rxtx;
         struct state_audio *audio = nullptr;
-
-        struct common_opts common = { COMMON_OPTS_INIT };
 };
 
 static void
@@ -90,6 +90,7 @@ ug_input_frame_arrived(void *state, struct video_frame *f,
                        struct audio_frame *a)
 {
         auto *s = (ug_input_state *) state;
+        assert(s->magic == MAGIC);
         lock_guard<mutex> lk(s->lock);
         if (s->frame_queue.size() < MAX_QUEUE_SIZE) {
                 s->frame_queue.push({f, a});
@@ -175,7 +176,8 @@ static int vidcap_ug_input_init(const struct vidcap_params *cap_params, void **s
         struct vrxtx_params params = VRXTX_INIT;
 
         // common
-        s->common.parent = vidcap_params_get_parent(cap_params);
+        struct common_opts common = { COMMON_OPTS_INIT };
+        common.parent = vidcap_params_get_parent(cap_params);
         params.rxtx_mode = MODE_RECEIVER;
 
         //RTP
@@ -191,7 +193,7 @@ static int vidcap_ug_input_init(const struct vidcap_params *cap_params, void **s
         params.display_device = s->display;
 
         struct video_rxtx *rxtx = nullptr;
-        int rc = vrxtx_init("ultragrid_rtp", &params, &s->common, &rxtx);
+        int rc = vrxtx_init("ultragrid_rtp", &params, &common, &rxtx);
         assert(rc == 0);
         s->video_rxtx = unique_ptr<video_rxtx>(rxtx);
 
@@ -205,7 +207,7 @@ static int vidcap_ug_input_init(const struct vidcap_params *cap_params, void **s
                 opt.display              = s->display;
                 opt.vrxtx                = s->video_rxtx.get();
 
-                if (audio_init(&s->audio, &opt, &s->common) != 0) {
+                if (audio_init(&s->audio, &opt, &common) != 0) {
                         delete s;
                         return VIDCAP_INIT_FAIL;
                 }
@@ -222,6 +224,7 @@ static int vidcap_ug_input_init(const struct vidcap_params *cap_params, void **s
 static void vidcap_ug_input_done(void *state)
 {
         auto s = (ug_input_state *) state;
+        assert(s->magic == MAGIC);
 
         audio_join(s->audio);
 

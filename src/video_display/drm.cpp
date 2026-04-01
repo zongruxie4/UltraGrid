@@ -71,32 +71,15 @@
 #define MOD_NAME "[drm] "
 
 namespace{
-        struct frame_deleter{ void operator()(video_frame *f){ vf_free(f); } };
-        using frame_uniq = std::unique_ptr<video_frame, frame_deleter>;
-
-        struct drm_connector_deleter{ void operator()(drmModeConnectorPtr c) { drmModeFreeConnector(c); } };
-        using Drm_connector_uniq = std::unique_ptr<drmModeConnector, drm_connector_deleter>;
-
-        struct drm_resources_deleter{ void operator()(drmModeResPtr r) { drmModeFreeResources(r); } };
-        using Drm_res_uniq = std::unique_ptr<drmModeRes, drm_resources_deleter>;
-
-        struct drm_encoder_deleter{ void operator()(drmModeEncoderPtr e) { drmModeFreeEncoder(e); } };
-        using Drm_encoder_uniq = std::unique_ptr<drmModeEncoder, drm_encoder_deleter>;
-
-        struct drm_crtc_deleter{ void operator()(drmModeCrtcPtr c) { drmModeFreeCrtc(c); } };
-        using Drm_crtc_uniq = std::unique_ptr<drmModeCrtc, drm_crtc_deleter>;
-
-        struct drm_plane_res_deleter{ void operator()(drmModePlaneResPtr r) { drmModeFreePlaneResources(r); } };
-        using Drm_plane_res_uniq = std::unique_ptr<drmModePlaneRes, drm_plane_res_deleter>;
-
-        struct drm_plane_deleter{ void operator()(drmModePlanePtr p) { drmModeFreePlane(p); } };
-        using Drm_plane_uniq = std::unique_ptr<drmModePlane, drm_plane_deleter>;
-
-        struct drm_obj_props_deleter{ void operator()(drmModeObjectPropertiesPtr p) { drmModeFreeObjectProperties(p); } };
-        using Drm_object_properties_uniq = std::unique_ptr<drmModeObjectProperties, drm_obj_props_deleter>;
-
-        struct drm_prop_deleter{ void operator()(drmModePropertyPtr p) { drmModeFreeProperty(p); } };
-        using Drm_property_uniq = std::unique_ptr<drmModePropertyRes, drm_prop_deleter>;
+        using frame_uniq = std::unique_ptr<video_frame, deleter_from_fcn<vf_free>>;
+        using Drm_connector_uniq = std::unique_ptr<drmModeConnector, deleter_from_fcn<drmModeFreeConnector>>;
+        using Drm_res_uniq = std::unique_ptr<drmModeRes, deleter_from_fcn<drmModeFreeResources>>;
+        using Drm_encoder_uniq = std::unique_ptr<drmModeEncoder, deleter_from_fcn<drmModeFreeEncoder>>;
+        using Drm_crtc_uniq = std::unique_ptr<drmModeCrtc, deleter_from_fcn<drmModeFreeCrtc>>;
+        using Drm_plane_res_uniq = std::unique_ptr<drmModePlaneRes, deleter_from_fcn<drmModeFreePlaneResources>>;
+        using Drm_plane_uniq = std::unique_ptr<drmModePlane, deleter_from_fcn<drmModeFreePlane>>;
+        using Drm_object_properties_uniq = std::unique_ptr<drmModeObjectProperties, deleter_from_fcn<drmModeFreeObjectProperties>>;
+        using Drm_property_uniq = std::unique_ptr<drmModePropertyRes, deleter_from_fcn<drmModeFreeProperty>>;
 
         class Fd_uniq{
         public:

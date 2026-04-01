@@ -107,7 +107,7 @@ usage()
 {
         printf("Usage:\n");
         color_printf("\t" TBOLD(
-            TRED("-t ug_input") "[:<port>[:codec=<c>]] [-s embedded]") "\n");
+            TRED("-t ug_input") "[:port=<port>][:codec=<c>]] [-s embedded]") "\n");
         printf("where:\n");
         color_printf("\t" TBOLD("<port>") " - UG port to listen to\n");
         color_printf("\t" TBOLD("<c>") " - enforce pixfmt to decode to\n");
@@ -122,7 +122,11 @@ parse_fmt(char *fmt, uint16_t *port, codec_t *decode_to)
                 fmt             = nullptr;
                 const char *val = strchr(tok, '=') + 1;
                 if (isdigit(tok[0])) {
+                        MSG(WARNING, "port specification without the keyword "
+                                     "port= is deprecated\n");
                         *port = stoi(tok);
+                } else if (IS_KEY_PREFIX(tok, "port")) {
+                        *port = stoi(val);
                 } else if (IS_KEY_PREFIX(tok, "codec")) {
                         *decode_to = get_codec_from_name(val);
                         if (*decode_to == VIDEO_CODEC_NONE) {

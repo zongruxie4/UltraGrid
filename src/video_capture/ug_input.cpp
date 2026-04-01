@@ -35,43 +35,44 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <cassert>
-#include <chrono>
-#include <memory>
-#include <mutex>
-#include <queue>
-#include <string>
-#include <thread>
+#include <cassert>                 // for assert
+#include <cctype>                  // for isdigit
+#include <cstdint>                 // for uint16_t
+#include <cstdio>                  // for printf, snprintf
+#include <cstdlib>                 // for free
+#include <cstring>                 // for strlen, strchr, strcmp, strdup
+#include <memory>                  // for unique_ptr
+#include <mutex>                   // for mutex, lock_guard
+#include <queue>                   // for queue
+#include <string>                  // for basic_string, stoi, string
+#include <utility>                 // for pair
 
-#include "audio/audio.h"
-#include "audio/types.h"
-#include "debug.h"
-#include "host.h"
-#include "lib_common.h"
-#include "tv.h"
-#include "video.h"
-#include "utils/color_out.h"
-#include "video_capture.h"
-#include "video_display.h"
-#include "video_display/pipe.h" // frame_recv_delegate
-#include "video_rxtx.hpp"
-#include "video_rxtx/ultragrid_rtp.hpp"
+#include "audio/audio.h"           // for audio_options, AUDIO_OPTIONS_INIT
+#include "audio/types.h"           // for AUDIO_FRAME_DISPOSE
+#include "debug.h"                 // for LOG_LEVEL_ERROR, LOG_LEVEL_WARNING
+#include "host.h"                  // for common_opts, COMMON_OPTS_INIT
+#include "lib_common.h"            // for REGISTER_MODULE, library_class
+#include "types.h"                 // for VIDEO_CODEC_NONE, codec_t, device_...
+#include "utils/color_out.h"       // for TBOLD, color_printf, TRED
+#include "utils/macros.h"          // for IS_KEY_PREFIX, snprintf_ch
+#include "video_capture.h"         // for VIDCAP_INIT_FAIL, VIDCAP_INIT_NOERR
+#include "video_capture_params.h"  // for vidcap_params_get_fmt, vidcap_para...
+#include "video_codec.h"           // for get_codec_from_name, get_codec_name
+#include "video_display.h"         // for display_done, display_join, displa...
+#include "video_display/pipe.h"    // for pipe_frame_recv_delegate
+#include "video_frame.h"           // for VIDEO_FRAME_DISPOSE, vf_free
+#include "video_rxtx.hpp"          // for video_rxtx, vrxtx_params, VRXTX_INIT
 
 #define MOD_NAME "[ug_input] "
 static constexpr int MAX_QUEUE_SIZE = 2;
 
 using std::lock_guard;
-using std::map;
 using std::mutex;
 using std::pair;
 using std::queue;
 using std::stoi;
 using std::string;
-using std::thread;
 using std::unique_ptr;
-using std::chrono::duration;
-using std::chrono::duration_cast;
-using std::chrono::steady_clock;
 
 struct ug_input_state final {
         mutex lock;
@@ -80,9 +81,6 @@ struct ug_input_state final {
 
         unique_ptr<struct video_rxtx> video_rxtx;
         struct state_audio *audio = nullptr;
-
-        std::chrono::steady_clock::time_point t0 = {};
-        int frames = 0;
 
         struct common_opts common = { COMMON_OPTS_INIT };
 };
@@ -169,7 +167,9 @@ static int vidcap_ug_input_init(const struct vidcap_params *cap_params, void **s
                 snprintf(cfg + strlen(cfg), sizeof cfg - strlen(cfg),
                          ":codec=%s", get_codec_name(decode_to));
         }
-        int ret = initialize_video_display(vidcap_params_get_parent(cap_params), "pipe", cfg, 0, NULL, &s->display);
+        int ret =
+            initialize_video_display(vidcap_params_get_parent(cap_params),
+                                     "pipe", cfg, 0, nullptr, &s->display);
         assert(ret == 0 && "Unable to initialize proxy display");
 
         struct vrxtx_params params = VRXTX_INIT;
@@ -212,7 +212,6 @@ static int vidcap_ug_input_init(const struct vidcap_params *cap_params, void **s
 
                 audio_start(s->audio);
         }
-        s->t0 = steady_clock::now();
 
         display_run_new_thread(s->display);
 
@@ -226,7 +225,7 @@ static void vidcap_ug_input_done(void *state)
 
         audio_join(s->audio);
 
-        display_put_frame(s->display, NULL, 0);
+        display_put_frame(s->display, nullptr, 0);
         display_join(s->display);
         display_done(s->display);
 
@@ -246,10 +245,10 @@ static void vidcap_ug_input_done(void *state)
 static struct video_frame *vidcap_ug_input_grab(void *state, struct audio_frame **audio)
 {
         auto s = (ug_input_state *) state;
-        *audio = NULL;
+        *audio = nullptr;
         lock_guard<mutex> lk(s->lock);
         if (s->frame_queue.empty()) {
-                return NULL;
+                return nullptr;
         }
 
         auto                item  = s->frame_queue.front();
@@ -257,19 +256,6 @@ static struct video_frame *vidcap_ug_input_grab(void *state, struct audio_frame 
         *audio                    = item.second;
         s->frame_queue.pop();
         frame->callbacks.dispose = vf_free;
-
-        s->frames++;
-        auto   curr_time = steady_clock::now();
-        double seconds =
-            duration_cast<duration<double>>(curr_time - s->t0).count();
-        if (seconds >= 5.0) {
-                float fps = s->frames / seconds;
-                log_msg(LOG_LEVEL_INFO,
-                        "[ug_input] %d frames in %g seconds = %g FPS\n",
-                        s->frames, seconds, fps);
-                s->t0     = curr_time;
-                s->frames = 0;
-        }
 
         return frame;
 }
@@ -286,7 +272,7 @@ static const struct video_capture_info vidcap_ug_input_info = {
         vidcap_ug_input_init,
         vidcap_ug_input_done,
         vidcap_ug_input_grab,
-        VIDCAP_NO_GENERIC_FPS_INDICATOR,
+        MOD_NAME,
 };
 
 REGISTER_MODULE(ug_input, &vidcap_ug_input_info, LIBRARY_CLASS_VIDEO_CAPTURE, VIDEO_CAPTURE_ABI_VERSION);

@@ -250,26 +250,28 @@ static struct video_frame *vidcap_ug_input_grab(void *state, struct audio_frame 
         lock_guard<mutex> lk(s->lock);
         if (s->frame_queue.empty()) {
                 return NULL;
-        } else {
-                auto item = s->frame_queue.front();
-                struct video_frame *frame = item.first;
-                *audio = item.second;
-                s->frame_queue.pop();
-                frame->callbacks.dispose = vf_free;
-
-                s->frames++;
-                auto curr_time = steady_clock::now();
-                double seconds = duration_cast<duration<double>>(curr_time - s->t0).count();
-                if (seconds >= 5.0) {
-                        float fps = s->frames / seconds;
-                        log_msg(LOG_LEVEL_INFO, "[ug_input] %d frames in %g seconds = %g FPS\n",
-                                        s->frames, seconds, fps);
-                        s->t0 = curr_time;
-                        s->frames = 0;
-                }
-
-                return frame;
         }
+
+        auto                item  = s->frame_queue.front();
+        struct video_frame *frame = item.first;
+        *audio                    = item.second;
+        s->frame_queue.pop();
+        frame->callbacks.dispose = vf_free;
+
+        s->frames++;
+        auto   curr_time = steady_clock::now();
+        double seconds =
+            duration_cast<duration<double>>(curr_time - s->t0).count();
+        if (seconds >= 5.0) {
+                float fps = s->frames / seconds;
+                log_msg(LOG_LEVEL_INFO,
+                        "[ug_input] %d frames in %g seconds = %g FPS\n",
+                        s->frames, seconds, fps);
+                s->t0     = curr_time;
+                s->frames = 0;
+        }
+
+        return frame;
 }
 
 static void vidcap_ug_input_probe(device_info **available_cards, int *count, void (**deleter)(void *))

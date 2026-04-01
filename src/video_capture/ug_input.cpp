@@ -177,6 +177,8 @@ static int vidcap_ug_input_init(const struct vidcap_params *cap_params, void **s
         //RTP
         // should be localhost and RX TX ports the same (here dynamic) in order to work like a pipe
         params.receiver = "localhost";
+        params.rx_port = port;
+        params.tx_port = 0;
         // following 3 already set by VRTX_INIT
         // params["fec"].str = "none";
         // params["bitrate"].ll = 0;

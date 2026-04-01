@@ -3,7 +3,7 @@
  * @author Martin Pulec     <pulec@cesnet.cz>
  */
 /*
- * Copyright (c) 2014-2023 CESNET, z. s. p. o.
+ * Copyright (c) 2014-2026 CESNET, zájmové sdružení právnických osob
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,6 +36,7 @@
  */
 
 #include <cassert>
+#include <cstdio>             // for fprintf, sscanf, stderr
 #include <cstring>
 #include <iostream>
 #include <list>
@@ -45,9 +46,10 @@
 #include "audio/utils.h"
 #include "debug.h"
 #include "lib_common.h"
+#include "utils/color_out.h"  // for color_printf
 #include "video.h"
 #include "video_display.h"
-#include "video_display/pipe.hpp"
+#include "video_display/pipe.h"
 
 #define MOD_NAME "[pipe] "
 
@@ -58,16 +60,36 @@ using std::mutex;
 
 struct state_pipe {
         struct module *parent;
-        frame_recv_delegate *delegate;
+        pipe_frame_recv_delegate delegate;
         codec_t decode_to;
         struct video_desc desc{};
         list<struct audio_frame *> audio_frames{};
         mutex audio_lock{};
 };
 
-static void display_pipe_usage() {
-        cout << "Usage:\n"
-                "\t-d pipe:<ptr>[:codec=<c>]\n";
+static void
+display_pipe_usage(bool show_help)
+{
+        color_printf(TBOLD("pipe")
+            " dummy video driver. For internal usage - please do not use.\n\n");
+        if (!show_help) {
+                return;
+        }
+        color_printf("Usage:\n");
+        color_printf("\t" TBOLD(TRED("-d pipe") ":<dlg_ptr>[:codec=<c>]")
+                     "\n");
+        color_printf("\n");
+
+        color_printf("Options\n");
+        color_printf("\t" TBOLD("<dlg_ptr>")
+                     " - pointer to struct pipe_frame_recv_delegate\n");
+        color_printf("\t" TBOLD("<c>")
+                     " - codec to enforce decode to the received stream\n");
+        color_printf("\n");
+
+        color_printf(TBOLD("Note:")
+            " the delegate struct will be copied by init (can be temporary)\n");
+        color_printf("\n");
 }
 
 /**
@@ -78,13 +100,10 @@ static void *display_pipe_init(struct module *parent, const char *fmt, unsigned 
 {
         UNUSED(flags);
         codec_t decode_to = VIDEO_CODEC_NONE;
-        frame_recv_delegate *delegate;
+        const pipe_frame_recv_delegate *delegate = nullptr;
 
-        if (!fmt || strlen(fmt) == 0 || strcmp(fmt, "help") == 0) {
-                fprintf(stderr, "Pipe dummy video driver. For internal usage - please do not use.\n");
-                if (fmt != nullptr && strcmp(fmt, "help") == 0) {
-                        display_pipe_usage();
-                }
+        if (strlen(fmt) == 0 || strcmp(fmt, "help") == 0) {
+                display_pipe_usage(strcmp(fmt, "help") == 0);
                 return nullptr;
         }
 
@@ -99,12 +118,13 @@ static void *display_pipe_init(struct module *parent, const char *fmt, unsigned 
                                 return nullptr;
                         }
                 } else {
-                        display_pipe_usage();
+                        display_pipe_usage(true);
                         return nullptr;
                 }
         }
 
-        auto *s = new state_pipe{parent, delegate, decode_to};
+        assert(delegate->frame_arrived != nullptr);
+        auto *s = new state_pipe{parent, *delegate, decode_to};
 
         return s;
 }
@@ -182,7 +202,7 @@ static bool display_pipe_putf(void *state, struct video_frame *frame, long long 
         }
 
         struct audio_frame *af = display_pipe_get_audio(s);
-        s->delegate->frame_arrived(frame, af);
+        s->delegate.frame_arrived(s->delegate.state, frame, af);
 
         return true;
 }

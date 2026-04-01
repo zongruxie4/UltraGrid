@@ -57,7 +57,7 @@
 #include "tv.h"
 #include "video.h"
 #include "video_display.h"
-#include "video_display/pipe.hpp"
+#include "video_display/pipe.h"                   // for pipe_frame_recv_del...
 #include "video_rxtx.hpp"                         // for video_rxtx, vrxtx_pa...
 #include "video_rxtx/ultragrid_rtp.hpp"
 
@@ -75,7 +75,7 @@ using std::thread;
 using std::unique_lock;
 
 namespace hd_rum_decompress {
-struct state_transcoder_decompress final : public frame_recv_delegate {
+struct state_transcoder_decompress final {
         struct video_rxtx *video_rxtx = nullptr;
 
         struct state_recompress *recompress = nullptr;
@@ -90,9 +90,8 @@ struct state_transcoder_decompress final : public frame_recv_delegate {
         struct display *display = nullptr;
         struct control_state *control = nullptr;
 
-        void frame_arrived(struct video_frame *f, struct audio_frame *a) override;
+        static void frame_arrived(void *s, struct video_frame *f, struct audio_frame *a);
 
-        ~state_transcoder_decompress() override = default;
         void worker();
 
         struct capture_filter *capture_filter_state = nullptr;
@@ -100,9 +99,10 @@ struct state_transcoder_decompress final : public frame_recv_delegate {
         struct common_opts common = { COMMON_OPTS_INIT };
 };
 
-void state_transcoder_decompress::frame_arrived(struct video_frame *f, struct audio_frame *a)
+void state_transcoder_decompress::frame_arrived(void *state, struct video_frame *f, struct audio_frame *a)
 {
         PROFILE_FUNC;
+        auto *s = (struct state_transcoder_decompress *) state;
         if (a) {
                 LOG(LOG_LEVEL_WARNING) << "Unexpectedly receiving audio!\n";
                 AUDIO_FRAME_DISPOSE(a);
@@ -110,7 +110,7 @@ void state_transcoder_decompress::frame_arrived(struct video_frame *f, struct au
         auto deleter = vf_free;
         // apply capture filter
         if (f) {
-                f = capture_filter(capture_filter_state, f);
+                f = capture_filter(s->capture_filter_state, f);
         }
         if (f && f->callbacks.dispose) {
                 deleter = f->callbacks.dispose;
@@ -119,14 +119,14 @@ void state_transcoder_decompress::frame_arrived(struct video_frame *f, struct au
                 return;
         }
 
-        unique_lock<mutex> l(lock);
-        if (received_frame.size() >= MAX_QUEUE_SIZE) {
+        unique_lock<mutex> l(s->lock);
+        if (s->received_frame.size() >= MAX_QUEUE_SIZE) {
                 fprintf(stderr, "Hd-rum-decompress max queue size (%d) reached!\n", MAX_QUEUE_SIZE);
         }
-        frame_consumed_cv.wait(l, [this]{ return received_frame.size() < MAX_QUEUE_SIZE; });
-        received_frame.emplace(f, deleter);
+        s->frame_consumed_cv.wait(l, [s]{ return s->received_frame.size() < MAX_QUEUE_SIZE; });
+        s->received_frame.emplace(f, deleter);
         l.unlock();
-        have_frame_cv.notify_one();
+        s->have_frame_cv.notify_one();
 }
 } // end of hd-rum-decompress namespace
 
@@ -186,20 +186,23 @@ void *hd_rum_decompress_init(struct module *parent, struct hd_rum_output_conf co
         s->common.force_ip_version = 0;
         s->common.start_time = get_time_in_ns();
 
+        const struct pipe_frame_recv_delegate dlg = {
+                .state = s, .frame_arrived = state_transcoder_decompress::frame_arrived
+        };
         char cfg[128] = "";
         int ret = -1;
 
         switch(conf.mode){
         case NORMAL:
-                snprintf(cfg, sizeof cfg, "%p", s);
+                snprintf(cfg, sizeof cfg, "%p", &dlg);
                 ret = initialize_video_display(parent, "pipe", cfg, 0, nullptr, &s->display);
                 break;
         case BLEND:
-                snprintf(cfg, sizeof cfg, "pipe:%p", s);
+                snprintf(cfg, sizeof cfg, "pipe:%p", &dlg);
                 ret = initialize_video_display(parent, "blend", cfg, 0, nullptr, &s->display);
                 break;
         case CONFERENCE:
-                snprintf(cfg, sizeof cfg, "pipe:%p#%s", s, conf.arg);
+                snprintf(cfg, sizeof cfg, "pipe:%p#%s", &dlg, conf.arg);
                 ret = initialize_video_display(parent, "conference", cfg, 0, nullptr, &s->display);
                 break;
         }

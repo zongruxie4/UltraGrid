@@ -53,7 +53,7 @@
 #include "utils/color_out.h"
 #include "video_capture.h"
 #include "video_display.h"
-#include "video_display/pipe.hpp" // frame_recv_delegate
+#include "video_display/pipe.h" // frame_recv_delegate
 #include "video_rxtx.hpp"
 #include "video_rxtx/ultragrid_rtp.hpp"
 
@@ -73,16 +73,13 @@ using std::chrono::duration;
 using std::chrono::duration_cast;
 using std::chrono::steady_clock;
 
-struct ug_input_state final : public frame_recv_delegate {
+struct ug_input_state final {
         mutex lock;
         queue<pair<struct video_frame *, struct audio_frame *>> frame_queue;
         struct display *display = nullptr;
 
-        void frame_arrived(struct video_frame *f, struct audio_frame *a) override;
         unique_ptr<struct video_rxtx> video_rxtx;
         struct state_audio *audio = nullptr;
-
-        ~ug_input_state() override = default;
 
         std::chrono::steady_clock::time_point t0 = {};
         int frames = 0;
@@ -90,11 +87,14 @@ struct ug_input_state final : public frame_recv_delegate {
         struct common_opts common = { COMMON_OPTS_INIT };
 };
 
-void ug_input_state::frame_arrived(struct video_frame *f, struct audio_frame *a)
+static void
+ug_input_frame_arrived(void *state, struct video_frame *f,
+                       struct audio_frame *a)
 {
-        lock_guard<mutex> lk(lock);
-        if (frame_queue.size() < MAX_QUEUE_SIZE) {
-                frame_queue.push({f, a});
+        auto *s = (ug_input_state *) state;
+        lock_guard<mutex> lk(s->lock);
+        if (s->frame_queue.size() < MAX_QUEUE_SIZE) {
+                s->frame_queue.push({f, a});
         } else {
                 MSG(WARNING, "Dropping frame!\n");
                 AUDIO_FRAME_DISPOSE(a);
@@ -160,7 +160,11 @@ static int vidcap_ug_input_init(const struct vidcap_params *cap_params, void **s
         auto *s = new ug_input_state();
 
         char cfg[128] = "";
-        snprintf(cfg, sizeof cfg, "%p", s);
+
+        const struct pipe_frame_recv_delegate dlg = {
+                .state = s, .frame_arrived = ug_input_frame_arrived
+        };
+        snprintf_ch(cfg, "%p", &dlg);
         if (decode_to != VIDEO_CODEC_NONE) {
                 snprintf(cfg + strlen(cfg), sizeof cfg - strlen(cfg),
                          ":codec=%s", get_codec_name(decode_to));

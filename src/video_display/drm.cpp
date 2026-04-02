@@ -305,7 +305,7 @@ struct Drm_state {
         std::set<uint32_t> supported_drm_formats;
         bool prime_support = false;
 
-        drmModeModeInfoPtr mode_info;
+        drmModeModeInfoPtr mode_info = nullptr;
 };
 
 struct Drm_framebuffer{
@@ -345,7 +345,7 @@ struct drm_display_state {
 
         Drm_prime_fb drm_prime_fb;
 
-        video_desc desc;
+        video_desc desc{};
         frame_uniq frame;
 
         std::vector<frame_uniq> free_frames;

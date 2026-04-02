@@ -707,9 +707,9 @@ static Drm_framebuffer create_dumb_fb(int dri, int width, int height, uint32_t p
         }
         
         {
-                uint32_t handles[] = {buf.handle.get().handle, 0, 0, 0};
-                uint32_t pitches[] = {buf.pitch, 0, 0, 0};
-                uint32_t offsets[] = {0, 0, 0, 0};
+                const uint32_t handles[] = {buf.handle.get().handle, 0, 0, 0};
+                const uint32_t pitches[] = {buf.pitch, 0, 0, 0};
+                constexpr uint32_t offsets[] = {0, 0, 0, 0};
                 Fb_id fb_id;
                 res = drmModeAddFB2(dri, width, height,
                                 pix_fmt, handles, pitches, offsets, &fb_id.id, 0);
@@ -726,7 +726,7 @@ static Drm_framebuffer create_dumb_fb(int dri, int width, int height, uint32_t p
         log_msg(LOG_LEVEL_INFO, MOD_NAME "Created dumb buffer: pitch %u, handle: %u\n", buf.pitch, buf.handle.get().handle);
 
 
-        struct drm_mode_map_dumb map_info = {};
+        drm_mode_map_dumb map_info = {};
         map_info.handle = buf.handle.get().handle;
 
         res = drmIoctl(dri, DRM_IOCTL_MODE_MAP_DUMB, &map_info);
@@ -735,7 +735,7 @@ static Drm_framebuffer create_dumb_fb(int dri, int width, int height, uint32_t p
                 return {};
         }
 
-        buf.map = MemoryMapping::create(0, buf.size, PROT_READ | PROT_WRITE, MAP_SHARED, dri, map_info.offset);
+        buf.map = MemoryMapping::create(nullptr, buf.size, PROT_READ | PROT_WRITE, MAP_SHARED, dri, map_info.offset);
         if(!buf.map.valid()){
                 log_msg(LOG_LEVEL_ERROR, MOD_NAME "Failed to map buffer\n");
                 return {};
@@ -893,7 +893,7 @@ static void display_drm_done(void *state)
         }
 }
 
-static struct video_frame *display_drm_getf(void *state)
+static video_frame *display_drm_getf(void *state)
 {
         auto s = static_cast<drm_display_state *>(state);
 
@@ -919,7 +919,7 @@ static Drm_prime_fb drm_fb_from_frame(drm_display_state *s, frame_uniq frame){
 
         Drm_prime_fb fb;
         fb.frame = std::move(frame);
-        auto drm_frame = (drm_prime_frame *) fb.frame->tiles[0].data;
+        const auto drm_frame = reinterpret_cast<drm_prime_frame *>(fb.frame->tiles[0].data);
 
         for(int i = 0; i < drm_frame->fd_count; i++){
                 fb.gem_objects[i] = s->drm.gem_manager->get_handle(drm_frame->dmabuf_fds[i]);
@@ -1038,7 +1038,7 @@ static bool display_drm_get_property(void *state, int property, void *val, size_
         return true;
 }
 
-static bool display_drm_reconfigure(void *state, struct video_desc desc)
+static bool display_drm_reconfigure(void *state, video_desc desc)
 {
         auto s = static_cast<drm_display_state *>(state);
 
@@ -1101,7 +1101,7 @@ static void display_drm_probe(struct device_info **available_cards, int *count, 
         *count = 0;
 }
 
-static const struct video_display_info display_drm_info = {
+static constexpr video_display_info display_drm_info = {
         display_drm_probe,
         display_drm_init,
         nullptr, // _run

@@ -35,6 +35,7 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <atomic>
 #include <cassert>           // for assert
 #include <memory>
 #include <sstream>
@@ -43,6 +44,8 @@
 #include <string>
 #include <utility>
 
+#define WANT_PTHREAD_NULL
+#include "compat/misc.h" // for PTHREAD_NULL
 #include "debug.h"
 #include "export.h"
 #include "host.h"
@@ -62,7 +65,7 @@
 #include "video_compress.h"
 #include "video_decompress.h"
 #include "video_display.h"
-#include "video_rxtx.hpp"
+#include "video_rxtx.h"
 
 constexpr char DEFAULT_VIDEO_COMPRESSION[] = "none";
 
@@ -72,6 +75,52 @@ using std::map;
 using std::shared_ptr;
 using std::ostringstream;
 using std::string;
+
+struct video_rxtx {
+public:
+        virtual ~video_rxtx() noexcept;
+        void               send(std::shared_ptr<struct video_frame>) noexcept;
+        static const char *get_long_name(std::string const &short_name) noexcept;
+        /**
+         * If overridden, children must call also video_rxtx::join()
+         */
+        virtual void       join() noexcept;
+        static video_rxtx *create(std::string const         &name,
+                                  const struct vrxtx_params *params,
+                                  const struct common_opts  *opts) noexcept(false);
+        static void        list(bool full) noexcept;
+        void set_audio_spec(const struct audio_desc *desc, int audio_rx_port,
+                            int audio_tx_port, bool ipv6) noexcept;
+
+        const struct video_rxtx_info *m_impl_funcs = nullptr;
+        void                         *m_impl_state = nullptr;
+
+protected:
+        video_rxtx(const char *protocol_name,
+                   const struct vrxtx_params *params,
+                   const struct common_opts *opts) noexcept(false);
+        void check_sender_messages();
+
+        struct module m_sender_mod;
+        struct module m_receiver_mod;
+        unsigned long long int m_frames_sent = 0ull;
+        struct exporter *m_exporter;
+
+private:
+        static void *sender_thread(void *args);
+        void *sender_loop();
+
+        struct compress_state *m_compression = nullptr;
+        pthread_mutex_t m_lock;
+
+        pthread_t m_sender_thread_id   = PTHREAD_NULL;
+        bool      m_sender_poisoned    = false;
+        bool      m_sender_joined      = true;
+        pthread_t m_receiver_thread_id = PTHREAD_NULL;
+
+        video_desc       m_video_desc{};
+        std::atomic<codec_t> m_input_codec{};
+};
 
 const char *
 vrxtx_get_compression(const char *video_protocol, const char *req_compression)
@@ -341,6 +390,18 @@ int vrxtx_init(const char *proto_name, const struct vrxtx_params *params,
 }
 
 void
+vrxtx_list(bool full)
+{
+        video_rxtx::list(full);
+}
+
+const char *
+vrxtx_get_long_name(const char *short_name)
+{
+        return video_rxtx::get_long_name(short_name);
+}
+
+void
 vrxtx_join(struct video_rxtx *state)
 {
         state->join();
@@ -350,4 +411,22 @@ void
 vrxtx_destroy(struct video_rxtx *state)
 {
         delete state;
+}
+
+void vrxtx_set_audio_spec(struct video_rxtx       *state,
+                          const struct audio_desc *desc, int audio_rx_port,
+                          int audio_tx_port, bool ipv6) {
+        state->set_audio_spec(desc, audio_rx_port, audio_tx_port, ipv6);
+}
+
+void *
+vrxtx_get_impl_state(struct video_rxtx *state)
+{
+        return state->m_impl_state;
+}
+
+void
+vrxtx_send(struct video_rxtx *state, std::shared_ptr<struct video_frame> f)
+{
+        state->send(std::move(f));
 }

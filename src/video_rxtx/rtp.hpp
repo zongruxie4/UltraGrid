@@ -40,7 +40,7 @@
 
 #include "tv.h"
 #include "utils/macros.h"      // for to_fourcc
-#include "video_rxtx.hpp"
+#include "video_rxtx.h"
 
 #include <mutex>
 #include <string>

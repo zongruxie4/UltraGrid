@@ -65,7 +65,7 @@ static const char *MODULE_NAME = "[loopback] ";
 
 
 #include "types.h"
-#include "video_rxtx.hpp"
+#include "video_rxtx.h"
 
 class loopback_video_rxtx {
 public:

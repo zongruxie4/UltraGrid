@@ -41,7 +41,7 @@
 
 #include "debug.h"
 #include "lib_common.h"
-#include "video_rxtx.hpp"
+#include "video_rxtx.h"
 #include "video_codec.h"
 #include "video_display.h"
 #include "video_frame.h"

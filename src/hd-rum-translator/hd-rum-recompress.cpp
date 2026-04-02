@@ -74,7 +74,9 @@ struct recompress_output_port {
                 unsigned short tx_port, const struct common_opts *common,
                 const char *fec, long long bitrate);
 
-        std::unique_ptr<struct video_rxtx> video_rxtx;
+        std::unique_ptr<struct video_rxtx, decltype(&vrxtx_destroy)> video_rxtx{
+                nullptr, vrxtx_destroy
+        };
         std::string host;
         int tx_port = 0;
 
@@ -127,7 +129,11 @@ recompress_output_port::recompress_output_port(
         // params["decoder_mode"].l = VIDEO_NORMAL;
         // params["display_device"].ptr = nullptr;
 
-        auto rxtx = video_rxtx::create("ultragrid_rtp", &params, common);
+        struct video_rxtx *rxtx = nullptr;
+        int rc = vrxtx_init("ultragrid_rtp", &params, common, &rxtx);
+        if (rc != 0) {
+                throw rc;
+        }
 
         video_rxtx.reset(rxtx);
 }
@@ -143,16 +149,17 @@ static void recompress_port_write(recompress_output_port& port, shared_ptr<video
         double seconds = chrono::duration_cast<chrono::duration<double>>(now - port.t0).count();
         if(seconds > 5) {
                 double fps = port.frames / seconds;
+                void *impl = vrxtx_get_impl_state(port.video_rxtx.get());
                 log_msg(LOG_LEVEL_INFO, "[0x%08" PRIx32 "->%s:%d:0x%08" PRIx32 "] %d frames in %g seconds = %g FPS\n",
                                 frame->ssrc,
                                 port.host.c_str(), port.tx_port,
-                                ultragrid_rtp_get_ssrc(port.video_rxtx->m_impl_state),
+                                ultragrid_rtp_get_ssrc(impl),
                                 port.frames, seconds, fps);
                 port.t0 = now;
                 port.frames = 0;
         }
 
-        port.video_rxtx->send(std::move(frame));
+        vrxtx_send(port.video_rxtx.get(), std::move(frame));
 }
 
 static void recompress_worker(struct recompress_worker_ctx *ctx){
@@ -254,8 +261,9 @@ uint32_t recompress_get_port_ssrc(struct state_recompress *s, int idx){
         auto [compress_cfg, i] = s->index_to_port[idx];
 
         std::lock_guard<std::mutex> work_lock(s->workers[compress_cfg].ports_mut);
-        return ultragrid_rtp_get_ssrc(
-            s->workers[compress_cfg].ports[i].video_rxtx->m_impl_state);
+        void *impl = vrxtx_get_impl_state(
+            s->workers[compress_cfg].ports[i].video_rxtx.get());
+        return ultragrid_rtp_get_ssrc(impl);
 }
 
 void recompress_port_set_active(struct state_recompress *s,

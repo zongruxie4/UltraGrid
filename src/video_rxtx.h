@@ -1,5 +1,5 @@
 /**
- * @file   video_rxtx.hpp
+ * @file   video_rxtx.h
  * @author Martin Pulec     <pulec@cesnet.cz>
  */
 /*
@@ -39,14 +39,10 @@
 #define VIDEO_RXTX_H_
 
 #ifdef __cplusplus
-#include <atomic>
-#include <memory>
-#include <string>
-#endif // defined __cplusplus
+#include <memory>     // for std::shared_ptr
+#endif
 
 #include "host.h"
-#define WANT_PTHREAD_NULL
-#include "compat/misc.h" // for PTHREAD_NULL
 #include "module.h"
 #include "types.h"    // for codec_t, video_desc, video_frame (ptr only)
 
@@ -114,67 +110,34 @@ struct video_rxtx_info {
                                       bool ipv6);
         void *(*receiver_routine)(void *state);
 };
-
-struct video_rxtx {
-public:
-        virtual ~video_rxtx() noexcept;
-        void               send(std::shared_ptr<struct video_frame>) noexcept;
-        static const char *get_long_name(std::string const &short_name) noexcept;
-        /**
-         * If overridden, children must call also video_rxtx::join()
-         */
-        virtual void       join() noexcept;
-        static video_rxtx *create(std::string const         &name,
-                                  const struct vrxtx_params *params,
-                                  const struct common_opts  *opts) noexcept(false);
-        static void        list(bool full) noexcept;
-        void set_audio_spec(const struct audio_desc *desc, int audio_rx_port,
-                            int audio_tx_port, bool ipv6) noexcept;
-
-        const struct video_rxtx_info *m_impl_funcs = nullptr;
-        void                         *m_impl_state = nullptr;
-
-protected:
-        video_rxtx(const char *protocol_name,
-                   const struct vrxtx_params *params,
-                   const struct common_opts *opts) noexcept(false);
-        void check_sender_messages();
-
-        struct module m_sender_mod;
-        struct module m_receiver_mod;
-        unsigned long long int m_frames_sent = 0ull;
-        struct exporter *m_exporter;
-
-private:
-        static void *sender_thread(void *args);
-        void *sender_loop();
-
-        struct compress_state *m_compression = nullptr;
-        pthread_mutex_t m_lock;
-
-        pthread_t m_sender_thread_id   = PTHREAD_NULL;
-        bool      m_sender_poisoned    = false;
-        bool      m_sender_joined      = true;
-        pthread_t m_receiver_thread_id = PTHREAD_NULL;
-
-        video_desc       m_video_desc{};
-        std::atomic<codec_t> m_input_codec{};
-};
 #endif // defined __cplusplus
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-int vrxtx_init(const char *proto_name, const struct vrxtx_params *params,
-               const struct common_opts *opts, struct video_rxtx **state);
+struct video_rxtx;
+
+int  vrxtx_init(const char *proto_name, const struct vrxtx_params *params,
+                const struct common_opts *opts, struct video_rxtx **state);
+void vrxtx_destroy(struct video_rxtx *state);
+void vrxtx_list(bool full);
+const char *vrxtx_get_long_name(const char *short_name);
 const char *vrxtx_get_compression(const char *video_protocol,
                                   const char *req_compression);
-void vrxtx_join(struct video_rxtx *state);
-void vrxtx_destroy(struct video_rxtx *state);
+void        vrxtx_join(struct video_rxtx *state);
+void  vrxtx_set_audio_spec(struct video_rxtx       *state,
+                           const struct audio_desc *desc, int audio_rx_port,
+                           int audio_tx_port, bool ipv6);
+void *vrxtx_get_impl_state(struct video_rxtx *state);
 
 #ifdef __cplusplus
 } // extern "C"
+#endif
+
+#ifdef __cplusplus
+#include <memory>
+void vrxtx_send(struct video_rxtx *state, std::shared_ptr<struct video_frame>);
 #endif
 
 #endif // VIDEO_RXTX_H_

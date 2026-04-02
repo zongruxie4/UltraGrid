@@ -121,7 +121,7 @@
 #include "video_capture.h"
 #include "video_capture_params.h"       // for vidcap_params_get_driver, vid...
 #include "video_display.h"
-#include "video_rxtx.hpp"
+#include "video_rxtx.h"
 
 constexpr char MOD_NAME[] = "[main] ";
 
@@ -379,7 +379,7 @@ static void *capture_thread(void *arg)
                             tx_frame, tx_frame->callbacks.dispose);
                 }
 
-                uv->state_video_rxtx->send(
+                vrxtx_send(uv->state_video_rxtx,
                     std::move(frame)); // std::move really important here (!)
 
                 // wait for frame frame to be processed, eg. by compress
@@ -669,7 +669,7 @@ static bool parse_protocol(int ch, char *optarg, struct ug_options *opt) {
                 col() << SBOLD("\t-x A:proto") " - use specified audio protocol\n";
                 col() << SBOLD("\t-x V:proto") " - use specified audio protocol\n";
                 col() << "\nAudio protocol can be one of: " << TBOLD(AUDIO_PROTOCOLS) " (not all must be available)\n";
-                video_rxtx::list(strcmp(optarg, "fullhelp") == 0);
+                vrxtx_list(strcmp(optarg, "fullhelp") == 0);
                 return false;
         }
         if (set_audio) {
@@ -1390,7 +1390,7 @@ int main(int argc, char *argv[])
                       << "\n";
                 col() << TBOLD("Audio codec      : ")
                       << get_name_to_audio_codec(ac_params.codec) << "\n";
-                col() << TBOLD("Network protocol : ") << video_rxtx::get_long_name(opt.video_protocol) << "\n";
+                col() << TBOLD("Network protocol : ") << vrxtx_get_long_name(opt.video_protocol) << "\n";
                 col() << TBOLD("Audio FEC        : ") << opt.audio.fec_cfg << "\n";
                 col() << TBOLD("Video FEC        : ") << opt.video.fec << "\n";
                 col() << "\n";
@@ -1518,8 +1518,9 @@ cleanup:
 
         /* also wait for audio threads */
         audio_join(uv.audio);
-        if (uv.state_video_rxtx)
-                uv.state_video_rxtx->join();
+        if (uv.state_video_rxtx) {
+                vrxtx_join(uv.state_video_rxtx);
+        }
 
         export_destroy(opt.common.exporter);
 
@@ -1533,7 +1534,7 @@ cleanup:
 
         if(uv.audio)
                 audio_done(uv.audio);
-        delete uv.state_video_rxtx;
+        vrxtx_destroy(uv.state_video_rxtx);
 
         if (uv.capture_device)
                 vidcap_done(uv.capture_device);

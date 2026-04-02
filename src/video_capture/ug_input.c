@@ -59,7 +59,7 @@
 #include "video_display.h"         // for display_done, display_join, displa...
 #include "video_display/pipe.h"    // for pipe_frame_recv_delegate
 #include "video_frame.h"           // for VIDEO_FRAME_DISPOSE, vf_free
-#include "video_rxtx.hpp"          // for video_rxtx, vrxtx_params, VRXTX_INIT
+#include "video_rxtx.h"            // for video_rxtx, vrxtx_params, VRXTX_INIT
 
 struct vidcap_params;
 

@@ -59,7 +59,7 @@
 #include "utils/color_out.h"
 #include "utils/sdp.h"        // for sdp_print_supported_codecs
 #include "video_codec.h"      // for get_codec_name
-#include "video_rxtx.hpp"
+#include "video_rxtx.h"
 #include "video_rxtx/h264_rtp.hpp"
 
 constexpr char DEFAULT_RTSP_COMPRESSION[] = "lavc:enc=libx264:safe";

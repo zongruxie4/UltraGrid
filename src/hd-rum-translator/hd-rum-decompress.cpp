@@ -58,7 +58,7 @@
 #include "video.h"
 #include "video_display.h"
 #include "video_display/pipe.h"                   // for pipe_frame_recv_del...
-#include "video_rxtx.hpp"                         // for video_rxtx, vrxtx_pa...
+#include "video_rxtx.h"                           // for video_rxtx, vrxtx_pa...
 #include "video_rxtx/ultragrid_rtp.hpp"
 
 #include "utils/profile_timer.hpp"
@@ -137,7 +137,7 @@ ssize_t hd_rum_decompress_write(void *state, void *buf, size_t count)
         auto *s = static_cast<state_transcoder_decompress *>(state);
 
         auto *ultragrid_rtp = static_cast<ultragrid_rtp_video_rxtx *>(
-            s->video_rxtx->m_impl_state);
+            vrxtx_get_impl_state(s->video_rxtx));
         assert(ultragrid_rtp != nullptr);
         return rtp_send_raw_rtp_data(ultragrid_rtp->m_network_device,
                                      (char *) buf, count);
@@ -255,9 +255,8 @@ void hd_rum_decompress_done(void *state) {
         s->worker_thread.join();
 
         display_put_frame(s->display, nullptr, 0);
-        s->video_rxtx->join();
-
-        delete s->video_rxtx;
+        vrxtx_join(s->video_rxtx);
+        vrxtx_destroy(s->video_rxtx);
 
         display_join(s->display);
         display_done(s->display);

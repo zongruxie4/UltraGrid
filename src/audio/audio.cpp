@@ -98,7 +98,7 @@
 #include "utils/string_view_utils.hpp"
 #include "utils/thread.h"
 #include "utils/worker.h"
-#include "video_rxtx.hpp"               // for video_rxtx
+#include "video_rxtx.h"                 // for video_rxtx
 
 using std::array;
 using std::fixed;
@@ -1076,7 +1076,7 @@ set_audio_spec_to_vrxtx(struct video_rxtx *vrxtx, audio_frame2 *compressed_frm,
             audio_desc_to_cstring(desc), rx_port);
 
         assert(vrxtx != nullptr);
-        vrxtx->set_audio_spec(&desc, rx_port, tx_port, rtp_is_ipv6(netdev));
+        vrxtx_set_audio_spec(vrxtx, &desc, rx_port, tx_port, rtp_is_ipv6(netdev));
 }
 
 static void *audio_sender_thread(void *arg)

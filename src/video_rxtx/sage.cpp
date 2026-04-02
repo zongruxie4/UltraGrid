@@ -45,7 +45,7 @@
 #include "types.h"
 #include "video_display.h"
 #include "video_frame.h"    // for video_desc_from_frame, video_desc_eq
-#include "video_rxtx.hpp"
+#include "video_rxtx.h"
 
 using namespace std;
 

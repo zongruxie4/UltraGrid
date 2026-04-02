@@ -71,7 +71,7 @@
 #include "utils/macros.h"      // for to_fourcc
 #include "utils/thread.h"
 #include "video_display.h"
-#include "video_rxtx.hpp"
+#include "video_rxtx.h"
 #include "video_rxtx/rtp.hpp"  // for rtp_video_rxtx
 #include "ug_runtime_error.hpp"
 #include "utils/worker.h"

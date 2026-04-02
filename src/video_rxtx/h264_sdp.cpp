@@ -60,7 +60,7 @@
 #include "ug_runtime_error.hpp"
 #include "utils/sdp.h"
 #include "video_codec.h"         // for is_codec_opaque
-#include "video_rxtx.hpp"
+#include "video_rxtx.h"
 
 #define DEFAULT_SDP_COMPRESSION "lavc:codec=MJPG:safe"
 #define MOD_NAME "[vrxtx/sdp] "

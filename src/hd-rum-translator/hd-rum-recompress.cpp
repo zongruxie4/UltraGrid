@@ -128,11 +128,6 @@ recompress_output_port::recompress_output_port(
         // params["display_device"].ptr = nullptr;
 
         auto rxtx = video_rxtx::create("ultragrid_rtp", &params, common);
-        if (this->host.find(':') != std::string::npos) {
-                rxtx->m_port_id = "[" + this->host + "]:" + to_string(tx_port);
-        } else {
-                rxtx->m_port_id = this->host + ":" + to_string(tx_port);
-        }
 
         video_rxtx.reset(rxtx);
 }

@@ -130,7 +130,6 @@ public:
         static void        list(bool full) noexcept;
         void set_audio_spec(const struct audio_desc *desc, int audio_rx_port,
                             int audio_tx_port, bool ipv6) noexcept;
-        std::string m_port_id  = "default";
 
         const struct video_rxtx_info *m_impl_funcs = nullptr;
         void                         *m_impl_state = nullptr;

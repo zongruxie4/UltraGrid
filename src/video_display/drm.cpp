@@ -86,7 +86,7 @@ namespace{
                 Fd_uniq() = default;
                 Fd_uniq(int fd) : fd(fd) { }
                 Fd_uniq(const Fd_uniq&) = delete;
-                Fd_uniq(Fd_uniq&& o){
+                Fd_uniq(Fd_uniq&& o) noexcept{
                         std::swap(fd, o.fd);
                 }
 
@@ -95,14 +95,14 @@ namespace{
                 }
 
                 Fd_uniq& operator=(const Fd_uniq&) = delete;
-                Fd_uniq& operator=(Fd_uniq&& o){
+                Fd_uniq& operator=(Fd_uniq&& o) noexcept{
                         std::swap(fd, o.fd);
                         return *this;
                 }
 
                 operator bool() const { return fd > 0; }
 
-                int get() { return fd; }
+                int get() const { return fd; }
                 void reset(int fd){
                         destruct();
                         this->fd = fd;
@@ -171,11 +171,11 @@ namespace{
                 Uniq_wrapper(const Uniq_wrapper&) = delete;
                 Uniq_wrapper& operator=(const Uniq_wrapper&) = delete;
 
-                Uniq_wrapper(Uniq_wrapper&& o){
+                Uniq_wrapper(Uniq_wrapper&& o) noexcept{
                         std::swap(val, o.val);
                 }
 
-                Uniq_wrapper& operator=(Uniq_wrapper&& o){
+                Uniq_wrapper& operator=(Uniq_wrapper&& o) noexcept{
                         std::swap(val, o.val);
                         return *this;
                 }
@@ -209,7 +209,7 @@ namespace{
         };
 
         struct Fb_id_deleter {
-                void operator()(Fb_id i){
+                void operator()(Fb_id i) const{
                         if(i.dri_fd < 0)
                                 return;
 
@@ -254,11 +254,11 @@ namespace{
 
                         Handle(const Handle&) = delete;
                         Handle& operator=(const Handle&) = delete;
-                        Handle(Handle&& o){
+                        Handle(Handle&& o) noexcept{
                                 std::swap(handle, o.handle);
                                 std::swap(ctx, o.ctx);
                         }
-                        Handle& operator=(Handle&& o){
+                        Handle& operator=(Handle&& o) noexcept{
                                 std::swap(handle, o.handle);
                                 std::swap(ctx, o.ctx);
                                 return *this;
@@ -283,7 +283,7 @@ namespace{
                                 log_msg(LOG_LEVEL_ERROR, MOD_NAME "Failed to get a GEM handle from prime fd %d\n", fd);
                                 return {};
                         }
-                        return Handle(handle, this);
+                        return {handle, this};
                 }
 
         };

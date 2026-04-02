@@ -43,18 +43,11 @@
 #endif
 
 #include "host.h"
-#include "module.h"
 #include "types.h"    // for codec_t, video_desc, video_frame (ptr only)
-
 
 #define VIDEO_RXTX_ABI_VERSION 4
 
 struct audio_desc;
-struct display;
-struct module;
-struct video_compress;
-struct exporter;
-struct video_frame;
 
 struct vrxtx_params {
         const char     *compression; ///< nullptr selects proto dfl
@@ -136,7 +129,6 @@ void *vrxtx_get_impl_state(struct video_rxtx *state);
 #endif
 
 #ifdef __cplusplus
-#include <memory>
 void vrxtx_send(struct video_rxtx *state, std::shared_ptr<struct video_frame>);
 #endif
 

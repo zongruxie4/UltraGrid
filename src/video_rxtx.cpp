@@ -35,16 +35,20 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+
 #include <atomic>
 #include <cassert>           // for assert
+#include <cstdio>            // for printf
+#include <cstring>           // for NULL, memset, strcmp
+#include <map>               // for map
 #include <memory>
-#include <sstream>
-#include <stdexcept>
+#include <pthread.h>         // for pthread_join, pthread_create, pthread_equal
 #include <sstream>
 #include <string>
 #include <utility>
 
 #define WANT_PTHREAD_NULL
+#include "compat/strings.h"  // for strcasecmp
 #include "compat/misc.h" // for PTHREAD_NULL
 #include "debug.h"
 #include "export.h"
@@ -52,19 +56,12 @@
 #include "lib_common.h"
 #include "messaging.h"
 #include "module.h"
-#include "pdb.h"
-#include "rtp/rtp.h"
-#include "rtp/video_decoders.h"
-#include "rtp/pbuf.h"
-#include "tfrc.h"
-#include "transmit.h"
-#include "tv.h"
+#include "utils/macros.h"    // for snprintf_ch
 #include "utils/thread.h"
-#include "utils/vf_split.h"
 #include "video.h"
+#include "video_codec.h"     // for get_codec_name
 #include "video_compress.h"
-#include "video_decompress.h"
-#include "video_display.h"
+#include "video_frame.h"     // for video_desc_from_frame
 #include "video_rxtx.h"
 
 constexpr char DEFAULT_VIDEO_COMPRESSION[] = "none";

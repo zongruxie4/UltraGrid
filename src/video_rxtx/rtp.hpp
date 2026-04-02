@@ -38,6 +38,7 @@
 #ifndef VIDEO_RXTX_RTP_H_
 #define VIDEO_RXTX_RTP_H_
 
+#include "module.h"            // for module
 #include "tv.h"
 #include "utils/macros.h"      // for to_fourcc
 #include "video_rxtx.h"

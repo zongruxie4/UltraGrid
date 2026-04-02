@@ -119,6 +119,10 @@ private:
         std::atomic<codec_t> m_input_codec{};
 };
 
+/**
+ * @returns req_compression if specified (!= 0); protocol default compression
+ * otherwise
+ */
 const char *
 vrxtx_get_compression(const char *video_protocol, const char *req_compression)
 {
@@ -387,13 +391,14 @@ int vrxtx_init(const char *proto_name, const struct vrxtx_params *params,
 }
 
 void
-vrxtx_list(bool full)
+vrxtx_list_protocols(bool full)
 {
         video_rxtx::list(full);
 }
 
 const char *
-vrxtx_get_long_name(const char *short_name)
+vrxtx_get_proto_long_name(const char *short_name)
+
 {
         return video_rxtx::get_long_name(short_name);
 }

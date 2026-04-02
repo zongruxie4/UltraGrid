@@ -669,7 +669,7 @@ static bool parse_protocol(int ch, char *optarg, struct ug_options *opt) {
                 col() << SBOLD("\t-x A:proto") " - use specified audio protocol\n";
                 col() << SBOLD("\t-x V:proto") " - use specified audio protocol\n";
                 col() << "\nAudio protocol can be one of: " << TBOLD(AUDIO_PROTOCOLS) " (not all must be available)\n";
-                vrxtx_list(strcmp(optarg, "fullhelp") == 0);
+                vrxtx_list_protocols(strcmp(optarg, "fullhelp") == 0);
                 return false;
         }
         if (set_audio) {
@@ -1390,7 +1390,8 @@ int main(int argc, char *argv[])
                       << "\n";
                 col() << TBOLD("Audio codec      : ")
                       << get_name_to_audio_codec(ac_params.codec) << "\n";
-                col() << TBOLD("Network protocol : ") << vrxtx_get_long_name(opt.video_protocol) << "\n";
+                col() << TBOLD("Network protocol : ")
+                      << vrxtx_get_proto_long_name(opt.video_protocol) << "\n";
                 col() << TBOLD("Audio FEC        : ") << opt.audio.fec_cfg << "\n";
                 col() << TBOLD("Video FEC        : ") << opt.video.fec << "\n";
                 col() << "\n";

@@ -114,8 +114,8 @@ struct video_rxtx;
 int  vrxtx_init(const char *proto_name, const struct vrxtx_params *params,
                 const struct common_opts *opts, struct video_rxtx **state);
 void vrxtx_destroy(struct video_rxtx *state);
-void vrxtx_list(bool full);
-const char *vrxtx_get_long_name(const char *short_name);
+void        vrxtx_list_protocols(bool full);
+const char *vrxtx_get_proto_long_name(const char *short_name);
 const char *vrxtx_get_compression(const char *video_protocol,
                                   const char *req_compression);
 void        vrxtx_join(struct video_rxtx *state);

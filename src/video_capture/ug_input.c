@@ -75,7 +75,7 @@ struct av_frame {
 struct ug_input_state {
         uint32_t magic;
         pthread_mutex_t lock;
-        struct simple_linked_list *list;
+        struct simple_linked_list *frame_queue;
         struct display *display;
 
         struct video_rxtx *video_rxtx;
@@ -91,11 +91,11 @@ ug_input_frame_arrived(void *state, struct video_frame *v,
         struct ug_input_state *s = state;
         assert(s->magic == MAGIC);
         pthread_mutex_lock(&s->lock);
-        if (simple_linked_list_size(s->list) < MAX_QUEUE_SIZE) {
+        if (simple_linked_list_size(s->frame_queue) < MAX_QUEUE_SIZE) {
                 struct av_frame *avf = (struct av_frame *) malloc(sizeof *avf);
                 avf->aframe = a;
                 avf->vframe = v;
-                simple_linked_list_append(s->list, avf);
+                simple_linked_list_append(s->frame_queue, avf);
         } else {
                 MSG(WARNING, "Dropping frame!\n");
                 AUDIO_FRAME_DISPOSE(a);
@@ -162,7 +162,7 @@ static int vidcap_ug_input_init(const struct vidcap_params *cap_params, void **s
         struct ug_input_state *s = calloc(1, sizeof *s);
         s->magic = MAGIC;
         pthread_mutex_init(&s->lock, nullptr);
-        s->list = simple_linked_list_init();
+        s->frame_queue = simple_linked_list_init();
 
         char cfg[128] = "";
 
@@ -237,8 +237,8 @@ static void vidcap_ug_input_done(void *state)
         display_join(s->display);
         display_done(s->display);
 
-        while (simple_linked_list_size(s->list) == 0) {
-                struct av_frame *item = simple_linked_list_pop(s->list);
+        while (simple_linked_list_size(s->frame_queue) == 0) {
+                struct av_frame *item = simple_linked_list_pop(s->frame_queue);
                 VIDEO_FRAME_DISPOSE(item->vframe);
                 AUDIO_FRAME_DISPOSE(item->aframe);
                 free(item);
@@ -248,7 +248,7 @@ static void vidcap_ug_input_done(void *state)
         vrxtx_destroy(s->video_rxtx);
 
         pthread_mutex_destroy(&s->lock);
-        simple_linked_list_destroy(s->list);
+        simple_linked_list_destroy(s->frame_queue);
 
         free(s);
 }
@@ -258,12 +258,12 @@ static struct video_frame *vidcap_ug_input_grab(void *state, struct audio_frame 
         struct ug_input_state *s = state;
         *audio = nullptr;
         pthread_mutex_lock(&s->lock);
-        while (simple_linked_list_size(s->list) == 0) {
+        while (simple_linked_list_size(s->frame_queue) == 0) {
                 pthread_mutex_unlock(&s->lock);
                 return nullptr;
         }
 
-        struct av_frame *item = simple_linked_list_pop(s->list);
+        struct av_frame *item = simple_linked_list_pop(s->frame_queue);
         struct video_frame *frame = item->vframe;
         *audio                    = item->aframe;
         free(item);

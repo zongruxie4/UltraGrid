@@ -768,29 +768,29 @@ static void draw_frame(Drm_framebuffer *dst, video_frame *src, bool center = tru
         auto dst_p = static_cast<char *>(dst->map.get());
         auto src_p = static_cast<char *>(src->tiles[0].data);
 
-        auto src_w = src->tiles[0].width;
-        auto src_h = src->tiles[0].height;
+        const auto src_w = src->tiles[0].width;
+        const auto src_h = src->tiles[0].height;
 
-        unsigned x = 0;
-        unsigned y = 0;
+        unsigned pos_x = 0;
+        unsigned pos_y = 0;
 
         if(center){
                 if(src_w < dst->width)
-                        x = (dst->width - src_w) / 2;
+                        pos_x = (dst->width - src_w) / 2;
                 if(src_h < dst->height)
-                        y = (dst->height - src_h) / 2;
+                        pos_y = (dst->height - src_h) / 2;
         }
 
-        int width = std::min(src_w, dst->width - x);
-        int height = std::min(src_h, dst->height - y);
+        const auto width = std::min(src_w, dst->width - pos_x);
+        const auto height = std::min(src_h, dst->height - pos_y);
 
-        auto src_pitch = vc_get_linesize(src_w, src->color_spec);
-        auto linesize = vc_get_size(width, src->color_spec);
+        const auto src_pitch = vc_get_linesize(src_w, src->color_spec);
+        const auto linesize = vc_get_size(width, src->color_spec);
 
-        dst_p += dst->pitch * y;
-        dst_p += vc_get_size(x, src->color_spec);
+        dst_p += dst->pitch * pos_y;
+        dst_p += vc_get_size(pos_x, src->color_spec);
 
-        for(int y = 0; y < height; y++){
+        for(unsigned y = 0; y < height; y++){
                 memcpy(dst_p, src_p, linesize);
                 dst_p += dst->pitch;
                 src_p += src_pitch;

@@ -351,7 +351,7 @@ struct drm_display_state {
         std::vector<frame_uniq> free_frames;
 };
 
-static std::string get_connector_str(int type, uint32_t id){
+static std::string get_connector_str(uint32_t type, uint32_t id){
         std::string res;
         switch(type){
         case DRM_MODE_CONNECTOR_VGA: res = "VGA"; break;
@@ -441,7 +441,7 @@ static Fd_uniq open_dri(drm_display_state *s){
         return {};
 }
 
-static int64_t get_property(int dri, drmModeObjectPropertiesPtr props, std::string_view name){
+static uint64_t get_property(int dri, drmModeObjectPropertiesPtr props, std::string_view name){
         for(unsigned i = 0; i < props->count_props; i++){
                 Drm_property_uniq prop(drmModeGetProperty(dri, props->props[i]));
                 if(!prop)
@@ -619,7 +619,7 @@ static bool setup_crtc(drm_display_state *s){
 
         int dri = s->drm.dri_fd.get();
 
-        std::vector<int> encoder_list;
+        std::vector<uint32_t> encoder_list;
         if(s->drm.connector->encoder_id){
                 encoder_list.push_back(s->drm.connector->encoder_id);
         }
@@ -627,7 +627,7 @@ static bool setup_crtc(drm_display_state *s){
                 encoder_list.push_back(s->drm.connector->encoders[i]);
         }
 
-        for(int encoder_id : encoder_list){
+        for(auto encoder_id : encoder_list){
                 s->drm.encoder.reset(drmModeGetEncoder(dri, encoder_id));
                 if(!s->drm.encoder)
                         continue;

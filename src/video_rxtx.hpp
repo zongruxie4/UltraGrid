@@ -38,9 +38,11 @@
 #ifndef VIDEO_RXTX_H_
 #define VIDEO_RXTX_H_
 
+#ifdef __cplusplus
 #include <atomic>
 #include <memory>
 #include <string>
+#endif // defined __cplusplus
 
 #include "host.h"
 #define WANT_PTHREAD_NULL
@@ -95,6 +97,7 @@ struct vrxtx_params {
                 .receiver_mod   = nullptr, \
         }
 
+#ifdef __cplusplus
 struct video_rxtx_info {
         const char *long_name;
         void *(*create)(const struct vrxtx_params *params,
@@ -158,8 +161,9 @@ private:
         video_desc       m_video_desc{};
         std::atomic<codec_t> m_input_codec{};
 };
+#endif // defined __cplusplus
 
-#ifndef _cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -167,9 +171,11 @@ int vrxtx_init(const char *proto_name, const struct vrxtx_params *params,
                const struct common_opts *opts, struct video_rxtx **state);
 const char *vrxtx_get_compression(const char *video_protocol,
                                   const char *req_compression);
+void vrxtx_join(struct video_rxtx *state);
+void vrxtx_destroy(struct video_rxtx *state);
 
-#ifndef _cplusplus
-}
+#ifdef __cplusplus
+} // extern "C"
 #endif
 
 #endif // VIDEO_RXTX_H_

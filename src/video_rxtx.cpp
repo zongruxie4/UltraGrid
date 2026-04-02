@@ -339,3 +339,15 @@ int vrxtx_init(const char *proto_name, const struct vrxtx_params *params,
         *state = ret;
         return 0;
 }
+
+void
+vrxtx_join(struct video_rxtx *state)
+{
+        state->join();
+}
+
+void
+vrxtx_destroy(struct video_rxtx *state)
+{
+        delete state;
+}

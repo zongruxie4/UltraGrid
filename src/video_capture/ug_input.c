@@ -1,5 +1,5 @@
 /**
- * @file   video_capture/ug_input.cpp
+ * @file   video_capture/ug_input.c
  * @author Martin Pulec     <pulec@cesnet.cz>
  */
 /*
@@ -35,25 +35,23 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <cassert>                 // for assert
-#include <cctype>                  // for isdigit
-#include <cstdint>                 // for uint16_t
-#include <cstdio>                  // for printf, snprintf
-#include <cstdlib>                 // for free
-#include <cstring>                 // for strlen, strchr, strcmp, strdup
-#include <memory>                  // for unique_ptr
-#include <mutex>                   // for mutex, lock_guard
-#include <queue>                   // for queue
-#include <string>                  // for basic_string, stoi, string
-#include <utility>                 // for pair
+#include <assert.h>                // for assert
+#include <ctype.h>                 // for isdigit
+#include <pthread.h>               // for pthread_mutex_unlock, pthread_mute...
+#include <stdint.h>                // for uint16_t
+#include <stdio.h>                 // for printf, snprintf
+#include <stdlib.h>                // for free
+#include <string.h>                // for strlen, strchr, strcmp, strdup
 
 #include "audio/audio.h"           // for audio_options, AUDIO_OPTIONS_INIT
 #include "audio/types.h"           // for AUDIO_FRAME_DISPOSE
+#include "compat/c23.h"            // IWYU pragma: keep
 #include "debug.h"                 // for LOG_LEVEL_ERROR, LOG_LEVEL_WARNING
 #include "host.h"                  // for common_opts, COMMON_OPTS_INIT
 #include "lib_common.h"            // for REGISTER_MODULE, library_class
 #include "types.h"                 // for VIDEO_CODEC_NONE, codec_t, device_...
 #include "utils/color_out.h"       // for TBOLD, color_printf, TRED
+#include "utils/list.h"            // for simple_linked_list
 #include "utils/macros.h"          // for to_fourcc, IS_KEY_PREFIX, snprintf_ch
 #include "video_capture.h"         // for VIDCAP_INIT_FAIL, VIDCAP_INIT_NOERR
 #include "video_capture_params.h"  // for vidcap_params_get_fmt, vidcap_para...
@@ -63,42 +61,47 @@
 #include "video_frame.h"           // for VIDEO_FRAME_DISPOSE, vf_free
 #include "video_rxtx.hpp"          // for video_rxtx, vrxtx_params, VRXTX_INIT
 
+struct vidcap_params;
+
 #define MAGIC to_fourcc('V', 'C', 'u', 'i')
 #define MOD_NAME "[ug_input] "
-static constexpr int MAX_QUEUE_SIZE = 2;
+static const int MAX_QUEUE_SIZE = 2;
 
-using std::lock_guard;
-using std::mutex;
-using std::pair;
-using std::queue;
-using std::stoi;
-using std::string;
-using std::unique_ptr;
-
-struct ug_input_state final {
-        uint32_t magic = MAGIC;
-        mutex lock;
-        queue<pair<struct video_frame *, struct audio_frame *>> frame_queue;
-        struct display *display = nullptr;
-
-        unique_ptr<struct video_rxtx> video_rxtx;
-        struct state_audio *audio = nullptr;
+struct av_frame {
+        struct video_frame *vframe;
+        struct audio_frame *aframe;
 };
 
+struct ug_input_state {
+        uint32_t magic;
+        pthread_mutex_t lock;
+        struct simple_linked_list *list;
+        struct display *display;
+
+        struct video_rxtx *video_rxtx;
+        struct state_audio *audio;
+};
+
+static void vidcap_ug_input_done(void *state);
+
 static void
-ug_input_frame_arrived(void *state, struct video_frame *f,
+ug_input_frame_arrived(void *state, struct video_frame *v,
                        struct audio_frame *a)
 {
-        auto *s = (ug_input_state *) state;
+        struct ug_input_state *s = state;
         assert(s->magic == MAGIC);
-        lock_guard<mutex> lk(s->lock);
-        if (s->frame_queue.size() < MAX_QUEUE_SIZE) {
-                s->frame_queue.push({f, a});
+        pthread_mutex_lock(&s->lock);
+        if (simple_linked_list_size(s->list) < MAX_QUEUE_SIZE) {
+                struct av_frame *avf = (struct av_frame *) malloc(sizeof *avf);
+                avf->aframe = a;
+                avf->vframe = v;
+                simple_linked_list_append(s->list, avf);
         } else {
                 MSG(WARNING, "Dropping frame!\n");
                 AUDIO_FRAME_DISPOSE(a);
-                VIDEO_FRAME_DISPOSE(f);
+                VIDEO_FRAME_DISPOSE(v);
         }
+        pthread_mutex_unlock(&s->lock);
 }
 
 static void
@@ -123,9 +126,9 @@ parse_fmt(char *fmt, uint16_t *port, codec_t *decode_to)
                 if (isdigit(tok[0])) {
                         MSG(WARNING, "port specification without the keyword "
                                      "port= is deprecated\n");
-                        *port = stoi(tok);
+                        *port = atoi(tok);
                 } else if (IS_KEY_PREFIX(tok, "port")) {
-                        *port = stoi(val);
+                        *port = atoi(val);
                 } else if (IS_KEY_PREFIX(tok, "codec")) {
                         *decode_to = get_codec_from_name(val);
                         if (*decode_to == VIDEO_CODEC_NONE) {
@@ -156,7 +159,10 @@ static int vidcap_ug_input_init(const struct vidcap_params *cap_params, void **s
                 return VIDCAP_INIT_FAIL;
         }
 
-        auto *s = new ug_input_state();
+        struct ug_input_state *s = calloc(1, sizeof *s);
+        s->magic = MAGIC;
+        pthread_mutex_init(&s->lock, nullptr);
+        s->list = simple_linked_list_init();
 
         char cfg[128] = "";
 
@@ -192,10 +198,8 @@ static int vidcap_ug_input_init(const struct vidcap_params *cap_params, void **s
         // params["decoder_mode"].l = VIDEO_NORMAL;
         params.display_device = s->display;
 
-        struct video_rxtx *rxtx = nullptr;
-        int rc = vrxtx_init("ultragrid_rtp", &params, &common, &rxtx);
+        int rc = vrxtx_init("ultragrid_rtp", &params, &common, &s->video_rxtx);
         assert(rc == 0);
-        s->video_rxtx = unique_ptr<video_rxtx>(rxtx);
 
         if (vidcap_params_get_flags(cap_params) & VIDCAP_FLAG_AUDIO_ANY) {
                 struct audio_options opt = AUDIO_OPTIONS_INIT;
@@ -205,10 +209,10 @@ static int vidcap_ug_input_init(const struct vidcap_params *cap_params, void **s
                 opt.recv_cfg             = "embedded";
                 opt.proto                = "ultragrid_rtp";
                 opt.display              = s->display;
-                opt.vrxtx                = s->video_rxtx.get();
+                opt.vrxtx                = s->video_rxtx;
 
                 if (audio_init(&s->audio, &opt, &common) != 0) {
-                        delete s;
+                        vidcap_ug_input_done(s);
                         return VIDCAP_INIT_FAIL;
                 }
 
@@ -223,46 +227,55 @@ static int vidcap_ug_input_init(const struct vidcap_params *cap_params, void **s
 
 static void vidcap_ug_input_done(void *state)
 {
-        auto s = (ug_input_state *) state;
+        struct ug_input_state *s = state;
         assert(s->magic == MAGIC);
 
         audio_join(s->audio);
-        s->video_rxtx->join();
+        vrxtx_join(s->video_rxtx);
 
         // display_put_frame(s->display, nullptr, 0); // already done by ultragrid_rtp_video_rxtx::receiver_loop
         display_join(s->display);
         display_done(s->display);
 
-        while (!s->frame_queue.empty()) {
-                auto item = s->frame_queue.front();
-                s->frame_queue.pop();
-                VIDEO_FRAME_DISPOSE(item.first);
-                AUDIO_FRAME_DISPOSE(item.second);
+        while (simple_linked_list_size(s->list) == 0) {
+                struct av_frame *item = simple_linked_list_pop(s->list);
+                VIDEO_FRAME_DISPOSE(item->vframe);
+                AUDIO_FRAME_DISPOSE(item->aframe);
+                free(item);
         }
-        audio_done(s->audio);
 
-        delete s;
+        audio_done(s->audio);
+        vrxtx_destroy(s->video_rxtx);
+
+        pthread_mutex_destroy(&s->lock);
+        simple_linked_list_destroy(s->list);
+
+        free(s);
 }
 
 static struct video_frame *vidcap_ug_input_grab(void *state, struct audio_frame **audio)
 {
-        auto s = (ug_input_state *) state;
+        struct ug_input_state *s = state;
         *audio = nullptr;
-        lock_guard<mutex> lk(s->lock);
-        if (s->frame_queue.empty()) {
+        pthread_mutex_lock(&s->lock);
+        while (simple_linked_list_size(s->list) == 0) {
+                pthread_mutex_unlock(&s->lock);
                 return nullptr;
         }
 
-        auto                item  = s->frame_queue.front();
-        struct video_frame *frame = item.first;
-        *audio                    = item.second;
-        s->frame_queue.pop();
+        struct av_frame *item = simple_linked_list_pop(s->list);
+        struct video_frame *frame = item->vframe;
+        *audio                    = item->aframe;
+        free(item);
         frame->callbacks.dispose = vf_free;
+        pthread_mutex_unlock(&s->lock);
 
         return frame;
 }
 
-static void vidcap_ug_input_probe(device_info **available_cards, int *count, void (**deleter)(void *))
+static void
+vidcap_ug_input_probe(struct device_info **available_cards, int *count,
+                      void (**deleter)(void *))
 {
         *deleter = free;
         *count = 0;

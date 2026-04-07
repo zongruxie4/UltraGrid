@@ -42,6 +42,7 @@
 #ifndef VIDEO_RXTX_H264_RTP_H_
 #define VIDEO_RXTX_H264_RTP_H_
 
+#include <cassert>
 #include <atomic>                        // for atomic_bool
 #include <memory>                        // for shared_ptr
 

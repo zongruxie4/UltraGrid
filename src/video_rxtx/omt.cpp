@@ -39,6 +39,7 @@
 #include <config.h>
 #include <libomt.h>
 
+#include "omt_common.hpp"
 #include "debug.h"
 #include "lib_common.h"
 #include "video_rxtx.h"
@@ -51,13 +52,6 @@
 #define MOD_NAME "[OMT] "
 
 namespace{
-using omt_receive_uniq = std::unique_ptr<omt_receive_t, deleter_from_fcn<omt_receive_destroy>>;
-using omt_send_uniq = std::unique_ptr<omt_send_t, deleter_from_fcn<omt_send_destroy>>;
-
-void omt_log_callback(const char *msg){
-        log_msg(LOG_LEVEL_INFO, MOD_NAME "[libomt] %s\n", msg);
-}
-
 struct omt_rxtx_state{
         module *parent = nullptr;
         omt_receive_uniq omt_recv_handle;
@@ -78,17 +72,6 @@ struct omt_rxtx_state{
 void omt_should_exit_callback(void *state){
         auto s = static_cast<omt_rxtx_state *>(state);
         s->should_exit = true;
-}
-
-void set_omt_sender_info(omt_rxtx_state *s){
-        OMTSenderInfo info = {};
-        std::string productName = "UltraGrid";
-        std::string manufacturer = "CESNET";
-        std::string version = VERSION;
-        productName.copy(info.ProductName, OMT_MAX_STRING_LENGTH, 0);
-        manufacturer.copy(info.Manufacturer, OMT_MAX_STRING_LENGTH, 0);
-        version.copy(info.Version, OMT_MAX_STRING_LENGTH, 0);
-        omt_send_setsenderinformation(s->omt_send_handle.get(), &info);
 }
 
 void print_help(){
@@ -136,7 +119,7 @@ void init_recv(const vrxtx_params *params, omt_rxtx_state *s){
 
 void init_send(omt_rxtx_state *s){
         s->omt_send_handle.reset(omt_send_create(s->sender_name.c_str(), s->quality));
-        set_omt_sender_info(s);
+        set_omt_sender_info(s->omt_send_handle.get());
         s->send_video_frame.Type = OMTFrameType_Video;
         s->send_video_frame.Timestamp = -1;
 }
@@ -165,19 +148,11 @@ void omt_rxtx_done(void *state){
         delete s;
 }
 
-bool send_reconfigure(omt_rxtx_state *s, struct video_desc frame_desc){
-        s->send_video_frame.Width = frame_desc.width;
-        s->send_video_frame.Height = frame_desc.height;
-        if(frame_desc.color_spec != UYVY){
-                log_msg(LOG_LEVEL_FATAL, MOD_NAME "Codec %s not supported\n", get_codec_name(frame_desc.color_spec));
-                return false;
-        }
-        s->send_video_frame.Codec = OMTCodec_UYVY;
-        s->send_video_frame.ColorSpace = OMTColorSpace_BT709;
-        s->send_video_frame.FrameRateN = frame_desc.fps * 1000.0;
-        s->send_video_frame.FrameRateD = 1000;
-        s->send_desc = frame_desc;
-        return true;
+bool send_reconfigure(omt_rxtx_state *s, const video_desc& frame_desc){
+        bool ret = omt_frame_init_from_desc(s->send_video_frame, frame_desc);
+        if(ret)
+                s->send_desc = frame_desc;
+        return ret;
 }
 
 void omt_rxtx_send_frame(void *state, std::shared_ptr<video_frame> f){
@@ -188,9 +163,7 @@ void omt_rxtx_send_frame(void *state, std::shared_ptr<video_frame> f){
                         return;
         }
 
-        s->send_video_frame.Stride = vc_get_linesize(f->tiles[0].width, f->color_spec);
-        s->send_video_frame.Data = f->tiles[0].data;
-        s->send_video_frame.DataLength = f->tiles[0].data_len;
+        omt_frame_set_data(s->send_video_frame, *f);
 
         omt_send(s->omt_send_handle.get(), &s->send_video_frame);
 }

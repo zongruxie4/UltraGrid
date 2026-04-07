@@ -42,13 +42,8 @@
  * Capture what is on the wire (RGB if RGB, YCbCr otherwise)
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
 #include "config_msvc.h"
 // aligned_alloc/aligned_free
-#include "config_unix.h"
-#include "config_win32.h"
 
 #include "debug.h"
 #undef UNUSED // collides with same-named macro defined by libajantv2

@@ -41,11 +41,23 @@
 struct audio_frame;
 struct video_frame;
 
-typedef void pipe_frame_arrived_t(void *state, struct video_frame *,
-                                   struct audio_frame *);
+/**
+ * callback called when A/V frame was received
+ *
+ * @note
+ * Current implementation passes always `v != nullptr`, `a` can be nullptr or
+ * not depending if audio is received (audio frame attached always to
+ * video_frame). `v == nullptr` means a poison pill (last frame signalizing an
+ * end).
+ */
+typedef void pipe_frame_arrived_t(void *state, struct video_frame *v,
+                                  struct audio_frame *a);
 
+/**
+ * passed as a pointer to vcap/pipe
+ */
 struct pipe_frame_recv_delegate {
-        void *state;
+        void *state; //< pointer passed as first argument to frame_arrived
         /**
          * Implementing method must release both audio and video frame received
          * as parameters with AUDIO_FRAME_DISPOSE() and VIDEO_FRAME_DISPOSE().

@@ -103,20 +103,21 @@ void state_transcoder_decompress::frame_arrived(void *state, struct video_frame 
 {
         PROFILE_FUNC;
         auto *s = (struct state_transcoder_decompress *) state;
+        if (f == nullptr) { // skip poison pill from vdisp/pipe
+                return;
+        }
         if (a) {
                 LOG(LOG_LEVEL_WARNING) << "Unexpectedly receiving audio!\n";
                 AUDIO_FRAME_DISPOSE(a);
         }
         auto deleter = vf_free;
         // apply capture filter
-        if (f) {
-                f = capture_filter(s->capture_filter_state, f);
-        }
-        if (f && f->callbacks.dispose) {
-                deleter = f->callbacks.dispose;
-        }
-        if (!f) {
+        f = capture_filter(s->capture_filter_state, f);
+        if (f == nullptr) {
                 return;
+        }
+        if (f->callbacks.dispose != nullptr) {
+                deleter = f->callbacks.dispose;
         }
 
         unique_lock<mutex> l(s->lock);

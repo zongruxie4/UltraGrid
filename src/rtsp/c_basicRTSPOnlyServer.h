@@ -45,18 +45,12 @@
 #ifndef C_BASIC_RTSP_ONLY_SERVER_H
 #define C_BASIC_RTSP_ONLY_SERVER_H
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#include "config_unix.h"
-#include "config_win32.h"
-#endif // HAVE_CONFIG_H
-
-#include <pthread.h>
 #include "control_socket.h"
 #include "module.h"
 #include "debug.h"
 #include "rtsp/rtsp_utils.h"
 #include "audio/types.h"
+#include "types.h"
 
 
 #ifdef __cplusplus

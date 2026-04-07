@@ -44,6 +44,7 @@
  */
 
 #include <cassert>
+#include <pthread.h>
 
 #include "rtsp/c_basicRTSPOnlyServer.h"
 #include "rtsp/BasicRTSPOnlyServer.hh"

@@ -76,21 +76,33 @@ ${bold_str}...\n" "$(get_tools)" "$dstdir" "$abs_path"
 ## @param $1  non-empty to show full help
 usage() {
         full=${1:+1}
-        printf "usage:\n"
+        printf "${bold}UltraGrid AppImage${reset} usage:\n"
         printf "\t${bold}${red}%s${reset} ${bold}[--gui [args]]${reset}\n" "$ARGV0"
         printf "\t\tinvokes GUI\n"
         printf "\n"
-        printf "\t${bold}${red}%s${reset} ${bold}--appimage-help${reset}\n" "$ARGV0"
-        printf "\t\tprints AppImage related options\n"
+        if [ "$full" ]; then
+                printf "\t${bold}${red}%s${reset} ${bold}--appimage-help\
+${reset}\n" "$ARGV0"
+                printf "\t\tprints AppImage runtime related options\n"
+                printf "\n"
+                printf "\t${bold}${red}%s${reset} ${bold}--appimage-*\
+${reset}\n" "$ARGV0"
+                printf "\t\toptions interpreted by AppImage runtime itself (see\
+ the above option)\n"
+        else
+                printf "\t${bold}${red}%s${reset} ${bold}--appimage-*${reset}\n" "$ARGV0"
+                printf "\t\tAppImage runtime options (see '--appimage-help')\n"
+        fi
         printf "\n"
         printf "\t${bold}${red}%s${reset} ${bold}-h | --help | --fullhelp${reset}\n" "$ARGV0"
-        printf "\t\tprints this help (extended version with ${bold}--fullhelp${reset})\n"
+        printf "\t\tprints UG AppImage (this) help (extended version with\
+ ${bold}--fullhelp${reset})\n"
         printf "\n"
         printf "\t${bold}${red}%s${reset} ${bold}--ug-help${reset}\n" "$ARGV0"
-        printf "\t\tprints UltraGrid help (as '-h' if it weren't run from AppImage)\n"
+        printf "\t\tprints UltraGrid help (as 'uv -h' if it weren't run from AppImage)\n"
         printf "\n"
         printf "\t${bold}${red}%s${reset} ${bold}-m|--man [uv|hd-rum-transcode]${reset}\n" "$ARGV0"
-        printf "\t\tprints manual page\n"
+        printf "\t\tshow manual page\n"
         printf "\n"
         printf "\t${bold}${red}%s${reset} ${bold}-u|--update [args]${reset}\n" "$ARGV0"
         printf "\t\tupdates AppImage (args will be passed to appimageupdatetool)\n"
@@ -107,9 +119,17 @@ usage() {
                 printf "\t\tmake symlinks for the above tools to allow direct run\n"
                 printf "\n"
         fi
-        printf "\t${bold}${red}%s${reset} ${bold}args${reset}\n" "$ARGV0"
-        printf "\t\tinvokes command-line UltraGrid\n"
+        printf "\t${bold}${red}%s${reset} ${bold}args...${reset}\n" "$ARGV0"
+        printf "\t\tinvokes command-line UltraGrid (uv) with arguments forwarded (with the\n"
+        printf "\t\texception of the options described above)\n"
         printf "\n"
+
+        if [ "$full" ]; then
+                printf "Use '${bold}%s -H${reset}' to see full help for uv (alternatively\
+ '-o uv --fullhelp').\n\n" "$ARGV0"
+        else
+                printf "Use ${bold}%s --ug-help${reset} to see uv help.\n\n" "$ARGV0"
+        fi
 
         if [ ! "$full" ]; then
                 return

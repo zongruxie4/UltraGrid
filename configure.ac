@@ -3467,7 +3467,7 @@ fi
 if test "${omt_req?}" != no && test "${FOUND_LIBOMT_H?}" && test "${FOUND_LIBOMT_LIB?}" = yes
 then
         omt=yes
-        add_module rxtx_omt "src/omt_common.o src/video_rxtx/omt.o" "-lomt"
+        add_module rxtx_omt "src/omt_common.o src/video_rxtx/omt.o src/video_display/omt.o" "-lomt"
 fi
 
 ENSURE_FEATURE_PRESENT([${omt_req?}], [${omt?}], [libomt not found])

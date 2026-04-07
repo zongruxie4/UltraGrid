@@ -72,7 +72,7 @@ struct omt_rxtx_state{
         display *display_device = nullptr;
 
         OMTQuality quality = OMTQuality_Default;
-        std::string sender_address;
+        std::string sender_name = "UltraGrid";
 };
 
 void omt_should_exit_callback(void *state){
@@ -94,7 +94,7 @@ void set_omt_sender_info(omt_rxtx_state *s){
 void print_help(){
         color_printf("Open Media Transport\n");
         color_printf("Usage\n");
-        color_printf(TERM_BOLD TERM_FG_RED "\t-x omt" TERM_FG_RESET "[:quality=<qual>]\n" TERM_RESET);
+        color_printf(TERM_BOLD TERM_FG_RED "\t-x omt" TERM_FG_RESET "[:quality=<qual>][:name=<name>]\n" TERM_RESET);
         color_printf("\n");
 }
 
@@ -119,6 +119,8 @@ bool parse_params(omt_rxtx_state *s, std::string_view cfg){
                                 log_msg(LOG_LEVEL_FATAL, MOD_NAME "Invalid quality \"%s\"\n", std::string(val).c_str());
                                 return false;
                         }
+                } else if(key == "name"){
+                        s->sender_name = val;
                 }
         }
 
@@ -133,7 +135,7 @@ void init_recv(const vrxtx_params *params, omt_rxtx_state *s){
 }
 
 void init_send(omt_rxtx_state *s){
-        s->omt_send_handle.reset(omt_send_create("UltraGrid", s->quality));
+        s->omt_send_handle.reset(omt_send_create(s->sender_name.c_str(), s->quality));
         set_omt_sender_info(s);
         s->send_video_frame.Type = OMTFrameType_Video;
         s->send_video_frame.Timestamp = -1;

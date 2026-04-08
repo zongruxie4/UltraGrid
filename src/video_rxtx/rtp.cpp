@@ -178,26 +178,6 @@ rtp_process_sender_message(struct rtp_rxtx_common *s, struct msg_sender *msg)
                 delete old_fec_state;
                 MSG(NOTICE, "Fec changed successfully\n");
         } break;
-        case SENDER_MSG_RESET_SSRC: {
-                ultragrid::pthread_mutex_guard lock(s->network_devices_lock);
-                const uint32_t    old_ssrc   = rtp_my_ssrc(s->network_device);
-                auto             *old_device = s->network_device;
-                s->network_device             = initialize_network(
-                    s->priv->requested_receiver, s->priv->rx_port,
-                    s->priv->tx_port, s->participants,
-                    s->priv->force_ip_version,
-                    s->priv->mcast_if, s->priv->ttl);
-                if (s->network_device == nullptr) {
-                        s->network_device = old_device;
-                        MSG(ERROR, "Unable to change SSRC!\n");
-                        return new_response(RESPONSE_INT_SERV_ERR, nullptr);
-                }
-                destroy_rtp_device(old_device);
-                MSG(NOTICE,
-                    "Changed SSRC from 0x%08" PRIx32 " to "
-                    "0x%08" PRIx32 ".\n",
-                    old_ssrc, rtp_my_ssrc(s->network_device));
-        } break;
         case SENDER_MSG_GET_STATUS:
         case SENDER_MSG_MUTE:
         case SENDER_MSG_UNMUTE:

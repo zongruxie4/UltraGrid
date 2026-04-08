@@ -62,7 +62,7 @@
 #include "debug.h"
 #include "compat/net.h"            // for net related
 #include "compat/platform_pipe.h"
-#include "compat/strings.h"        // for strncasecmp, strcasecmp
+#include "compat/strings.h"        // for asprintf, strncasecmp, strcasecmp
 #include "compat/time.h"           // for timeval, gettimeofday
 #include "host.h"
 #include "messaging.h"
@@ -385,6 +385,28 @@ process_audio_message(struct module *root_module, const char *cmd)
         return new_response(RESPONSE_BAD_REQUEST, "unexpected audio msg");
 }
 
+static struct response *
+handle_removed_feature(char *message)
+{
+        char *space = strchr(message, ' ');
+        if (space != nullptr) {
+                *space = '\0';
+        }
+        char *msg = nullptr;
+        int rc = asprintf(
+            &msg, "%s has been removed. Let us know if you use this feature. ",
+            message);
+        if (rc != -1) {
+                bug_msg(LOG_LEVEL_ERROR, "%s", msg);
+        } else {
+                perror("");
+                msg = nullptr;
+        }
+        auto *resp = new_response(RESPONSE_BAD_REQUEST, msg);
+        free(msg);
+        return resp;
+}
+
 /**
   * @retval -1 exit thread
   * @retval -2 close handle
@@ -532,15 +554,13 @@ static int process_msg(struct control_state *s, fd_t client_fd, char *message, s
                         send_message(s->root_module, path_audio, (struct message *) msg_audio);
                 free_response(resp_audio);
         } else if(prefix_matches(message, "receiver ") || prefix_matches(message, "play") ||
-                        prefix_matches(message, "pause") || prefix_matches(message, "reset-ssrc")) {
+                        prefix_matches(message, "pause")) {
                 struct msg_sender *msg =
                         (struct msg_sender *)
                         new_message(sizeof(struct msg_sender));
                 if(prefix_matches(message, "receiver ")) {
                         strncpy(msg->receiver, suffix(message, "receiver "), sizeof(msg->receiver) - 1);
                         msg->type = SENDER_MSG_CHANGE_RECEIVER;
-                } else if(prefix_matches(message, "reset-ssrc")) {
-                        msg->type = SENDER_MSG_RESET_SSRC;
                 } else {
                         abort();
                 }
@@ -561,11 +581,9 @@ static int process_msg(struct control_state *s, fd_t client_fd, char *message, s
                 struct response *resp_audio =
                         send_message(s->root_module, path_audio, (struct message *) msg_audio);
                 free_response(resp_audio);
-        } else if (prefix_matches(message, "receiver-port ")) {
-                const char msg[] = "receiver-port has been removed. Let us "
-                                   "know if you use this feature. ";
-                bug_msg(LOG_LEVEL_ERROR, msg);
-                resp = new_response(RESPONSE_BAD_REQUEST, msg);
+        } else if (prefix_matches(message, "receiver-port ") ||
+                   prefix_matches(message, "reset-ssrc")) {
+                resp = handle_removed_feature(message);
         } else if(prefix_matches(message, "fec ")) {
                 auto *msg = reinterpret_cast<struct msg_universal *>(new_message(sizeof(struct msg_universal)));
                 char *fec = suffix(message, "fec ");
@@ -1050,8 +1068,7 @@ static void print_control_help() {
                         TBOLD("\tpause") "\n"
                         TBOLD("\tplay") "\n"
                         TBOLD("\treciever {pause|play}") "\n"
-                        TBOLD("\treset-ssrc") "\n"
-                        TBOLD("\t{receiver|sender}-port <XY>") "\n"
+                        TBOLD("\tsender-port <XY>") "\n"
                         TBOLD("\tfec {audio|video} <fec-string>") "\n"
                         TBOLD("\tcompress <new-compress>") "\n"
                         TBOLD("\tcompress param <new-compress-param>") "\n"

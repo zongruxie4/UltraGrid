@@ -5,7 +5,7 @@
  * compatibility header for strcasecmp. strdup, strerror_s
  */
 /*
- * Copyright (c) 2024-2025 CESNET
+ * Copyright (c) 2024-2026 CESNET, zájmové sdružení právnických osob
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -72,13 +72,22 @@ COMPAT_MISC_EXT_C int __xpg_strerror_r(int errcode, char *buffer, size_t length)
 #endif // ! defined _WIN32
 
 // strdupa is defined as a macro
-#include <string.h>
 #ifndef strdupa
 #define strdupa(s) (char *) memcpy(alloca(strlen(s) + 1), s, strlen(s) + 1)
 #endif // defined strdupa
 
 COMPAT_MISC_EXT_C const char *ug_strcasestr(const char *haystack,
                                             const char *needle);
+
+#ifdef _WIN32
+COMPAT_MISC_EXT_C int asprintf(char **strp, const char *fmt, ...);
+#else
+        #ifdef __cplusplus
+                #include <cstdio>   // for asprintf
+        #else
+                #include <stdio.h>  // for asprintf
+        #endif
+#endif
 
 #undef COMPAT_MISC_EXT_C
 

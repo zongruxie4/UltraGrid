@@ -55,6 +55,7 @@
 typedef SSIZE_T ssize_t;
 #endif
 
+#include "compat/c23.h"
 #include "compat/strings.h"
 #include "utils/macros.h"    // for MIN
 #include "utils/string.h"
@@ -296,3 +297,23 @@ sprintf_append(char *str, const char *format, ...)
 
         return str;
 }
+
+#ifdef _WIN32
+int
+asprintf(char **strp, const char *fmt, ...)
+{
+        va_list ap;
+
+        va_start(ap, fmt);
+        // get number of required bytes
+        int size = vsnprintf(nullptr, 0, fmt, ap);
+        va_end(ap);
+
+        *strp = malloc(size + 1);
+        va_start(ap, fmt);
+        (void) vsnprintf(*strp, size + 1, fmt, ap);
+        va_end(ap);
+
+        return size;
+}
+#endif

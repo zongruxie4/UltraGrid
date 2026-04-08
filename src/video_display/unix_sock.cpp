@@ -350,7 +350,7 @@ static void *display_unix_sock_init_no_preview(struct module *parent, const char
         return display_unix_sock_init(parent, fmt, flags, false);
 }
 
-static const struct video_display_info display_unix_sock_info = {
+constexpr video_display_info display_unix_sock_info = {
         display_unix_sock_probe,
         display_unix_sock_init_no_preview,
         nullptr, // _run
@@ -363,22 +363,13 @@ static const struct video_display_info display_unix_sock_info = {
         display_unix_sock_reconfigure_audio,
         MOD_NAME,
 };
-
-static const struct video_display_info display_preview_info = {
-        display_unix_sock_probe,
-        display_unix_sock_init_preview,
-        nullptr, // _run
-        display_unix_sock_done,
-        display_unix_sock_getf,
-        display_unix_sock_putf,
-        display_unix_sock_reconfigure,
-        display_unix_sock_get_property,
-        display_unix_sock_put_audio_frame,
-        display_unix_sock_reconfigure_audio,
-        "[unix sock preview] ",
-};
-
 REGISTER_HIDDEN_MODULE(unix_sock, &display_unix_sock_info, LIBRARY_CLASS_VIDEO_DISPLAY, VIDEO_DISPLAY_ABI_VERSION);
 
+constexpr video_display_info display_preview_info = []() constexpr  {
+        auto info = display_unix_sock_info;
+        info.init = display_unix_sock_init_preview;
+        info.generic_fps_indicator_prefix = "[unix sock preview] ";
+        return info;
+}();
 REGISTER_HIDDEN_MODULE(preview, &display_preview_info, LIBRARY_CLASS_VIDEO_DISPLAY, VIDEO_DISPLAY_ABI_VERSION);
 

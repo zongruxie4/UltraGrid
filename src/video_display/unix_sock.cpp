@@ -319,23 +319,6 @@ static bool display_unix_sock_reconfigure(void *state, struct video_desc desc)
         return true;
 }
 
-static void display_unix_sock_put_audio_frame(void *state, const struct audio_frame *frame)
-{
-        UNUSED(state);
-        UNUSED(frame);
-}
-
-static bool display_unix_sock_reconfigure_audio(void *state, int quant_samples, int channels,
-                int sample_rate)
-{
-        UNUSED(state);
-        UNUSED(quant_samples);
-        UNUSED(channels);
-        UNUSED(sample_rate);
-
-        return false;
-}
-
 static void display_unix_sock_probe(struct device_info **available_cards, int *count, void (**deleter)(void *)) {
         UNUSED(deleter);
         *available_cards = nullptr;
@@ -359,8 +342,8 @@ constexpr video_display_info display_unix_sock_info = {
         display_unix_sock_putf,
         display_unix_sock_reconfigure,
         display_unix_sock_get_property,
-        display_unix_sock_put_audio_frame,
-        display_unix_sock_reconfigure_audio,
+        nullptr,
+        nullptr,
         MOD_NAME,
 };
 REGISTER_HIDDEN_MODULE(unix_sock, &display_unix_sock_info, LIBRARY_CLASS_VIDEO_DISPLAY, VIDEO_DISPLAY_ABI_VERSION);

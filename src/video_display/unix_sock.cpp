@@ -67,29 +67,24 @@
 #define DEFAULT_SCALE_W 960
 #define DEFAULT_SCALE_H 540
 
-using ipc_frame_conv_func_t = bool (*)(struct Ipc_frame *dst,
-                const struct video_frame *src,
+using ipc_frame_conv_func_t = bool (*)(Ipc_frame *dst,
+                const video_frame *src,
                 codec_t codec,
                 unsigned scale_factor);
 
 static constexpr unsigned int IN_QUEUE_MAX_BUFFER_LEN = 5;
 static constexpr int SKIP_FIRST_N_FRAMES_IN_STREAM = 5;
 
-static void display_unix_sock_run(void *state);
-
 namespace{
-struct frame_deleter { void operator()(video_frame *f){ vf_free(f); } };
-using unique_frame = std::unique_ptr<video_frame, frame_deleter>;
-}
+using unique_frame = std::unique_ptr<video_frame, deleter_from_fcn<vf_free>>;
 
-struct state_unix_sock {
+struct state_unix_sock{
         std::queue<unique_frame> incoming_queue;
         std::condition_variable frame_consumed_cv;
         std::condition_variable frame_available_cv;
         std::mutex lock;
 
         video_desc desc = {};
-        video_desc display_desc = {};
 
         Ipc_frame_uniq ipc_frame;
         Ipc_frame_writer_uniq frame_writer;
@@ -105,7 +100,7 @@ struct state_unix_sock {
         std::thread worker_thread;
 };
 
-static void show_help(){
+void show_help(){
         col() << "unix_socket/preview display. The two display are identical apart from their defaults and the fact that preview never blocks on putf().\n";
         col() << "usage:\n";
         col() << TBOLD(TRED("\t-d (unix_socket|preview)") << "[:path=<path>][:target_size=<w>x<h>]")
@@ -119,7 +114,9 @@ static void show_help(){
         col() << TBOLD("\thq")           << "\tUse higher quality downscale\n";
 }
 
-static void *display_unix_sock_init(struct module *parent,
+void display_unix_sock_run(void *state);
+
+void *display_unix_sock_init(module *parent,
                 const char *fmt,
                 unsigned int flags,
                 bool is_preview)
@@ -128,7 +125,6 @@ static void *display_unix_sock_init(struct module *parent,
         UNUSED(fmt);
 
         auto s = std::make_unique<state_unix_sock>();
-
         std::string_view fmt_sv = fmt ? fmt : "";
 
         std::string socket_path = get_temp_dir();
@@ -158,7 +154,7 @@ static void *display_unix_sock_init(struct module *parent,
                 } else if(key == "target_size"){
                         auto val = tokenize(tok, '=');
                         if(!parse_num(tokenize(val, 'x'), s->target_width)
-                            || !parse_num(tokenize(val, 'x'), s->target_height))
+                                || !parse_num(tokenize(val, 'x'), s->target_height))
                         {
                                 log_msg(LOG_LEVEL_ERROR, MOD_NAME "Failed to parse resolution\n");
                                 return nullptr;
@@ -178,27 +174,23 @@ static void *display_unix_sock_init(struct module *parent,
         return s.release();
 }
 
-static void display_unix_sock_run(void *state)
-{
+void display_unix_sock_run(void *state){
         auto s = static_cast<state_unix_sock *>(state);
         int skipped = 0;
 
-        while (true) {
-                auto frame = [&]{
-                        std::unique_lock<std::mutex> l(s->lock);
-                        s->frame_available_cv.wait(l,
-                                        [s]{return !s->incoming_queue.empty();});
-                        auto frame = std::move(s->incoming_queue.front());
-                        s->incoming_queue.pop();
-                        s->frame_consumed_cv.notify_one();
-                        return frame;
-                }();
+        while(true){
+                std::unique_lock<std::mutex> l(s->lock);
+                s->frame_available_cv.wait(l, [s]{ return !s->incoming_queue.empty(); });
+                auto frame = std::move(s->incoming_queue.front());
+                s->incoming_queue.pop();
+                l.unlock();
+                s->frame_consumed_cv.notify_one();
 
-                if (!frame) {
+                if(!frame){
                         break;
                 }
 
-                if (skipped < SKIP_FIRST_N_FRAMES_IN_STREAM){
+                if(skipped < SKIP_FIRST_N_FRAMES_IN_STREAM){
                         skipped++;
                         continue;
                 }
@@ -206,10 +198,10 @@ static void display_unix_sock_run(void *state)
                 const tile *tile = &frame->tiles[0];
 
                 int scale = ipc_frame_get_scale_factor(tile->width, tile->height,
-                                s->target_width, s->target_height);
+                        s->target_width, s->target_height);
 
                 if(!s->ipc_conv(s->ipc_frame.get(), frame.get(),
-                                        RGB, scale))
+                        RGB, scale))
                 {
                         log_msg(LOG_LEVEL_WARNING, MOD_NAME "Unable to convert\n");
                         continue;
@@ -223,8 +215,7 @@ static void display_unix_sock_run(void *state)
         }
 }
 
-static void display_unix_sock_done(void *state)
-{
+void display_unix_sock_done(void *state){
         auto s = static_cast<state_unix_sock *>(state);
 
         if(s->worker_thread.joinable()){
@@ -234,23 +225,21 @@ static void display_unix_sock_done(void *state)
         delete s;
 }
 
-static struct video_frame *display_unix_sock_getf(void *state)
-{
+video_frame *display_unix_sock_getf(void *state){
         auto s = static_cast<state_unix_sock *>(state);
 
         return vf_alloc_desc_data(s->desc);
 }
 
-static bool display_unix_sock_putf(void *state, struct video_frame *frame, long long flags)
-{
+bool display_unix_sock_putf(void *state, video_frame *frame, long long flags){
         auto s = static_cast<state_unix_sock *>(state);
         auto f = unique_frame(frame);
 
-        if (flags == PUTF_DISCARD)
+        if(flags == PUTF_DISCARD)
                 return true;
 
         std::unique_lock<std::mutex> lg(s->lock);
-        if (s->incoming_queue.size() >= IN_QUEUE_MAX_BUFFER_LEN){
+        if(s->incoming_queue.size() >= IN_QUEUE_MAX_BUFFER_LEN){
                 if(flags != PUTF_BLOCKING){
                         log_msg(LOG_LEVEL_WARNING, MOD_NAME "queue full!\n");
                         return false;
@@ -260,7 +249,7 @@ static bool display_unix_sock_putf(void *state, struct video_frame *frame, long 
                 }
         }
 
-        s->frame_consumed_cv.wait(lg, [s]{return s->incoming_queue.size() < IN_QUEUE_MAX_BUFFER_LEN;});
+        s->frame_consumed_cv.wait(lg, [s]{ return s->incoming_queue.size() < IN_QUEUE_MAX_BUFFER_LEN; });
         s->incoming_queue.push(std::move(f));
         lg.unlock();
         s->frame_available_cv.notify_one();
@@ -268,50 +257,48 @@ static bool display_unix_sock_putf(void *state, struct video_frame *frame, long 
         return true;
 }
 
-static bool display_unix_sock_get_property(void *state, int property, void *val, size_t *len)
-{
+bool display_unix_sock_get_property(void *state, int property, void *val, size_t *len){
         UNUSED(state);
         codec_t codecs[] = {UYVY, RGBA, RGB};
-        enum interlacing_t supported_il_modes[] = {PROGRESSIVE, INTERLACED_MERGED, SEGMENTED_FRAME};
+        interlacing_t supported_il_modes[] = {PROGRESSIVE, INTERLACED_MERGED, SEGMENTED_FRAME};
         int rgb_shift[] = {0, 8, 16};
 
-        switch (property) {
-                case DISPLAY_PROPERTY_CODECS:
-                        if(sizeof(codecs) <= *len) {
-                                memcpy(val, codecs, sizeof(codecs));
-                        } else {
-                                return false;
-                        }
-
-                        *len = sizeof(codecs);
-                        break;
-                case DISPLAY_PROPERTY_RGB_SHIFT:
-                        if(sizeof(rgb_shift) > *len) {
-                                return false;
-                        }
-                        memcpy(val, rgb_shift, sizeof(rgb_shift));
-                        *len = sizeof(rgb_shift);
-                        break;
-                case DISPLAY_PROPERTY_BUF_PITCH:
-                        *(int *) val = PITCH_DEFAULT;
-                        *len = sizeof(int);
-                        break;
-                case DISPLAY_PROPERTY_SUPPORTED_IL_MODES:
-                        if(sizeof(supported_il_modes) <= *len) {
-                                memcpy(val, supported_il_modes, sizeof(supported_il_modes));
-                        } else {
-                                return false;
-                        }
-                        *len = sizeof(supported_il_modes);
-                        break;
-                default:
+        switch(property){
+        case DISPLAY_PROPERTY_CODECS:
+                if(sizeof(codecs) <= *len){
+                        memcpy(val, codecs, sizeof(codecs));
+                } else{
                         return false;
+                }
+
+                *len = sizeof(codecs);
+                break;
+        case DISPLAY_PROPERTY_RGB_SHIFT:
+                if(sizeof(rgb_shift) > *len){
+                        return false;
+                }
+                memcpy(val, rgb_shift, sizeof(rgb_shift));
+                *len = sizeof(rgb_shift);
+                break;
+        case DISPLAY_PROPERTY_BUF_PITCH:
+                *static_cast<int *>(val) = PITCH_DEFAULT;
+                *len = sizeof(int);
+                break;
+        case DISPLAY_PROPERTY_SUPPORTED_IL_MODES:
+                if(sizeof(supported_il_modes) <= *len){
+                        memcpy(val, supported_il_modes, sizeof(supported_il_modes));
+                } else{
+                        return false;
+                }
+                *len = sizeof(supported_il_modes);
+                break;
+        default:
+                return false;
         }
         return true;
 }
 
-static bool display_unix_sock_reconfigure(void *state, struct video_desc desc)
-{
+bool display_unix_sock_reconfigure(void *state, video_desc desc){
         auto s = static_cast<state_unix_sock *>(state);
 
         s->desc = desc;
@@ -319,19 +306,20 @@ static bool display_unix_sock_reconfigure(void *state, struct video_desc desc)
         return true;
 }
 
-static void display_unix_sock_probe(struct device_info **available_cards, int *count, void (**deleter)(void *)) {
+void display_unix_sock_probe(device_info **available_cards, int *count, void (**deleter)(void *)){
         UNUSED(deleter);
         *available_cards = nullptr;
         *count = 0;
 }
 
-static void *display_unix_sock_init_preview(struct module *parent, const char *fmt, unsigned int flags) {
+void *display_unix_sock_init_preview(module *parent, const char *fmt, unsigned int flags){
         return display_unix_sock_init(parent, fmt, flags, true);
 }
 
-static void *display_unix_sock_init_no_preview(struct module *parent, const char *fmt, unsigned int flags) {
+void *display_unix_sock_init_no_preview(module *parent, const char *fmt, unsigned int flags){
         return display_unix_sock_init(parent, fmt, flags, false);
 }
+} //anon namespace
 
 constexpr video_display_info display_unix_sock_info = {
         display_unix_sock_probe,

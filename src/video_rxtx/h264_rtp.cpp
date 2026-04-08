@@ -39,19 +39,23 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <atomic>                        // for atomic
+#include <cassert>            // for assert
 #include <cctype>
 #include <cstdint>            // for uint32_t
 #include <cstdio>             // for printf
 #include <cstdlib>
 #include <cstring>
 #include <memory>
+#include <utility>                       // for move
 
-#include "compat/strings.h" // strdupa
+#include "audio/types.h"                 // for audio_desc
 #include "debug.h"
 #include "host.h"
 #include "lib_common.h"
 #include "messaging.h"
 #include "rtp/rtp.h"
+#include "rtsp/c_basicRTSPOnlyServer.h"  // for rtsp_server_parameters, c_st...
 #include "rtsp/rtsp_utils.h"  // for rtsp_types_t
 #include "transmit.h"
 #include "tv.h"
@@ -60,12 +64,36 @@
 #include "utils/sdp.h"        // for sdp_print_supported_codecs
 #include "video_codec.h"      // for get_codec_name
 #include "video_rxtx.h"
-#include "video_rxtx/h264_rtp.hpp"
+#include "video_rxtx/rtp.hpp"
 
 constexpr char DEFAULT_RTSP_COMPRESSION[] = "lavc:enc=libx264:safe";
 #define MOD_NAME "[vrxtx/h264_rtp] "
 
 using std::shared_ptr;
+
+class h264_rtp_video_rxtx {
+public:
+        h264_rtp_video_rxtx(const struct vrxtx_params *params,
+                            const struct common_opts  *common, int rtsp_port);
+        ~h264_rtp_video_rxtx();
+        void join();
+        void set_audio_spec(const struct audio_desc *desc, int audio_rx_port,
+                            int audio_tx_port, bool ipv6);
+        void send_frame(std::shared_ptr<video_frame>) noexcept;
+
+private:
+        struct rtp_rxtx_common *m_rtp_common;
+        void                          configure_rtsp_server_video();
+        struct rtsp_server_parameters rtsp_params{};
+        std::atomic<bool>             audio_params_set = false;
+        rtsp_serv_t                  *m_rtsp_server    = nullptr;
+        void (*tx_send_std)(struct tx *tx_session, struct video_frame *frame,
+                            struct rtp *rtp_session) = nullptr;
+
+        bool m_sent_compress_change = false;
+        struct module *m_parent;
+        time_ns_t      m_start_time;
+};
 
 h264_rtp_video_rxtx::h264_rtp_video_rxtx(const struct vrxtx_params *params,
                             const struct common_opts *common, int rtsp_port) :

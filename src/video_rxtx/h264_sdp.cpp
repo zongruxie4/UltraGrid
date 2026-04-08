@@ -39,13 +39,13 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "video_rxtx/h264_sdp.hpp"
-
 #include <cstdint>               // for uint32_t
 #include <cstdlib>               // for abort
-#include <cstring>               // for strncpy
 #include <exception>             // for exception
-#include <iostream>
+#include <memory>                // for shared_ptr
+#include <ostream>               // for basic_ostream, operator<<
+#include <string>                // for basic_string, string, operator==
+#include <utility>               // for move
 
 #include "audio/audio.h"
 #include "audio/types.h"         // for audio_desc
@@ -57,6 +57,7 @@
 #include "rtp/rtp.h"
 #include "transmit.h"
 #include "tv.h"
+#include "types.h"               // for video_frame, VIDEO_CODEC_NONE, codec_t
 #include "ug_runtime_error.hpp"
 #include "utils/sdp.h"
 #include "video_codec.h"         // for is_codec_opaque
@@ -66,7 +67,27 @@
 #define DEFAULT_SDP_COMPRESSION "lavc:codec=MJPG:safe"
 #define MOD_NAME "[vrxtx/sdp] "
 
-using std::cout;
+class h264_sdp_video_rxtx {
+public:
+        h264_sdp_video_rxtx(const struct vrxtx_params *params,
+                            const struct common_opts  *common);
+        ~h264_sdp_video_rxtx();
+        void send_frame(std::shared_ptr<video_frame>) noexcept;
+        void set_audio_spec(const struct audio_desc *desc, int audio_rx_port,
+                            int audio_tx_port, bool ipv6);
+private:
+        struct rtp_rxtx_common *m_rtp_common;
+        static void change_address_callback(void *udata, const char *address);
+        void sdp_add_video(codec_t codec);
+        codec_t m_sdp_configured_codec = VIDEO_CODEC_NONE;
+        int m_saved_tx_port;
+        bool m_sent_compress_change = false;
+
+        std::string m_saved_addr; ///< for dynamic address reconfiguration, @see m_autorun
+        struct module *m_parent;
+};
+
+
 using std::exception;
 using std::shared_ptr;
 using std::string;

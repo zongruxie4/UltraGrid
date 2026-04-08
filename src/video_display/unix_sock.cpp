@@ -102,7 +102,7 @@ struct state_unix_sock {
         ipc_frame_conv_func_t ipc_conv = ipc_frame_from_ug_frame;
 
         module *parent = nullptr;
-        std::thread thread_id;
+        std::thread worker_thread;
 };
 
 static void show_help(){
@@ -174,7 +174,7 @@ static void *display_unix_sock_init(struct module *parent,
                 return nullptr;
         }
 
-        s->thread_id = std::thread(display_unix_sock_run, s.get());
+        s->worker_thread = std::thread(display_unix_sock_run, s.get());
         return s.release();
 }
 
@@ -226,7 +226,10 @@ static void display_unix_sock_run(void *state)
 static void display_unix_sock_done(void *state)
 {
         auto s = static_cast<state_unix_sock *>(state);
-        s->thread_id.join();
+
+        if(s->worker_thread.joinable()){
+                s->worker_thread.join();
+        }
 
         delete s;
 }

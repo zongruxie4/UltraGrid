@@ -41,8 +41,6 @@
  */
 
 #define WIN32
-#include "config_msvc.h"
-#include "config_win32.h"
 
 #include <assert.h>
 #include <stdlib.h>

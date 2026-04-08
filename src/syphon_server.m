@@ -35,8 +35,6 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "config.h"
-#include "config_unix.h"
 #include "debug.h"
 
 #include <OpenGL/gl.h>

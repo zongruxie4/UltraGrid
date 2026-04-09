@@ -178,9 +178,6 @@ struct state_vulkan_sdl3 {
 
         Uint32 sdl_user_new_message_event;
 
-        chrono::steady_clock::time_point time{};
-        uint64_t frames = 0;
-
         bool deinterlace = false;
         bool fullscreen = false;
         bool keep_aspect = false;
@@ -429,7 +426,6 @@ void display_vulkan_run(void* state) {
         auto* s = static_cast<state_vulkan_sdl3*>(state);
         assert(s->magic == magic_vulkan_sdl3);
         
-        s->time = chrono::steady_clock::now();
         while (!s->should_exit) {
                 process_events(*s);
                 if(s->show_cursor == state_vulkan_sdl3::SC_AUTOHIDE
@@ -440,21 +436,9 @@ void display_vulkan_run(void* state) {
                         s->cursor_is_shown = false;
                 }
                 try {
-                        bool displayed = s->vulkan->display_queued_image();
-                        if (displayed) {
-                                s->frames++;
-                        }
-                } 
-                catch (std::exception& e) { log_and_exit_uv(e); break; }
-                auto now = chrono::steady_clock::now();
-                double seconds = chrono::duration<double>{ now - s->time }.count();
-                if (seconds > 5) {
-                        display_print_fps(MOD_NAME, seconds, (int) s->frames,
-                                          s->current_desc.fps);
-
-                        s->time = now;
-                        s->frames = 0;
+                        s->vulkan->display_queued_image();
                 }
+                catch (std::exception& e) { log_and_exit_uv(e); break; }
         }
         SDL_CHECK(SDL_HideWindow(s->window));
 
@@ -1106,7 +1090,7 @@ const video_display_info display_vulkan_info = {
         display_vulkan_get_property,
         display_vulkan_put_audio_frame,
         display_vulkan_reconfigure_audio,
-        DISPLAY_NO_GENERIC_FPS_INDICATOR,
+        MOD_NAME,
 };
 
 } // namespace

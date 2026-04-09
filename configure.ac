@@ -1797,6 +1797,7 @@ then
                         SDL_TTF_LIBS=$(remove_mwindows "${SDL_TTF_LIBS?}")
                         TESTCARD2_LIB="${TESTCARD2_LIB-} ${SDL_TTF_LIBS?}"
                         AC_DEFINE([HAVE_LIBSDL_TTF], [1], [Build testcard2 with TTF support])
+                        INC="$INC ${SDL_TTF_CFLAGS?}"
                 fi
         fi
         add_module vidcap_testcard2 "${TESTCARD2_OBJ?}" "${TESTCARD2_LIB-}"

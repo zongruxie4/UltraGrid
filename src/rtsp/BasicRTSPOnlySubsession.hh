@@ -3,7 +3,8 @@
  * AUTHORS: David Cassany    <david.cassany@i2cat.net>
  *          Gerard Castillo  <gerard.castillo@i2cat.net>
  *
- * Copyright (c) 2005-2010 Fundació i2CAT, Internet I Innovació Digital a Catalunya
+ * Copyright (c) 2013-2014 Fundació i2CAT, Internet I Innovació Digital a Catalunya
+ * Copyright (c) 2014-2026 CESNET, zájmové sdružení právnických osob
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, is permitted provided that the following conditions
@@ -139,8 +140,7 @@ protected:
 protected:
 
     char* fSDPLines;
-    Destinations* Vdestination;
-    Destinations* Adestination;
+    Destinations* destination;
 
 private:
 

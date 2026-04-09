@@ -52,6 +52,12 @@
 // IWYU pragma: no_include <sys/time.h> # via tv.h
 // IWYU pragma: no_include <iterator>   # std::pair is rather in utility
 
+#ifdef _WIN32
+#include <basetsd.h>           // for SSIZE_T
+typedef SSIZE_T ssize_t;
+#else
+#include <sys/types.h>         // for ssize_t
+#endif
 
 #include "control_socket.h"
 #include "debug.h"
@@ -76,12 +82,69 @@
 #include "video_rxtx/rtp.hpp"  // for rtp_video_rxtx
 #include "ug_runtime_error.hpp"
 #include "utils/worker.h"
-#include "video_rxtx/rtp.hpp"
 
 constexpr uint32_t MAGIC = to_fourcc('V', 'X', 'u', 'r');
 
 using namespace std;
 using ultragrid::pthread_mutex_guard;
+
+class ultragrid_rtp_video_rxtx {
+public:
+        const uint32_t magic;
+        ultragrid_rtp_video_rxtx(const struct vrxtx_params *params,
+                                 const struct common_opts  *common);
+        virtual ~ultragrid_rtp_video_rxtx();
+        virtual void send_frame(std::shared_ptr<video_frame>) noexcept;
+        void join();
+        static void *receiver_thread(void *arg);
+
+        // transcoder functions
+        friend ssize_t hd_rum_decompress_write(void *state, void *buf, size_t count);
+private:
+        struct rtp_rxtx_common *m_rtp_common;
+        void *receiver_loop();
+        static void *send_frame_async_callback(void *arg);
+        virtual void send_frame_async(std::shared_ptr<video_frame>);
+
+        void receiver_process_messages();
+        void remove_display_from_decoders();
+        struct vcodec_state *new_video_decoder(struct display *d);
+        static void destroy_video_decoder(void *state);
+
+        enum video_mode  m_decoder_mode;
+        struct display  *m_display_device;
+        std::list<struct display *> m_display_copies; ///< some displays can be "forked"
+                                                      ///< and used simultaneously from
+                                                      ///< multiple decoders, here are
+                                                      ///< saved forked states
+
+        /**
+         * This variables serve as a notification when asynchronous sending exits
+         * @{ */
+        bool             m_async_sending = false;
+        std::condition_variable m_async_sending_cv;
+        std::mutex       m_async_sending_lock;
+        /// @}
+
+        long long int m_send_bytes_total;
+        struct control_state *m_control;
+        struct module *m_parent;
+        std::string m_encryption;
+
+        time_ns_t m_start_time;
+        long long int m_nano_per_frame_actual_cumul = 0;
+        long long int m_nano_per_frame_expected_cumul = 0;
+        long long int m_compress_millis_cumul = 0;
+
+        struct module *m_receiver_mod{};
+
+        bool m_should_exit = false;
+        static void should_exit(void *state);
+
+        friend uint32_t ultragrid_rtp_get_ssrc(void *state);
+        friend int      ultragrid_rtp_send_raw_rtp_data(void *state, char *buf,
+                                                        int count);
+};
 
 ultragrid_rtp_video_rxtx::ultragrid_rtp_video_rxtx(
     const struct vrxtx_params *params, const struct common_opts *common) :

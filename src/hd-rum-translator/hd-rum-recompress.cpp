@@ -56,8 +56,9 @@
 #include "tv.h"
 #include "video_compress.h"
 
-#include "video_rxtx/ultragrid_rtp.hpp"
 #include "utils/profile_timer.hpp"
+#include "video_rxtx.h"                  // for rxtx_medium_params, vrxtx_pa...
+#include "video_rxtx/ultragrid_rtp.hpp"  // for ultragrid_rtp_get_ssrc
 
 namespace {
 struct compress_state_deleter{

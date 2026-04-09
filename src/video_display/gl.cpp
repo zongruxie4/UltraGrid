@@ -2298,7 +2298,6 @@ static bool display_gl_putf(void *state, struct video_frame *frame, long long ti
                         break;
         }
         if (s->frame_queue.size() >= MAX_BUFFER_SIZE) {
-                LOG(LOG_LEVEL_INFO) << MOD_NAME << "1 frame(s) dropped!\n";
                 vf_recycle(frame);
                 s->free_frame_queue.push(frame);
                 return false;

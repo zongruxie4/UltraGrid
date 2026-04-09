@@ -69,6 +69,12 @@ BasicRTSPOnlySubsession::createNew(UsageEnvironment& env,
                                            rtpPort, params);
 }
 
+constexpr enum module_class path_sender_audio[] = { MODULE_CLASS_AUDIO,
+                                                    MODULE_CLASS_SENDER,
+                                                    MODULE_CLASS_NONE };
+constexpr enum module_class path_sender_video[] = { MODULE_CLASS_SENDER,
+                                                    MODULE_CLASS_NONE };
+
 BasicRTSPOnlySubsession::BasicRTSPOnlySubsession(UsageEnvironment& env,
 		Boolean reuseFirstSource, rtsp_types_t avType, int rtpPort,
 		struct rtsp_server_parameters params) :
@@ -80,6 +86,8 @@ BasicRTSPOnlySubsession::BasicRTSPOnlySubsession(UsageEnvironment& env,
 	gethostname(fCNAME, sizeof fCNAME);
 	this->avType = avType;
 	this->rtpPort = rtpPort;
+        this->sender_msg_path =
+            avType == rtsp_type_audio ? path_sender_audio : path_sender_video;
 	fCNAME[sizeof fCNAME - 1] = '\0';
 
 	// print (preliminary) SDP
@@ -201,131 +209,55 @@ void BasicRTSPOnlySubsession::startStream(unsigned /* clientSessionId */,
 	        return;
 	}
 
-	if (avType == rtsp_type_video) {
-		char pathV[1024];
+	char path[1024] = "";
 
-		memset(pathV, 0, sizeof(pathV));
-		enum module_class path_sender[] = { MODULE_CLASS_SENDER,
-				MODULE_CLASS_NONE };
-		append_message_path(pathV, sizeof(pathV), path_sender);
+	append_message_path(path, sizeof(path), sender_msg_path);
 
-		//CHANGE DST PORT
-		struct msg_sender *msgV1 = (struct msg_sender *) new_message(
-				sizeof(struct msg_sender));
-		msgV1->tx_port = ntohs(destination->rtpPort.num());
-		msgV1->type = SENDER_MSG_CHANGE_PORT;
-		resp = send_message(rtsp_params.parent, pathV, (struct message *) msgV1);
-		free_response(resp);
+	//CHANGE DST PORT
+        auto *msg1 =
+            (struct msg_sender *) new_message(sizeof(struct msg_sender));
+        msg1->tx_port = ntohs(destination->rtpPort.num());
+        msg1->type    = SENDER_MSG_CHANGE_PORT;
+        resp = send_message(rtsp_params.parent, path, (struct message *) msg1);
+        free_response(resp);
 
-		//CHANGE DST ADDRESS
-		struct msg_sender *msgV2 = (struct msg_sender *) new_message(
-				sizeof(struct msg_sender));
-                char host[IN6_MAX_ASCII_LEN + 1];
-                const int ret =
-                    getnameinfo((struct sockaddr *) &destination->addr,
-                                sizeof destination->addr, host,
-                                sizeof host, nullptr, 0, NI_NUMERICHOST);
-                assert(ret == 0);
-		strncpy(msgV2->receiver, host,
-				sizeof(msgV2->receiver) - 1);
-		msgV2->type = SENDER_MSG_CHANGE_RECEIVER;
+        // CHANGE DST ADDRESS
+        auto *msg2 =
+            (struct msg_sender *) new_message(sizeof(struct msg_sender));
+        char      host[IN6_MAX_ASCII_LEN + 1];
+        const int ret = getnameinfo((struct sockaddr *) &destination->addr,
+                                    sizeof destination->addr, host, sizeof host,
+                                    nullptr, 0, NI_NUMERICHOST);
+        assert(ret == 0);
+        strncpy(msg2->receiver, host, sizeof(msg2->receiver) - 1);
+        msg2->type = SENDER_MSG_CHANGE_RECEIVER;
 
-		resp = send_message(rtsp_params.parent, pathV, (struct message *) msgV2);
-		free_response(resp);
-	}
-
-	if (avType == rtsp_type_audio) {
-		char pathA[1024];
-
-		memset(pathA, 0, sizeof(pathA));
-		enum module_class path_sender[] = { MODULE_CLASS_AUDIO,
-				MODULE_CLASS_SENDER, MODULE_CLASS_NONE };
-		append_message_path(pathA, sizeof(pathA), path_sender);
-
-		//CHANGE DST PORT
-		struct msg_sender *msgA1 = (struct msg_sender *) new_message(
-				sizeof(struct msg_sender));
-		msgA1->tx_port = ntohs(destination->rtpPort.num());
-		msgA1->type = SENDER_MSG_CHANGE_PORT;
-		resp = send_message(rtsp_params.parent, pathA, (struct message *) msgA1);
-		free_response(resp);
-		resp = NULL;
-
-		//CHANGE DST ADDRESS
-		struct msg_sender *msgA2 = (struct msg_sender *) new_message(
-				sizeof(struct msg_sender));
-                char host[IN6_MAX_ASCII_LEN + 1];
-                const int ret =
-                    getnameinfo((struct sockaddr *) &destination->addr,
-                                sizeof destination->addr, host,
-                                sizeof host, nullptr, 0, NI_NUMERICHOST);
-                assert(ret == 0);
-                strncpy(msgA2->receiver, host,
-				sizeof(msgA2->receiver) - 1);
-		msgA2->type = SENDER_MSG_CHANGE_RECEIVER;
-
-		resp = send_message(rtsp_params.parent, pathA, (struct message *) msgA2);
-		free_response(resp);
-		resp = NULL;
-	}
+        resp = send_message(rtsp_params.parent, path, (struct message *) msg2);
+        free_response(resp);
 }
 
 void BasicRTSPOnlySubsession::deleteStream(unsigned /* clientSessionId */,
 		void*& /* streamToken */) {
-	if (avType == rtsp_type_video) {
-		char pathV[1024];
-		delete destination;
-		destination = NULL;
-		memset(pathV, 0, sizeof(pathV));
-		enum module_class path_sender[] = { MODULE_CLASS_SENDER,
-				MODULE_CLASS_NONE };
-		append_message_path(pathV, sizeof(pathV), path_sender);
+        char path[1024] = "";
+        delete destination;
+        destination = nullptr;
+        append_message_path(path, sizeof(path), sender_msg_path);
 
-		//CHANGE DST PORT
-		struct msg_sender *msgV1 = (struct msg_sender *) new_message(
-				sizeof(struct msg_sender));
-		msgV1->tx_port = rtsp_params.rtp_port_video;
-		msgV1->type = SENDER_MSG_CHANGE_PORT;
-		struct response *resp;
-		resp = send_message(rtsp_params.parent, pathV, (struct message *) msgV1);
-		free_response(resp);
+        // CHANGE DST PORT
+        auto *msg1 =
+            (struct msg_sender *) new_message(sizeof(struct msg_sender));
+        msg1->tx_port = rtsp_params.rtp_port_video;
+        msg1->type    = SENDER_MSG_CHANGE_PORT;
+        struct response *resp =
+            send_message(rtsp_params.parent, path, (struct message *) msg1);
+        free_response(resp);
 
-		//CHANGE DST ADDRESS
-		struct msg_sender *msgV2 = (struct msg_sender *) new_message(
-				sizeof(struct msg_sender));
-		strncpy(msgV2->receiver, "127.0.0.1", sizeof(msgV2->receiver) - 1);
-		msgV2->type = SENDER_MSG_CHANGE_RECEIVER;
-		resp = send_message(rtsp_params.parent, pathV, (struct message *) msgV2);
-		free_response(resp);
-	}
-
-	if (avType == rtsp_type_audio) {
-		char pathA[1024];
-		delete destination;
-		destination = NULL;
-		memset(pathA, 0, sizeof(pathA));
-		enum module_class path_sender[] = { MODULE_CLASS_AUDIO,
-				MODULE_CLASS_SENDER, MODULE_CLASS_NONE };
-		append_message_path(pathA, sizeof(pathA), path_sender);
-
-		//CHANGE DST PORT
-		struct msg_sender *msgA1 = (struct msg_sender *) new_message(
-				sizeof(struct msg_sender));
-
-		//TODO: GET AUDIO PORT SET (NOT A COMMON CASE WHEN RTSP IS ENABLED: DEFAULT -> vport + 2)
-		msgA1->tx_port = rtsp_params.rtp_port_audio;
-		msgA1->type = SENDER_MSG_CHANGE_PORT;
-		struct response *resp;
-                resp = send_message(rtsp_params.parent, pathA, (struct message *) msgA1);
-		free_response(resp);
-
-		//CHANGE DST ADDRESS
-		struct msg_sender *msgA2 = (struct msg_sender *) new_message(
-				sizeof(struct msg_sender));
-		strncpy(msgA2->receiver, "127.0.0.1", sizeof(msgA2->receiver) - 1);
-		msgA2->type = SENDER_MSG_CHANGE_RECEIVER;
-		resp = send_message(rtsp_params.parent, pathA, (struct message *) msgA2);
-		free_response(resp);
-	}
+        // CHANGE DST ADDRESS
+        auto *msg2 =
+            (struct msg_sender *) new_message(sizeof(struct msg_sender));
+        strncpy(msg2->receiver, "127.0.0.1", sizeof(msg2->receiver) - 1);
+        msg2->type = SENDER_MSG_CHANGE_RECEIVER;
+        resp = send_message(rtsp_params.parent, path, (struct message *) msg2);
+        free_response(resp);
 }
 /* vi: set noexpandtab: */

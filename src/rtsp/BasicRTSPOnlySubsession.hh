@@ -151,6 +151,7 @@ private:
     char fCNAME[100];
     rtsp_types_t avType;
     int          rtpPort;
+    const enum module_class *sender_msg_path;
     struct rtsp_server_parameters rtsp_params;
 };
 

@@ -3,7 +3,7 @@
  * AUTHORS: Colin Perkins
  * 
  * Copyright (c) 1998-2000 University College London
- * Copyright (c) 2005-2021 CESNET, z. s. p. o.
+ * Copyright (c) 2005-2026 CESNET, zájmové sdružení právnických osob
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,11 +42,22 @@
 
 #include "compat/net.h"
 
-#ifndef __cplusplus
+#ifdef __cplusplus
+#include <cstdint>
+#else
 #include <stdbool.h>
+#include <stdint.h>
+#endif
+
+#ifdef _WIN32
+#include <winsock2.h>    // for fd_set
+#else
+#include <sys/select.h>  // for fd_set
 #endif
 
 typedef struct _socket_udp socket_udp; 
+struct iovec;
+struct timeval;
 struct socket_udp_local;
 
 #if defined(__cplusplus)

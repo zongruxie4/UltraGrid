@@ -112,6 +112,6 @@ SOURCES += window/ultragrid_window.cpp \
 	../../tools/astat.cpp \
 	../../tools/ipc_frame.cpp \
 	../../tools/ipc_frame_unix.cpp \
-	../../src/compat/platform_pipe.cpp \
+	../../src/compat/platform_pipe.c \
 	../../src/utils/string_view_utils.cpp \
 	main.cpp

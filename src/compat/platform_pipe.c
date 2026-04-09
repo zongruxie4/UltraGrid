@@ -3,7 +3,7 @@
  * @author Martin Pulec     <pulec@cesnet.cz>
  */
 /*
- * Copyright (c) 2015-2021 CESNET, z. s. p. o.
+ * Copyright (c) 2015-2026 CESNET, zájmové sdružení právnických osob
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,19 +37,19 @@
 
 #include "compat/platform_pipe.h"
 
-#include <cstdio>         // for perror, NULL, fprintf, stderr
-#include <cstring>        // for memset
+#include <pthread.h>      // for pthread_t
+#include <stdio.h>        // for perror, NULL, fprintf, stderr
+#include <string.h>       // for memset
 #include <sys/time.h>     // for timeval
-#include <thread>
 
 #ifndef _WIN32
 #include <unistd.h>       // for pipe
 #endif
 
-#include "rtp/net_udp.h" // socket_error
+#include "compat/c23.h"
 #include "compat/net.h"  // htons etc.
+#include "rtp/net_udp.h" // socket_error
 
-using std::thread;
 
 #ifdef _WIN32
 #define DECLARE_TIMEOUT(name, init_val_s) DWORD name = init_val_s * 1000
@@ -76,7 +76,7 @@ static fd_t open_socket(int *port)
         s_in.sin_family = AF_INET;
         s_in.sin_addr.s_addr = htonl(INADDR_ANY);
         s_in.sin_port = htons(0);
-        if (::bind(sock, (const struct sockaddr *) &s_in,
+        if (bind(sock, (const struct sockaddr *) &s_in,
                         sizeof(s_in)) != 0) {
                 CLOSESOCKET(sock);
                 return INVALID_SOCKET;
@@ -110,10 +110,10 @@ static fd_t connect_to_socket(int local_port)
         DECLARE_TIMEOUT(timeout, 1);
         DECLARE_TIMEOUT(old_timeout, 0);
         socklen_t old_timeout_len = sizeof old_timeout;
-        if (getsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, reinterpret_cast<sockopt_t>(&old_timeout), &old_timeout_len) != 0) {
+        if (getsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, (sockopt_t) &old_timeout, &old_timeout_len) != 0) {
                 socket_error("pipe getsockopt");
         }
-        if (setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, reinterpret_cast<sockopt_t>(&timeout), sizeof timeout) != 0) {
+        if (setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, (sockopt_t) &timeout, sizeof timeout) != 0) {
                 socket_error("pipe setsockopt");
         }
         ret = connect(fd, (struct sockaddr *) &s_in,
@@ -123,7 +123,7 @@ static fd_t connect_to_socket(int local_port)
                 CLOSESOCKET(fd);
                 return INVALID_SOCKET;
         }
-        if (setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, reinterpret_cast<sockopt_t>(&old_timeout), old_timeout_len) != 0) {
+        if (setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, (sockopt_t) &old_timeout, old_timeout_len) != 0) {
                 socket_error("pipe setsockopt");
         }
 
@@ -186,7 +186,7 @@ int platform_pipe_init(fd_t p[2])
         }
 #endif
 
-        struct params par{};
+        struct params par = { 0 };
         fd_t sock = open_socket(&par.port);
         if (sock == INVALID_SOCKET) {
                 perror("open_socket");
@@ -196,24 +196,25 @@ int platform_pipe_init(fd_t p[2])
         DECLARE_TIMEOUT(timeout, 1);
         DECLARE_TIMEOUT(old_timeout, 0);
         socklen_t old_timeout_len = sizeof old_timeout;
-        if (getsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<sockopt_t>(&old_timeout), &old_timeout_len) != 0) {
+        if (getsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (sockopt_t) &old_timeout, &old_timeout_len) != 0) {
                 socket_error("pipe getsockopt");
         }
-        if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<sockopt_t>(&timeout), sizeof timeout) != 0) {
+        if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (sockopt_t) &timeout, sizeof timeout) != 0) {
                 socket_error("pipe setsockopt");
         }
 
-        thread thr(worker, &par);
+        pthread_t thread_id;
+        pthread_create(&thread_id, nullptr, worker, &par);
 
         p[0] = accept(sock, NULL, NULL);
         if (p[0] == INVALID_SOCKET) {
                 perror("pipe accept");
-                thr.join();
+                pthread_join(thread_id, nullptr);
                 CLOSESOCKET(sock);
                 return system_pipe(p);
         }
-        thr.join();
-        if (setsockopt(p[0], SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<sockopt_t>(&old_timeout), old_timeout_len) != 0) {
+        pthread_join(thread_id, nullptr);
+        if (setsockopt(p[0], SOL_SOCKET, SO_RCVTIMEO, (sockopt_t) &old_timeout, old_timeout_len) != 0) {
                 socket_error("pipe setsockopt");
         }
         p[1] = par.sock;

@@ -39,7 +39,7 @@
 #define platform_pipe_h
 
 #ifndef _WIN32
-#include <unistd.h> //for read, write
+#include <unistd.h>     // for read, write // IWYU pragma: keep
 #endif
 #include "compat/net.h" //for fd_t
 

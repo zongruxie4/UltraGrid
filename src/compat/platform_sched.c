@@ -8,7 +8,7 @@
 #include <sched.h>
 
 bool set_realtime_sched_this_thread(){
-        sched_param p = {};
+        struct sched_param p = { 0 };
 
         int policy = SCHED_RR;
         p.sched_priority = sched_get_priority_max(policy);

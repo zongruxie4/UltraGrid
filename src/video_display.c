@@ -106,6 +106,7 @@ struct display {
 
         time_ns_t t0;
         int frames;
+        int dropped;
 };
 
 void list_video_display_devices(bool full)
@@ -352,17 +353,22 @@ struct video_frame *display_get_frame(struct display *d)
  * indicator but externally linked for those that do not, like vulkan_sdl3.
  */
 void
-display_print_fps(const char *prefix, double seconds, int frames,
+display_print_fps(const char *prefix, double seconds, int frames, int dropped,
                   double nominal_fps)
 {
         const double      fps     = frames / seconds;
         const char *const fps_col = get_stat_color(fps / nominal_fps);
 
+        char drop_str[32] = "";
+        if(dropped > 0){
+                snprintf(drop_str, sizeof(drop_str), " (%d frames dropped)", dropped);
+        }
+
         log_msg(LOG_LEVEL_INFO,
                 TERM_BOLD TERM_FG_MAGENTA "%s" TERM_RESET
                                           "%d frames in %g seconds = " TERM_BOLD
-                                          "%s%g FPS" TERM_RESET "\n",
-                prefix, frames, seconds, fps_col, fps);
+                                          "%s%g FPS%s" TERM_RESET "\n",
+                prefix, frames, seconds, fps_col, fps, drop_str);
 }
 
 static bool display_frame_helper(struct display *d, struct video_frame *frame, long long timeout_ns)
@@ -378,6 +384,8 @@ static bool display_frame_helper(struct display *d, struct video_frame *frame, l
         }
         if (ret) {
                 d->frames++;
+        } else{
+                d->dropped++;
         }
         // display FPS
         time_ns_t t = get_time_in_ns();
@@ -385,9 +393,10 @@ static bool display_frame_helper(struct display *d, struct video_frame *frame, l
         if (seconds_ns > 5 * NS_IN_SEC) {
                 const double seconds = (double) seconds_ns / NS_IN_SEC;
                 display_print_fps(d->funcs->generic_fps_indicator_prefix,
-                                  seconds, d->frames, frame_fps);
+                                  seconds, d->frames, d->dropped, frame_fps);
 
                 d->frames = 0;
+                d->dropped = 0;
                 d->t0 = t;
         }
         return ret;

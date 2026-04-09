@@ -211,7 +211,7 @@ bool                     display_reconfigure_audio(struct display *d, int quant_
 struct video_frame *get_splashscreen(void);
 const char         *get_audio_conn_flag_name(int audio_init_flag);
 
-void display_print_fps(const char *prefix, double seconds, int frames,
+void display_print_fps(const char *prefix, double seconds, int frames, int dropped,
                        double nominal_fps);
 
 #ifdef __cplusplus

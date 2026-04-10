@@ -242,10 +242,8 @@ void ultragrid_rtp_video_rxtx::send_frame_async(shared_ptr<video_frame> tx_frame
 
 void ultragrid_rtp_video_rxtx::receiver_process_messages()
 {
-        struct msg_receiver *msg;
+        struct msg_receiver *msg = nullptr;
         while ((msg = (struct msg_receiver *) check_message(m_receiver_mod))) {
-                struct response    *r = nullptr;
-
                 switch (msg->type) {
                 case RECEIVER_MSG_VIDEO_PROP_CHANGED:
                         rtp_rxtx_set_pbuf_delay(m_rtp_common,

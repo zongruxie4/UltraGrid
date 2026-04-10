@@ -56,11 +56,14 @@ jobs:
   Ubuntu:
     needs: prepare
     uses: ./.github/workflows/linux.yml
+    secrets: inherit
 
   macOS:
     needs: prepare
     uses: ./.github/workflows/macos.yml
+    secrets: inherit
 
   Windows:
     needs: prepare
     uses: ./.github/workflows/windows.yml
+    secrets: inherit

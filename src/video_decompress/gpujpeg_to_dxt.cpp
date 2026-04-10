@@ -3,7 +3,7 @@
  * @author Martin Pulec  <pulec@cesnet.cz>
  */
 /*
- * Copyright (c) 2012-2025, CESNET
+ * Copyright (c) 2012-2026, CESNET, zájmové sdružení právnických osob
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -361,7 +361,10 @@ static void gpujpeg_to_dxt_decompress_done(void *state)
         delete s;
 }
 
-static int gpujpeg_to_dxt_decompress_get_priority(codec_t compression, struct pixfmt_desc internal, codec_t ugc) {
+static int
+gpujpeg_to_dxt_decompress_get_priority(codec_t            compression,
+                                       struct pixfmt_desc /* internal */, codec_t ugc)
+{
         return compression == JPEG && (ugc == DXT1 || ugc == DXT5) ? 900 : -1;
 }
 

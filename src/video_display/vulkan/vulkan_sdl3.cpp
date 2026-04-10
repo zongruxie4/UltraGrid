@@ -175,7 +175,7 @@ struct state_vulkan_sdl3 {
         // Use raw pointers because std::unique_ptr might not have standard layout
         vkd::VulkanDisplay* vulkan = nullptr;
         WindowCallback* window_callback = nullptr;
-        FrameMappings* frame_mappings = new FrameMappings();
+        FrameMappings frame_mappings;
 
         std::atomic<bool> should_exit = false;
         video_desc current_desc{};
@@ -190,9 +190,7 @@ struct state_vulkan_sdl3 {
         state_vulkan_sdl3(state_vulkan_sdl3&& other) = delete;
         state_vulkan_sdl3& operator=(state_vulkan_sdl3&& other) = delete;
 
-        ~state_vulkan_sdl3() {
-                delete frame_mappings;
-        }
+        ~state_vulkan_sdl3() = default;
 };
 
 constexpr std::pair<int64_t, std::string_view> display_vulkan_keybindings[] = {
@@ -933,7 +931,7 @@ video_frame* display_vulkan_getf(void* state) {
                 image = s->vulkan->acquire_image(to_vkd_image_desc(desc, *s));
         } 
         catch (std::exception& e) { log_and_exit_uv(e); return nullptr; }
-        video_frame& frame = *s->frame_mappings->create_frame(image);
+        video_frame& frame = *s->frame_mappings.create_frame(image);
         
         update_description(desc, frame);
         frame.tiles[0].data_len = image.get_row_pitch() * image.get_size().height;
@@ -950,7 +948,7 @@ bool display_vulkan_putf(void* state, video_frame* frame, long long timeout_ns) 
                 return true;
         }
 
-        vkd::TransferImage image = s->frame_mappings->get_image(frame);
+        vkd::TransferImage image = s->frame_mappings.get_image(frame);
 
         if (timeout_ns == PUTF_DISCARD) {
                 try {

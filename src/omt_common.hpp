@@ -51,5 +51,6 @@ void omt_log_callback(const char *msg);
 void set_omt_sender_info(omt_send_t *send_handle);
 bool omt_frame_init_from_desc(OMTMediaFrame& f, const video_desc& frame_desc);
 void omt_frame_set_data(OMTMediaFrame& f, const video_frame& ug_frame);
+video_desc video_desc_from_omt_frame(const OMTMediaFrame *omt_frame);
 
 #endif //OMT_COMMON_HPP_5963748ABF904BA79B6C22CAC8500636

@@ -168,16 +168,6 @@ void omt_rxtx_send_frame(void *state, std::shared_ptr<video_frame> f){
         omt_send(s->omt_send_handle.get(), &s->send_video_frame);
 }
 
-video_desc video_desc_from_omt_frame(const OMTMediaFrame *omt_frame){
-        video_desc incoming_desc{};
-        incoming_desc.fps = static_cast<double>(omt_frame->FrameRateN) / omt_frame->FrameRateD;
-        incoming_desc.width = omt_frame->Width;
-        incoming_desc.height = omt_frame->Height;
-        incoming_desc.color_spec = UYVY; assert(omt_frame->Codec == OMTCodec_UYVY); //TODO
-        incoming_desc.tile_count = 1;
-        return incoming_desc;
-}
-
 void *omt_rxtx_recv_worker(void *state){
         auto s = static_cast<omt_rxtx_state *>(state);
         register_should_exit_callback(s->parent, omt_should_exit_callback, s);

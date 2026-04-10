@@ -81,3 +81,13 @@ void omt_frame_set_data(OMTMediaFrame& f, const video_frame& ug_frame){
         f.DataLength = ug_frame.tiles[0].data_len;
 }
 
+video_desc video_desc_from_omt_frame(const OMTMediaFrame *omt_frame){
+        video_desc incoming_desc{};
+        incoming_desc.fps = static_cast<double>(omt_frame->FrameRateN) / omt_frame->FrameRateD;
+        incoming_desc.width = omt_frame->Width;
+        incoming_desc.height = omt_frame->Height;
+        incoming_desc.color_spec = UYVY; assert(omt_frame->Codec == OMTCodec_UYVY); //TODO
+        incoming_desc.tile_count = 1;
+        return incoming_desc;
+}
+

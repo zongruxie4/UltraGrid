@@ -10,6 +10,10 @@ REFLECTOR_TARGET=$2
 # test hd-rum-transcode crasn as in the commit 66f1f0e2
 check_hd_rum_transcode() {
         printf "Testing hd-rum-translator (1 sec dummy run) .............................. "
+        if [ ! "$REFLECTOR_TARGET" ]; then
+                echo --
+                return
+        fi
         $REFLECTOR_TARGET 8M 5004 >/dev/null 2>&1& pid=$!
         sleep 1
         kill $pid

@@ -37,12 +37,6 @@
   * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
   * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
   */
-  /**
-   * @file
-   * @todo
-   * Missing from SDL1:
-   * * audio (would be perhaps better as an audio playback device)
-   */
 
 #include <cctype>                                          // for toupper
 #include <cmath>                                           // for sqrt

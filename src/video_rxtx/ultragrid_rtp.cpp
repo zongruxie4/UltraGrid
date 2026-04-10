@@ -250,14 +250,14 @@ void ultragrid_rtp_video_rxtx::receiver_process_messages()
                 case RECEIVER_MSG_VIDEO_PROP_CHANGED:
                         rtp_rxtx_set_pbuf_delay(m_rtp_common,
                                            1.0 / msg->new_desc.fps);
+                        free_message((struct message *) msg,
+                                     new_response(RESPONSE_OK, nullptr));
                         break;
                 default:
                         assert(0 && "Wrong message passed to "
                                     "ultragrid_rtp_video_rxtx::receiver_"
                                     "process_messages()");
                 }
-
-                free_message((struct message *) msg, r ? r : new_response(RESPONSE_OK, NULL));
         }
 }
 

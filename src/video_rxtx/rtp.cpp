@@ -362,7 +362,10 @@ initialize_network(const char *addr, int recv_port, int send_port,
 static void
 destroy_rtp_device(struct rtp *network_device)
 {
-        rtp_done(network_device);
+        if (network_device != nullptr) {
+                rtp_done(network_device);
+        }
+        network_device = nullptr;
 }
 
 void rtp_rxtx_set_pbuf_delay(struct rtp_rxtx_common *s, double delay) {

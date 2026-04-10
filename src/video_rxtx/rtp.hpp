@@ -50,8 +50,6 @@
 
 #define INITIAL_VIDEO_SEND_BUFFER_SIZE  (1024*1024)
 
-void display_buf_increase_warning(int size);
-
 struct rtp_rxtx_common {
         struct rtp     *network_device;
         pthread_mutex_t network_devices_lock;

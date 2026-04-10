@@ -54,7 +54,6 @@
 #include "transmit.h"
 #include "ug_runtime_error.hpp"
 #include "utils/lock_guard.h"    // for ultragrid::pthread_mutex_guard
-#include "utils/misc.h"          // for format_in_si_units
 #include "utils/net.h" // IN6_BLACKHOLE_STR
 #include "video.h"
 #include "video_compress.h"
@@ -280,44 +279,6 @@ rtp_rxtx_common_done(struct rtp_rxtx_common *s)
         pthread_mutex_destroy(&s->network_devices_lock);
 
         free(priv);
-}
-
-void display_buf_increase_warning(int size)
-{
-        log_msg(LOG_LEVEL_INFO, "\n***\nUnable to set buffer size to %sB.\n",
-                format_in_si_units(size));
-
-#if defined _WIN32
-        log_msg(LOG_LEVEL_INFO, "See "
-                                "https://github.com/CESNET/UltraGrid/wiki/"
-                                "Extending-Network-Buffers-%%28Windows%%29 "
-                                "for details.\n");
-        return;
-#endif /* defined _WIN32 */
-
-#ifdef __APPLE__
-#define SYSCTL_ENTRY "net.inet.udp.recvspace"
-#else
-#define SYSCTL_ENTRY "net.core.rmem_max"
-#endif
-        log_msg(
-            LOG_LEVEL_INFO,
-            "Please set " SYSCTL_ENTRY " value to %d or greater (see also\n"
-            "https://github.com/CESNET/UltraGrid/wiki/OS-Setup-UltraGrid):\n"
-#ifdef __APPLE__
-            "\tsysctl -w kern.ipc.maxsockbuf=%d\n"
-#endif
-            "\tsysctl -w " SYSCTL_ENTRY "=%d\n"
-            "To make this persistent, add these options (key=value) to "
-            "/etc/sysctl.d/60-ultragrid.conf\n"
-            "\n***\n\n",
-            size,
-#ifdef __APPLE__
-            size * 4,
-#endif /* __APPLE__ */
-            size
-        );
-#undef SYSCTL_ENTRY
 }
 
 static struct rtp *

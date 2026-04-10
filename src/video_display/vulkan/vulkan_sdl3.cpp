@@ -1,5 +1,5 @@
 /**
- * @file   video_display/vulkan_sdl3.cpp
+ * @file   video_display/vulkan/vulkan_sdl3.cpp
  * @author Lukas Hejtmanek  <xhejtman@ics.muni.cz>
  * @author Milos Liska      <xliska@fi.muni.cz>
  * @author Martin Pulec     <pulec@cesnet.cz>

@@ -74,7 +74,8 @@ jobs:
     - name: bootstrap
       run: .github/scripts/macOS/prepare.sh
     - name: configure
-      run: "ARCH=$UG_ARCH ./autogen.sh $FEATURES || { RC=$?; cat config.log; exit $RC; }"
+      run: "ARCH=$UG_ARCH ./autogen.sh ${FEATURES:?}
+        || { RC=$?; cat config.log; exit $RC; }"
     - name: make bundle
       run: make -j4 gui-bundle
     - name: make check
@@ -91,6 +92,11 @@ jobs:
     - name: sign+notarize
       if: env.KEY_CHAIN != null
       run: .github/scripts/macOS/sign.sh uv-qt.app
+    - name: ensure sign+notarize in main repo
+      if: env.KEY_CHAIN == null && github.repository == 'CESNET/UltraGrid'
+        && github.ref == 'refs/heads/master'
+      run: "echo 'UltraGrid must be signed but key (set by environment.sh)\
+         is missing && exit 1"
     - name: make dmg
       run: |
         for n in `seq 5`; do # do more attempts

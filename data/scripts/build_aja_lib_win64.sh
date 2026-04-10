@@ -48,7 +48,7 @@ eval vssetup=\""$MSVS_PATH"\"'\\VC\\Auxiliary\\Build\\vcvars64.bat'
 cmd //Q //C call "$vssetup" "&&" cl //std:c++latest //EHsc //LD //D_XKEYCHECK_H \
       //DAJA_WINDOWS //DMSWindows //DAJA_NTV2SDK_VERSION_MAJOR=13 \
       src/aja_common.cpp  aja_capture.cpp aja_display.cpp \
-      src/video_capture/aja_win32_utils.cpp  src/video_capture_params.cpp \
+      src/video_capture/aja_win32_utils.cpp  src/video_capture_params.c \
       src/utils/config_file.cpp \
       src/utils/string.c \
       src/utils/video_frame_pool.cpp \

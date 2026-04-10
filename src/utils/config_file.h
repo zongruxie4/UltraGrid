@@ -3,7 +3,7 @@
  * @author Martin Pulec     <pulec@cesnet.cz>
  */
 /*
- * Copyright (c) 2013 CESNET z.s.p.o.
+ * Copyright (c) 2013-2026 CESNET, zájmové sdružení právnických osob
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -44,22 +44,28 @@ extern "C" {
 
 struct config_file;
 
+enum { CF_BUF_SZ = 1024 };
+
 char *default_config_file(char *buf, int buf_len);
 struct config_file *config_file_open(const char *name);
 void config_file_close(struct config_file *config_file);
+char *config_file_get_capture_filter_for_alias(struct config_file *config_file,
+                                               const char         *alias,
+                                               char out_buf[CF_BUF_SZ]);
+char *config_file_get_alias(struct config_file *config_file,
+                            const char         *requested_class,
+                            const char         *requested_name,
+                            char                out_buf[CF_BUF_SZ]);
 
 #ifdef __cplusplus
 }
 #endif // __cplusplus
 
+
 #ifdef __cplusplus
 #include <list>
 #include <string>
 #include <utility>
-std::string config_file_get_alias(struct config_file *config_file,
-                const char *requested_class, const char *requested_name);
-std::string config_file_get_capture_filter_for_alias(struct config_file *config_file,
-                const char *alias);
 std::list<std::pair<std::string, std::string>> get_configured_capture_aliases(struct config_file *config_file);
 #endif
 

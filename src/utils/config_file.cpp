@@ -5,7 +5,7 @@
  * @brief  Configuration file for UltraGrid
  */
 /*
- * Copyright (c) 2013 CESNET z.s.p.o.
+ * Copyright (c) 2013-2026 CESNET, zájmové sdružení právnických osob
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,13 +37,14 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "config_file.h"
+
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 
 #include "config_msvc.h"
-
-#include "config_file.h"
+#include "compat/strings.h" // for strlcpy
 
 
 using namespace std;
@@ -148,13 +149,15 @@ static string get_nth_word(struct config_file *s, const char *prefix, int index)
  * @param requested_name requested alias
  *
  * @retval NULL    if not found
- * @retval pointer pointer to string representation of the aliased item
+ * @retval pointer pointer to buf filled with string representation of the
+ *                 aliased item
  */
-string config_file_get_alias(struct config_file *s, const char *req_item_class,
-                const char *requested_name)
+char *
+config_file_get_alias(struct config_file *s, const char *req_item_class,
+                      const char *requested_name, char buf[CF_BUF_SZ])
 {
         if (!s) {
-                return {};
+                return nullptr;
         }
 
         char prefix[1024];
@@ -163,14 +166,20 @@ string config_file_get_alias(struct config_file *s, const char *req_item_class,
         snprintf(prefix, sizeof(prefix) - 1, "alias %s %s ",
                         req_item_class, requested_name);
 
-        return get_nth_word(s, prefix, 0);
+        string ret = get_nth_word(s, prefix, 0);
+        if (ret.empty()) {
+                return nullptr;
+        }
+        strlcpy(buf, ret.c_str(), CF_BUF_SZ);
+        return buf;
 }
 
-string config_file_get_capture_filter_for_alias(struct config_file *s,
-                const char *alias)
+char *
+config_file_get_capture_filter_for_alias(struct config_file *s,
+                                         const char *alias, char buf[CF_BUF_SZ])
 {
         if (!s) {
-                return {};
+                return nullptr;
         }
 
         char prefix[1024];
@@ -179,7 +188,12 @@ string config_file_get_capture_filter_for_alias(struct config_file *s,
         snprintf(prefix, sizeof(prefix) - 1, "capture-filter %s ",
                         alias);
 
-        return get_nth_word(s, prefix, 0);
+        string ret = get_nth_word(s, prefix, 0);
+        if (ret.empty()) {
+                return nullptr;
+        }
+        strlcpy(buf, ret.c_str(), CF_BUF_SZ);
+        return buf;
 }
 
 std::list<std::pair<std::string, std::string>> get_configured_capture_aliases(struct config_file *s)

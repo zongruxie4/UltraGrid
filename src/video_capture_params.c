@@ -39,14 +39,12 @@
 
 #include "video_capture_params.h"
 
-#include <cstdlib>              // for free, calloc
-#include <cstring>              // for strdup, NULL, strchr
-#include <string>
+#include <stdlib.h>             // for free, calloc
+#include <string.h>             // for strdup, NULL, strchr
 
+#include "compat/c23.h"         // IWYU pragma: keep
 #include "utils/config_file.h"
 #include "utils/string.h"       // for sprintf_append
-
-using namespace std;
 
 /**
  * Defines parameters passed to video capture driver.
@@ -74,17 +72,17 @@ static bool vidcap_dispatch_alias(struct vidcap_params *params)
 {
         bool ret;
         char buf[1024];
-        string real_capture;
+        char alias_buf[CF_BUF_SZ];
         struct config_file *conf =
                 config_file_open(default_config_file(buf,
                                         sizeof(buf)));
         if (conf == NULL)
                 return false;
-        real_capture = config_file_get_alias(conf, "capture", params->name);
-        if (real_capture.empty()) {
+        char *real_capture = config_file_get_alias(conf, "capture", params->name, alias_buf);
+        if (real_capture == nullptr) {
                 ret = false;
         } else {
-                params->driver = strdup(real_capture.c_str());
+                params->driver = strdup(real_capture);
                 if (strchr(params->driver, ':')) {
                         char *delim = strchr(params->driver, ':');
                         params->fmt = strdup(delim + 1);
@@ -97,10 +95,11 @@ static bool vidcap_dispatch_alias(struct vidcap_params *params)
 
 
         if (params->requested_capture_filter == NULL) {
-                string matched_cap_filter = config_file_get_capture_filter_for_alias(conf,
-                                        params->name);
-                if (!matched_cap_filter.empty())
-                        params->requested_capture_filter = strdup(matched_cap_filter.c_str());
+                char *matched_cap_filter =
+                    config_file_get_capture_filter_for_alias(conf, params->name,
+                                                             alias_buf);
+                if (matched_cap_filter != nullptr)
+                        params->requested_capture_filter = strdup(matched_cap_filter);
         }
 
         config_file_close(conf);

@@ -40,7 +40,7 @@
 #ifndef COMPAT_STRINGS_H_D54CAFC8_A1A0_4FF5_80A0_91F34FB11E12
 #define COMPAT_STRINGS_H_D54CAFC8_A1A0_4FF5_80A0_91F34FB11E12
   
-#include <string.h> // for strerror
+#include <string.h> // for size_t, strerror
 
 #ifdef _WIN32
 #ifndef strcasecmp
@@ -86,6 +86,16 @@ COMPAT_MISC_EXT_C int asprintf(char **strp, const char *fmt, ...);
                 #include <cstdio>   // for asprintf
         #else
                 #include <stdio.h>  // for asprintf
+        #endif
+#endif
+
+#if defined _WIN32 || (__GLIBC__ == 2 && __GLIBC_MINOR__ < 38)
+COMPAT_MISC_EXT_C size_t strlcpy(char *dst, const char *src, size_t size);
+#else
+        #ifdef __cplusplus
+                #include <cstring>   // for strlcpy
+        #else
+                #include <string.h>  // for strlcpy
         #endif
 #endif
 

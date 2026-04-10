@@ -317,3 +317,19 @@ asprintf(char **strp, const char *fmt, ...)
         return size;
 }
 #endif
+
+#if defined _WIN32 || (__GLIBC__ == 2 && __GLIBC_MINOR__ < 38)
+size_t
+strlcpy(char *dst, const char *src, size_t size)
+{
+        const size_t src_len = strlen(src);
+        if (src_len >= size) {
+                memcpy(dst, src, size - 1);
+                dst[size - 1] = '\0';
+        } else {
+                memcpy(dst, src, src_len);
+                dst[src_len] = '\0';
+        }
+        return src_len;
+}
+#endif

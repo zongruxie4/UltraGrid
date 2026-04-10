@@ -38,12 +38,24 @@
   * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
   */
 
+#include <algorithm>
+#include <array>
+#include <atomic>
+#include <cassert>
 #include <cctype>                                          // for toupper
 #include <cmath>                                           // for sqrt
+#include <condition_variable>
+#include <cstdint>
 #include <cstdio>                                          // for sscanf
 #include <cstdlib>                                         // for calloc
 #include <cstring>                                         // for strchr, strcmp
 #include <map>                                             // for map
+#include <memory>
+#include <mutex>
+#include <string>
+#include <string_view>
+#include <type_traits>
+#include <utility> // pair
 
 #include "debug.h"
 #include "host.h"
@@ -51,11 +63,11 @@
 #include "lib_common.h"
 #include "messaging.h"
 #include "module.h"
+#include "video.h"
+#include "video_display.h"
 #include "utils/color_out.h"
 #include "utils/macros.h"                                  // for IS_KEY_PREFIX
-#include "video_display.h"
 #include "video_display/splashscreen.h"
-#include "video.h"
 //remove leaking macros
 #undef min
 #undef max
@@ -71,22 +83,6 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_vulkan.h>
 
-#include <algorithm>
-#include <array>
-#include <atomic>
-#include <cassert>
-#include <condition_variable>
-#include <cstdint>
-#include <cstring>
-#include <limits>
-#include <mutex>
-#include <memory>
-#include <queue>
-#include <string>
-#include <string_view>
-#include <type_traits>
-#include <unordered_map>
-#include <utility> // pair
 
 namespace {
 

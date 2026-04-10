@@ -71,12 +71,6 @@
 
 #include "vulkan_display.hpp" // vulkan.h must be before GLFW/SDL
 
-// @todo remove the defines when no longer needed
-#ifdef __arm64__
-#define SDL_DISABLE_MMINTRIN_H 1
-#define SDL_DISABLE_IMMINTRIN_H 1
-#endif // defined __arm64__
-
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_vulkan.h>
 

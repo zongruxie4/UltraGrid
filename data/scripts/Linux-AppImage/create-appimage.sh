@@ -201,6 +201,15 @@ if [ -f "$(echo $APPPREFIX/lib/libva.so.* | cut -d\  -f 1)" ]; then
         done
 fi
 
+# ship libvmx drivers if have libomt
+if [ -f "$APPPREFIX/lib/libomt.so" ]; then
+        LIBVMX_PATH=/usr/local/lib/libvmx.so
+        if [ -n "$LIBVMX_PATH" ]; then
+                cp "$LIBVMX_PATH" $APPPREFIX/lib/
+                break
+        fi
+fi
+
 cp -r "$srcdir/data/scripts/Linux-AppImage/AppRun" "$srcdir/data/scripts/Linux-AppImage/scripts" "$srcdir/data/ultragrid.png" $APPDIR
 cp "$srcdir/data/uv-qt.desktop" $APPDIR/cz.cesnet.ultragrid.desktop
 appimageupdatetool=$(command -v appimageupdatetool-x86_64.AppImage || command -v ./appimageupdatetool || true)

@@ -740,7 +740,7 @@ static void usage(bool full) {
                         return nullptr; \
                 } \
                 const uintmax_t maxval = \
-                    std::nextafter(std::numeric_limits<typeof(var)>::max(), \
+                    std::nextafter(std::numeric_limits<decltype(var)>::max(), \
                                   -std::numeric_limits<double>::infinity()); \
                 if (val < (minval) || val > maxval) { \
                         MSG(ERROR, \

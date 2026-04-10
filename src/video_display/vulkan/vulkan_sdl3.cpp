@@ -172,9 +172,8 @@ struct state_vulkan_sdl3 {
         
         SDL_Window* window = nullptr;
 
-        // Use raw pointers because std::unique_ptr might not have standard layout
-        vkd::VulkanDisplay* vulkan = nullptr;
-        WindowCallback* window_callback = nullptr;
+        std::unique_ptr<vkd::VulkanDisplay> vulkan;
+        std::unique_ptr<WindowCallback> window_callback;
         FrameMappings frame_mappings;
 
         std::atomic<bool> should_exit = false;
@@ -861,7 +860,7 @@ void* display_vulkan_init(module* parent, const char* fmt, unsigned int flags) {
                 log_msg(LOG_LEVEL_ERROR, MOD_NAME "Unable to create window : %s\n", SDL_GetError());
                 return nullptr;
         }
-        s->window_callback = new WindowCallback(s->window);
+        s->window_callback = std::make_unique<WindowCallback>(s->window);
         if (!vulkan_sdl3_set_window_position(s.get(), &args)) {
                 return nullptr;
         }
@@ -882,7 +881,7 @@ void* display_vulkan_init(module* parent, const char* fmt, unsigned int flags) {
                         std::cout << SDL_GetError() << std::endl;
                         throw std::runtime_error("SDL cannot create surface.");
                 }
-                s->vulkan = new vkd::VulkanDisplay{};
+                s->vulkan = std::make_unique<vkd::VulkanDisplay>();
                 s->vulkan->init(std::move(instance), vk::SurfaceKHR(surface),
                                 initial_frame_count, *s->window_callback,
                                 args.gpu_idx, std::move(path_to_shaders),
@@ -905,11 +904,6 @@ void display_vulkan_done(void* state) {
                 s->vulkan->destroy();
         }
         catch (std::exception& e) { log_and_exit_uv(e); }
-
-        delete s->vulkan;
-        s->vulkan = nullptr;
-        delete s->window_callback;
-        s->window_callback = nullptr;
 
         if (s->window) {
                 SDL_DestroyWindow(s->window);

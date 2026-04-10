@@ -68,9 +68,6 @@
 #include "utils/color_out.h"
 #include "utils/macros.h"                                  // for IS_KEY_PREFIX
 #include "video_display/splashscreen.h"
-//remove leaking macros
-#undef min
-#undef max
 
 #include "vulkan_display.hpp" // vulkan.h must be before GLFW/SDL
 

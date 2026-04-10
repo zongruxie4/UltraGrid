@@ -1044,18 +1044,6 @@ void display_vulkan_new_message(module* mod) {
         SDL_CHECK(SDL_PushEvent(&event));
 }
 
-
-static void display_vulkan_put_audio_frame([[maybe_unused]] void* state, [[maybe_unused]] const struct audio_frame* frame)
-{
-}
-
-
-bool display_vulkan_reconfigure_audio([[maybe_unused]] void* state, [[maybe_unused]] int quant_samples,
-        [[maybe_unused]] int channels, [[maybe_unused]] int sample_rate)
-{
-        return false;
-}
-
 const video_display_info display_vulkan_info = {
         [](device_info** available_cards, int* count, [[maybe_unused]] void (**deleter)(void*)) {
                 *count = 1;
@@ -1072,8 +1060,8 @@ const video_display_info display_vulkan_info = {
         display_vulkan_putf,
         display_vulkan_reconfigure,
         display_vulkan_get_property,
-        display_vulkan_put_audio_frame,
-        display_vulkan_reconfigure_audio,
+        nullptr,
+        nullptr,
         MOD_NAME,
 };
 

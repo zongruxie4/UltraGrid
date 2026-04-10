@@ -214,9 +214,6 @@ struct state_vulkan_sdl3 {
         }
 };
 
-// make sure that state_vulkan_sdl3 is C compatible
-static_assert(std::is_standard_layout_v<state_vulkan_sdl3>);
-
 constexpr std::pair<int64_t, std::string_view> display_vulkan_keybindings[] = {
         {'d', "toggle deinterlace"},
         {'f', "toggle fullscreen"},

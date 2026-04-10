@@ -174,7 +174,7 @@ struct FrameMappings{
 
 struct state_vulkan_sdl3 {
         const uint32_t magic = magic_vulkan_sdl3;
-        module mod{};
+        module_raii mod;
 
         Uint32 sdl_user_new_message_event;
 
@@ -199,13 +199,7 @@ struct state_vulkan_sdl3 {
         std::atomic<bool> should_exit = false;
         video_desc current_desc{};
 
-        explicit state_vulkan_sdl3(module* parent) {
-                module_init_default(&mod);
-                mod.new_message = display_vulkan_new_message;
-                mod.cls = MODULE_CLASS_DATA;
-                mod.priv_data = this;
-                module_register(&mod, parent);
-
+        explicit state_vulkan_sdl3(module* parent): mod(MODULE_CLASS_DATA, parent, this, display_vulkan_new_message) {
                 sdl_user_new_message_event = SDL_RegisterEvents(1);
                 assert(sdl_user_new_message_event != static_cast<Uint32>(-1));
         }
@@ -217,7 +211,6 @@ struct state_vulkan_sdl3 {
 
         ~state_vulkan_sdl3() {
                 delete frame_mappings;
-                module_done(&mod);
         }
 };
 
@@ -338,7 +331,7 @@ void log_and_exit_uv(std::exception& e) {
 
 void process_user_messages(state_vulkan_sdl3& s) {
         msg_universal* msg = nullptr;
-        while ((msg = reinterpret_cast<msg_universal*>(check_message(&s.mod)))) {
+        while ((msg = reinterpret_cast<msg_universal*>(check_message(s.mod.get())))) {
                 log_msg(LOG_LEVEL_VERBOSE, MOD_NAME "Received message: %s\n", msg->text);
                 response* r = nullptr;
                 int key;
@@ -383,7 +376,7 @@ void process_events(state_vulkan_sdl3& s) {
                         if (sym > 0) {
                                 if (!display_vulkan_process_key(s, sym)) {
                                         // unknown key -> pass to control
-                                        keycontrol_send_key(get_root_module(&s.mod), sym);
+                                        keycontrol_send_key(get_root_module(s.mod.get()), sym);
                                 }
                         } else if (sym == -1) {
                                 log_msg(LOG_LEVEL_WARNING, 
@@ -856,7 +849,7 @@ void* display_vulkan_init(module* parent, const char* fmt, unsigned int flags) {
                         continue;
                 }
                 std::string msg = std::to_string(static_cast<int>(binding.first));
-                keycontrol_register_key(&s->mod, binding.first, msg.c_str(), binding.second.data());
+                keycontrol_register_key(s->mod.get(), binding.first, msg.c_str(), binding.second.data());
         }
 
         log_msg(LOG_LEVEL_NOTICE, "SDL3 initialized successfully.\n");

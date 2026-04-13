@@ -44,6 +44,8 @@
 #include "types.h"
 #include "utils/misc.h"
 
+void ug_register_omt_log_callback();
+
 using omt_receive_uniq = std::unique_ptr<omt_receive_t, deleter_from_fcn<omt_receive_destroy>>;
 using omt_send_uniq = std::unique_ptr<omt_send_t, deleter_from_fcn<omt_send_destroy>>;
 

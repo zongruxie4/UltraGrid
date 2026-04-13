@@ -132,7 +132,7 @@ void *omt_rxtx_create(const vrxtx_params *params, const common_opts *common){
                 return nullptr;
         }
 
-        omt_setloggingcallback(omt_log_callback);
+        ug_register_omt_log_callback();
 
         if(params->rxtx_mode & MODE_RECEIVER)
             init_recv(params, common, s.get());

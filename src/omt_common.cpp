@@ -39,11 +39,48 @@
 
 #include <cassert>
 #include <config.h> //for VERSION
+#include <utility>
 
 #include "debug.h"
 #include "types.h"
 #include "video_codec.h"
 #define MOD_NAME "[omt] "
+
+namespace{
+
+/**
+ * omt_setloggingcallback() is not yet available in release v1.0.0.14
+ * This class detects if the function exists at compile time and either sets the callback
+ * or prints a warning.
+ *
+ */
+template<typename T, typename = void>
+struct omt_set_callback_avail : std::false_type {  };
+
+template<typename T>
+struct omt_set_callback_avail<T, std::void_t<decltype(omt_setloggingcallback((std::declval<T>())))>>
+        : std::true_type {  };
+
+struct Omt_callback_setter{
+        Omt_callback_setter(){ do_set_callback(omt_log_callback); }
+        ~Omt_callback_setter() = default;
+
+        template<typename T, std::enable_if_t<omt_set_callback_avail<T>::value, int> = 0>
+        void do_set_callback(T callback){
+                omt_setloggingcallback(callback);
+        }
+
+        template<typename T, std::enable_if_t<!omt_set_callback_avail<T>::value, int> = 0>
+        void do_set_callback(T /*callback*/){
+                log_msg(LOG_LEVEL_WARNING, MOD_NAME "libomt does not support setting logging callback\n");
+        }
+};
+
+}
+
+void ug_register_omt_log_callback(){
+        [[maybe_unused]] static Omt_callback_setter omt_callback_setter;
+}
 
 void omt_log_callback(const char *msg){
         log_msg(LOG_LEVEL_INFO, MOD_NAME "[libomt] %s\n", msg);

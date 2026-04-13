@@ -13,16 +13,16 @@ features="-DSDL_KMSDRM=ON\
  -DSDL_X11=ON"
 
 # install the deps - runs always (regardless the cache)
-deps() {
+deps() (
         sudo apt build-dep libsdl2
         fluidsynth_build_dep=$(get_build_deps_excl libfluidsynth3 libsdl2-dev)
         sdl2_ttf_build_dep=$(get_build_deps_excl libsdl2-ttf libsdl2-dev)
         # shellcheck disable=SC2086 # intentional
         sudo apt install $fluidsynth_build_dep $sdl2_ttf_build_dep libxtst-dev
-}
+)
 
 # build SDL, SDL_ttf and fluidsynth and also install them
-build_install() {
+build_install() (
         mkdir -p $cache_dir
         cd $cache_dir
 
@@ -42,15 +42,15 @@ build_install() {
         cmake $features -S fluidsynth -B fluidsynth/build
         cmake --build fluidsynth/build -j "$(nproc)"
         sudo cmake --install fluidsynth/build
-}
+)
 
 # if cache is successfully restored, just install the builds
-install_cached() {
+install_cached() (
         cd $cache_dir
         sudo cmake --install SDL/build
         sudo cmake --install SDL_ttf/build
         sudo cmake --install fluidsynth/build
-}
+)
 
 deps
 if [ -d $cache_dir ]; then

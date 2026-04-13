@@ -15,7 +15,7 @@
 #        sed -i "1s-\${prefix}-/usr/local-" lib/pkgconfig/libcineformsdk.pc
 #)}
 
-build() {(
+build() (
         cd /c
         rm -rf cineform-sdk
         git clone --depth 1 https://github.com/gopro/cineform-sdk
@@ -25,15 +25,15 @@ build() {(
         cmake -DBUILD_STATIC=false -DBUILD_TOOLS=false -A x64 .. # assume
                                                   # "-G 'Visual Studio 16 2019'"
         cmake --build . --config Release --parallel "$(nproc)"
-)}
+)
 
-install() {(
+install() (
         mkdir -p /usr/local/bin /usr/local/include /usr/local/lib
         cd /c/cineform-sdk/build
         cp Release/CFHDCodec.dll /usr/local/bin/
         cp Release/CFHDCodec.lib /usr/local/lib/
         cp ../Common/* /usr/local/include/
         # mkdir /usr/local/lib/pkgconfig; cp libcineformsdk.pc /usr/local/lib/pkgconfig/
-)}
+)
 
 $1

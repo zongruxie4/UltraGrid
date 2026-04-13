@@ -69,11 +69,11 @@ $PACMAN_INSTALL $m-imagemagick $m-opencv
 $PACMAN_INSTALL libtool # PCP
 pacman -Scc --noconfirm
 
-build_aja_wrapper() {(
+build_aja_wrapper() (
         data/scripts/build_aja_lib_win64.sh
-)}
+)
 
-install_deltacast() {(
+install_deltacast() (
         if [ -z "$SDK_URL" ]; then
                         return
         fi
@@ -90,15 +90,15 @@ install_deltacast() {(
         fi
         cd ..
         rm -rf VideoMaster
-)}
+)
 
-install_gpujpeg() {(
+install_gpujpeg() (
         fname=GPUJPEG-Windows.zip
         wget --no-verbose \
 https://github.com/CESNET/GPUJPEG/releases/download/continuous/"$fname"
         unzip "./$fname"
         cp -r GPUJPEG/* /usr/local/
-)}
+)
 
 # Install cross-platform deps
 "$GITHUB_WORKSPACE/.github/scripts/install-common-deps.sh"

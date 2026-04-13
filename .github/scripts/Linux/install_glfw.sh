@@ -13,7 +13,7 @@ deps() {
 }
 
 # build SDL, SDL_ttf and fluidsynth and also install them
-build_install() {
+build_install() (
         mkdir -p $cache_dir
         cd $cache_dir
 
@@ -22,13 +22,13 @@ build_install() {
                 -DGLFW_BUILD_WAYLAND=ON -DGLFW_BUILD_X11=ON
         cmake --build glfw/build -j "$(nproc)"
         sudo cmake --install glfw/build
-}
+)
 
 # if cache is successfully restored, just install the builds
-install_cached() {
+install_cached() (
         cd $cache_dir
         sudo cmake --install glfw/build
-}
+)
 
 deps
 if [ -d $cache_dir ]; then

@@ -30,7 +30,7 @@ if is_win || [ "$(id -u)" -eq 0 ]; then
         alias sudo=
 fi
 
-install_cineform() {(
+install_cineform() (
         git clone --depth 1 https://github.com/gopro/cineform-sdk
         cd cineform-sdk
         git apply "$curdir"/patches/\
@@ -38,9 +38,9 @@ cineform-0001-CMakeList.txt-remove-output-lib-name-force-UNIX.patch
         cmake -DBUILD_STATIC=OFF -DBUILD_TOOLS=OFF -B build -S .
         cmake --build build --parallel "$(nproc)"
         sudo cmake --install build
-)}
+)
 
-download_build_aja() {(
+download_build_aja() (
         aja_url=https://github.com/aja-video/libajantv2.git
         git clone -b release --depth 1 $aja_url
         # TODO TOREMOVE this workarounds when not needed
@@ -54,9 +54,9 @@ download_build_aja() {(
                 -DAJANTV2_DISABLE_PLUGIN_LOAD=ON -DAJANTV2_BUILD_SHARED=ON \
                 -DCMAKE_BUILD_TYPE=Release -Blibajantv2/build -Slibajantv2
         cmake --build libajantv2/build --config Release -j "$(nproc)"
-)}
+)
 
-install_aja() {(
+install_aja() (
         if [ "$ID" = ubuntu ]; then
                 sudo apt install libudev-dev
         elif [ "$ID" = almalinux ]; then
@@ -72,7 +72,7 @@ install_aja() {(
         else
                 sudo cmake --install libajantv2/build
         fi
-)}
+)
 
 install_ews() {
         sudo mkdir -p /usr/local/include
@@ -81,8 +81,7 @@ EmbeddableWebServer/master/EmbeddableWebServer.h -o \
 /usr/local/include/EmbeddableWebServer.h
 }
 
-install_juice() {
-(
+install_juice() (
         git clone https://github.com/paullouisageneau/libjuice.git
         mkdir libjuice/build
         cd libjuice/build
@@ -90,7 +89,6 @@ install_juice() {
         make -j "$(nproc)"
         sudo make install
 )
-}
 
 # fixes broken live555 test
 live555_rm_tests() {
@@ -98,7 +96,7 @@ live555_rm_tests() {
          mv -f Makefile.fix Makefile
 }
 
-download_build_live555() {(
+download_build_live555() (
         git clone --depth 1 https://github.com/xanview/live555/
         cd live555
 
@@ -117,14 +115,14 @@ download_build_live555() {(
                 live555_rm_tests
                 make -j "$(nproc)" CPLUSPLUS_COMPILER="c++ -std=c++11"
         fi
-)}
+)
 
-install_live555() {(
+install_live555() (
         if [ ! -d live555 ]; then
                 download_build_live555
         fi
         sudo make -C live555 install
-)}
+)
 
 install_pcp() {
         git clone https://github.com/libpcpnatpmp/libpcpnatpmp.git
@@ -141,11 +139,11 @@ install_pcp() {
         rm -rf libpcpnatpmp
 }
 
-install_zfec() {(
+install_zfec() (
         git clone --depth 1 https://github.com/tahoe-lafs/zfec zfec
         sudo mkdir -p /usr/local/src
         sudo mv zfec/zfec /usr/local/src
-)}
+)
 
 install_items="aja ews juice live555 pcp zfec"
 if ! is_arm && ! is_win; then

@@ -16,7 +16,7 @@ fi
 . "$srcroot/.github/scripts/json-common.sh"
 
 # Install XIMEA (see <dmg>/install.app/Contents/MacOS/install.sh)
-install_ximea() {(
+install_ximea() (
         installer=/private/var/tmp/XIMEA_OSX_SP.dmg
         if [ ! -f $installer ]; then
                 curl -Sf -L "$XIMEA_DOWNLOAD_URL" -o $installer
@@ -27,9 +27,9 @@ install_ximea() {(
         sudo xattr -dr com.apple.quarantine \
                 "$(xcrun --show-sdk-path)/System/Library/Frameworks/"
         umount /Volumes/XIMEA
-)}
+)
 
-install_deltacast() {
+install_deltacast() (
         if [ ! "${SDK_URL-}" ]; then
                 return
         fi
@@ -41,24 +41,24 @@ install_deltacast() {
         export COMMON_OSX_FLAGS="${COMMON_OSX_FLAGS+$COMMON_OSX_FLAGS }\
 -F/Library/Frameworks"
         printf '%b' "COMMON_OSX_FLAGS=$COMMON_OSX_FLAGS\n" >> "$GITHUB_ENV"
-}
+)
 
-install_glfw() {(
+install_glfw() (
         git clone --depth 500 https://github.com/glfw/glfw.git
         cd glfw
         git am -3 "$srcroot"/.github/scripts/macOS/glfw-patches/*.patch
         cmake -DBUILD_SHARED_LIBS=ON .
         cmake --build . -j "$(sysctl -n hw.ncpu)"
         sudo cmake --install .
-)}
+)
 
-install_libbacktrace() {(
+install_libbacktrace() (
         git clone --depth 1 https://github.com/ianlancetaylor/libbacktrace
         cd libbacktrace
         ./configure
         make -j "$(getconf NPROCESSORS_ONLN)"
         sudo make install
-)}
+)
 
 # Install NDI
 install_ndi() {(

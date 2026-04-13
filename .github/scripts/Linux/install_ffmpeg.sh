@@ -8,7 +8,7 @@ dir=$(dirname "$0")
 cache_dir=/var/tmp/ffmpeg
 
 # install the deps - runs always (regardless the cache)
-deps() {
+deps() (
         ffmpeg_build_dep=$(get_build_deps_excl ffmpeg 'libsdl')
         # shellcheck disable=SC2086 # intentional
         sudo apt install $ffmpeg_build_dep libde265-dev \
@@ -17,35 +17,35 @@ deps() {
 
         sudo apt-get -y remove 'libavcodec*' 'libavutil*' 'libswscale*' \
                 libvpx-dev nginx
-}
+)
 
-install_aom() {(
+install_aom() (
         git clone --depth 1 https://aomedia.googlesource.com/aom
         mkdir -p aom/build
         cd aom/build
         cmake -DBUILD_SHARED_LIBS=1 ..
         cmake --build . --parallel "$(nproc)"
         sudo cmake --install .
-)}
+)
 
-install_dav1d() {(
+install_dav1d() (
         git clone --depth 1 https://code.videolan.org/videolan/dav1d.git
         mkdir -p dav1d/build && cd dav1d/build
         meson ..
         ninja
         sudo ninja install
-)}
+)
 
-install_libvpx() {(
+install_libvpx() (
         git clone --depth 1 https://github.com/webmproject/libvpx.git
         cd libvpx
         ./configure --enable-pic --disable-examples --disable-install-bins \
                         --disable-install-srcs --enable-vp9-highbitdepth
         make -j "$(nproc)"
         sudo make install
-)}
+)
 
-install_svt() {
+install_svt() (
         ( git clone --depth 1 https://github.com/OpenVisualCloud/SVT-HEVC &&
                 cd SVT-HEVC/Build/linux && ./build.sh release && cd Release &&
                 sudo cmake --install . || exit 1 )
@@ -59,33 +59,33 @@ install_svt() {
         # libsvtav1 in FFmpeg upstream, for SVT-HEVC now our custom patch in ffmpeg-patches
         # if patch apply fails, try increasing $FFMPEG_GIT_DEPTH
         git am -3 SVT-VP9/ffmpeg_plugin/master-*.patch
-}
+)
 
 # The NV Video Codec SDK headers version 12.0 implies driver v520.56.06 in Linux
-install_nv_codec_headers() {
+install_nv_codec_headers() (
         git clone --depth 1 -b sdk/12.0 https://github.com/FFmpeg/nv-codec-headers
         ( cd nv-codec-headers && make && sudo make install || exit 1 )
-}
+)
 
-install_oapv() {(
+install_oapv() (
         git clone --depth 1 https://github.com/AcademySoftwareFoundation/openapv.git
         export CFLAGS='-ffat-lto-objects'
         cmake -B openapv/build -S openapv \
                 -DCMAKE_BUILD_TYPE=Release
         cmake --build openapv/build --parallel "$(nproc)"
         sudo cmake --install openapv/build
-)}
+)
 
-install_onevpl() {(
+install_onevpl() (
         git clone --depth 1 https://github.com/oneapi-src/oneVPL
         mkdir oneVPL/build
         cd oneVPL/build
         cmake -DBUILD_TOOLS=OFF ..
         cmake --build . --config Release --parallel
         sudo cmake --build . --config Release --target install
-)}
+)
 
-install_rav1e() {(
+install_rav1e() (
         # TODO: use avx2 later
         if expr "${UG_ARCH-}" : '.*avx' >/dev/null; then
                 avx2=avx2
@@ -98,10 +98,10 @@ install_rav1e() {(
         sudo sed -i -e 's-prefix=dist-prefix=/usr/local-' \
                 -e 's/-lrav1e/-lrav1e -lm -pthread/' \
                 /usr/local/lib/pkgconfig/rav1e.pc
-)}
+)
 
 # build FFmpeg deps + FFmpeg itself
-build_install() {
+build_install() (
         rm -rf $cache_dir
         FFMPEG_GIT_DEPTH=5000 # greater depth is useful for 3-way merges
         git clone --depth $FFMPEG_GIT_DEPTH https://github.com/FFmpeg/FFmpeg.git \
@@ -143,10 +143,10 @@ build_install() {
         make -j "$(nproc)"
         sudo make install
         sudo ldconfig
-}
+)
 
 # if cache is successfully restored, just install the builds
-install_cached() {
+install_cached() (
         cd $cache_dir
         ( cd libvpx && sudo make install )
         ( cd nv-codec-headers && sudo make install )
@@ -161,7 +161,7 @@ install_cached() {
 
         sudo make install
         sudo ldconfig
-}
+)
 
 deps
 if [ -d $cache_dir ]; then

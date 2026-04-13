@@ -3,7 +3,7 @@
  * @author Martin Pulec     <pulec@cesnet.cz>
  */
 /*
- * Copyright (c) 2017-2025 CESNET, zájmové sdružení právnických osob
+ * Copyright (c) 2017-2026 CESNET, zájmové sdružení právnických osob
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -66,6 +66,10 @@
 
 #define aligned_malloc _aligned_malloc
 #define aligned_free _aligned_free
+
+#define bug_msg(log_level, ...) \
+        fprintf(stderr, __VA_ARGS__); \
+        fprintf(stderr, "Please report a bug if you reach here.\n")
 
 #endif // defined _MSC_VER
 

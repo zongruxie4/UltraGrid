@@ -3,6 +3,10 @@
  * @author Martin Pulec     <pulec@cesnet.cz>
  *
  * @brief  Configuration file for UltraGrid
+ *
+ * @todo
+ * TOREMOVE: doesn't seem to be used anyhow - if noone objects to, remove
+ * after some time (perhaps after next release).
  */
 /*
  * Copyright (c) 2013-2026 CESNET, zájmové sdružení právnických osob
@@ -44,8 +48,11 @@
 #include <cstring>
 
 #include "config_msvc.h"
+#include "debug.h"
 #include "compat/strings.h" // for strlcpy
 
+
+#define MOD_NAME "[config_file] "
 
 using namespace std;
 
@@ -90,6 +97,9 @@ struct config_file *config_file_open(const char *name)
         if (f == NULL) {
                 return NULL;
         }
+        bug_msg(LOG_LEVEL_WARNING, MOD_NAME
+                "configuration file is deprecated and about to be removed in "
+                "future. Please let us know if using this feature. ");
         struct config_file *s = (struct config_file *) calloc(1, sizeof(struct config_file));
         s->f = f;
         strncpy(s->file_name, name, sizeof(s->file_name) - 1);

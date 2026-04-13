@@ -108,6 +108,8 @@ void init_send(state_vdisp_omt *s){
 void *display_omt_init(module *parent, const char *fmt, unsigned int flags){
         auto s = std::make_unique<state_vdisp_omt>();
 
+        ug_register_omt_log_callback();
+
         constexpr size_t max_frames = 3;
         s->free_frames.resize(max_frames);
 

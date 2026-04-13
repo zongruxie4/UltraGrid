@@ -100,10 +100,23 @@ https://github.com/CESNET/GPUJPEG/releases/download/continuous/"$fname"
         cp -r GPUJPEG/* /usr/local/
 )
 
+install_omt() {(
+        omt_ver="v1.0.0.14"
+        fname=OpenMediaTransport.Binaries.Release."$omt_ver".zip
+        wget --no-verbose \
+        https://github.com/openmediatransport/libomtnet/releases/download/"$omt_ver"/"$fname"
+        unzip "./$fname"
+        cp Libraries/Winx64/*lib /usr/local/lib/
+        cp Libraries/Winx64/*dll /usr/local/bin/
+        cp Libraries/Winx64/*dll /usr/local/lib/
+        cp Libraries/Winx64/*.h /usr/local/include/
+)}
+
 # Install cross-platform deps
 "$GITHUB_WORKSPACE/.github/scripts/install-common-deps.sh"
 
 build_aja_wrapper
 install_deltacast
 install_gpujpeg
+install_omt
 

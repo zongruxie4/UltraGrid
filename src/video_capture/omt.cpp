@@ -102,6 +102,8 @@ int parse_cfg(state_omt_cap& s, std::string_view cfg){
 int capture_omt_init(const vidcap_params *params, void **state){
         auto s = std::make_unique<state_omt_cap>();
 
+        ug_register_omt_log_callback();
+
         if(auto parse_ret = parse_cfg(*s, vidcap_params_get_fmt(params)); parse_ret != VIDCAP_INIT_OK){
                 return parse_ret;
         }

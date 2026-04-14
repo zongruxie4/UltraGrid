@@ -152,6 +152,11 @@ int initialize_video_display(struct module *parent, const char *requested_displa
                 return -1;
         }
 
+        if (flags & DISPLAY_FLAG_AUDIO_ANY && !vdi->reconfigure_audio) {
+                log_msg(LOG_LEVEL_FATAL, MOD_NAME "Selected display '%s' doesn't support audio!\n", requested_display);
+                return -1;
+        }
+
         struct display *d = calloc(1, sizeof(struct display));
         d->magic = DISPLAY_MAGIC;
         d->funcs = vdi;

@@ -698,23 +698,6 @@ static bool display_conference_reconfigure(void *state, struct video_desc desc)
         return true;
 }
 
-static void display_conference_put_audio_frame(void *state, const struct audio_frame *frame)
-{
-        UNUSED(state);
-        UNUSED(frame);
-}
-
-static bool display_conference_reconfigure_audio(void *state, int quant_samples, int channels,
-                int sample_rate)
-{
-        UNUSED(state);
-        UNUSED(quant_samples);
-        UNUSED(channels);
-        UNUSED(sample_rate);
-
-        return false;
-}
-
 static void display_conference_done(void *state)
 {
         auto s = static_cast<state_conference *>(state);
@@ -772,8 +755,8 @@ static const struct video_display_info display_conference_info = {
         display_conference_putf,
         display_conference_reconfigure,
         display_conference_get_property,
-        display_conference_put_audio_frame,
-        display_conference_reconfigure_audio,
+        nullptr,
+        nullptr,
         DISPLAY_NO_GENERIC_FPS_INDICATOR,
 };
 

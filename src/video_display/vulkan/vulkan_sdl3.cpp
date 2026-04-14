@@ -773,10 +773,6 @@ vulkan_sdl3_set_window_position(state_vulkan_sdl3            *s,
 
 void* display_vulkan_init(module* parent, const char* fmt, unsigned int flags) {
         sdl_set_log_level();
-        if (flags & DISPLAY_FLAG_AUDIO_ANY) {
-                log_msg(LOG_LEVEL_ERROR, "UltraGrid VULKAN_SDL3 module currently doesn't support audio!\n");
-                return nullptr;
-        }
 
         auto s = std::make_unique<state_vulkan_sdl3>(parent);
 

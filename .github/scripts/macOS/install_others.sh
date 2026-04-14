@@ -61,26 +61,26 @@ install_libbacktrace() (
 )
 
 # Install NDI
-install_ndi() {(
-        # installer downloaed by cache step
-        installer=/private/var/tmp/Install_NDI_SDK_Apple.pkg
-        sudo installer -pkg $installer -target /
-        sudo mv /Library/NDI\ SDK\ for\ * /Library/NDI
-)
+install_ndi() {
+        (
+                # installer downloaed by cache step
+                installer=/private/var/tmp/Install_NDI_SDK_Apple.pkg
+                sudo installer -pkg $installer -target /
+                sudo mv /Library/NDI\ SDK\ for\ * /Library/NDI
+        )
         export CPATH=${CPATH:+"$CPATH:"}/Library/NDI/include
         printf '%b' "CPATH=$CPATH\n" >> "$GITHUB_ENV"
 }
 
 install_syphon() {
         syphon_dst=/Library/Frameworks
-(
-        git clone --depth 1 https://github.com/Syphon/Syphon-Framework.git
-        cd Syphon-Framework
-        xcodebuild LD_DYLIB_INSTALL_NAME=$syphon_dst/\
+        (
+                git clone --dep 1 https://github.com/Syphon/Syphon-Framework.git
+                cd Syphon-Framework
+                xcodebuild LD_DYLIB_INSTALL_NAME=$syphon_dst/\
 Syphon.framework/Versions/A/Syphon -arch "$(uname -m)"
-        sudo cp -R 'build/Release/Syphon.framework' \
-                $syphon_dst
-)
+                sudo cp -R 'build/Release/Syphon.framework' $syphon_dst
+        )
         export COMMON_OSX_FLAGS="${COMMON_OSX_FLAGS+$COMMON_OSX_FLAGS }\
 -F$syphon_dst"
         printf '%b' "COMMON_OSX_FLAGS=$COMMON_OSX_FLAGS\n" >> "$GITHUB_ENV"

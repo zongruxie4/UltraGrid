@@ -999,11 +999,6 @@ display_sdl3_init(struct module *parent, const char *fmt, unsigned int flags)
 {
         sdl_set_log_level();
 
-        if (flags & DISPLAY_FLAG_AUDIO_ANY) {
-                MSG(ERROR,
-                    "UltraGrid SDL3 module currently doesn't support audio!\n");
-                return NULL;
-        }
         const char        *driver = NULL;
         struct state_sdl3 *s      = calloc(1, sizeof *s);
 

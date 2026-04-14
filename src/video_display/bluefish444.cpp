@@ -995,10 +995,10 @@ static bool display_bluefish444_get_property(void *state, int property, void *va
         return true;
 }
 
+#ifdef HAVE_BLUE_AUDIO
 static bool display_bluefish444_reconfigure_audio(void *state, int quant_samples, int channels,
                                 int sample_rate)
 {
-#ifdef HAVE_BLUE_AUDIO
         display_bluefish444_state *s =
                 (display_bluefish444_state *) state;
         try {
@@ -1009,14 +1009,10 @@ static bool display_bluefish444_reconfigure_audio(void *state, int quant_samples
         }
 
         return true;
-#else
-        return false;
-#endif
 }
 
 static void display_bluefish444_put_audio_frame(void *state, const struct audio_frame *frame)
 {
-#ifdef HAVE_BLUE_AUDIO
         display_bluefish444_state *s =
                 (display_bluefish444_state *) state;
 
@@ -1025,8 +1021,8 @@ static void display_bluefish444_put_audio_frame(void *state, const struct audio_
         } catch(runtime_error &e) {
                 cerr << "[Blue444 disp] " << e.what() << endl;
         }
-#endif
 }
+#endif
 
 static const struct video_display_info display_bluefish444_info = {
         display_bluefish444_probe,
@@ -1037,8 +1033,13 @@ static const struct video_display_info display_bluefish444_info = {
         display_bluefish444_putf,
         display_bluefish444_reconfigure,
         display_bluefish444_get_property,
+#ifdef HAVE_BLUE_AUDIO
         display_bluefish444_put_audio_frame,
         display_bluefish444_reconfigure_audio,
+#else
+        nullptr,
+        nullptr,
+#endif
         DISPLAY_NO_GENERIC_FPS_INDICATOR,
 };
 

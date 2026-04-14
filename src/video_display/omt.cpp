@@ -73,6 +73,18 @@ struct state_vdisp_omt{
         OMTQuality quality = OMTQuality_Medium;
 };
 
+void send_video_frame(state_vdisp_omt *s, frame_uniq frame){
+        omt_frame_init_from_desc(s->omt_video_frame, video_desc_from_frame(frame.get()));
+        omt_frame_set_data(s->omt_video_frame, *frame);
+
+        omt_send(s->omt_send.get(), &s->omt_video_frame);
+
+        std::unique_lock<std::mutex> lock(s->mutex);
+        s->free_frames.push_back(std::move(frame));
+        lock.unlock();
+        s->free_frame_cv.notify_one();
+}
+
 void omt_disp_worker(state_vdisp_omt *s){
         set_thread_name("OMT display worker");
 
@@ -87,14 +99,7 @@ void omt_disp_worker(state_vdisp_omt *s){
                         break;
                 }
 
-                omt_frame_init_from_desc(s->omt_video_frame, video_desc_from_frame(frame.get()));
-                omt_frame_set_data(s->omt_video_frame, *frame);
-
-                omt_send(s->omt_send.get(), &s->omt_video_frame);
-
-                lock.lock();
-                s->free_frames.push_back(std::move(frame));
-                lock.unlock();
+                send_video_frame(s, std::move(frame));
         }
 }
 

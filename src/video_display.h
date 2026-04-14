@@ -161,7 +161,7 @@ struct video_display_info {
         bool                    (*reconfigure_video)(void *state, struct video_desc desc);
         bool                    (*ctl_property)(void *state, int property, void *val, size_t *len);
         void                    (*put_audio_frame) (void *state, const struct audio_frame *frame);  ///< may be NULL
-        bool                    (*reconfigure_audio) (void *state, int quant_samples, int channels, ///< may be NULL
+        bool                    (*reconfigure_audio) (void *state, int bits_per_sample, int channels, ///< may be NULL
                         int sample_rate);
         const char             *generic_fps_indicator_prefix; ///< NO_GENERIC_FPS_INDICATOR or pointer to preferred module name
 };

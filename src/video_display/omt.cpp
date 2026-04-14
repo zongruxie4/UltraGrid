@@ -57,7 +57,7 @@ using frame_uniq = std::unique_ptr<video_frame, deleter_from_fcn<vf_free>>;
 struct state_vdisp_omt{
         omt_send_uniq omt_send;
 
-        OMTMediaFrame omt_frame{};
+        OMTMediaFrame omt_video_frame{};
 
         video_desc desc{};
 
@@ -87,10 +87,10 @@ void omt_disp_worker(state_vdisp_omt *s){
                         break;
                 }
 
-                omt_frame_init_from_desc(s->omt_frame, video_desc_from_frame(frame.get()));
-                omt_frame_set_data(s->omt_frame, *frame);
+                omt_frame_init_from_desc(s->omt_video_frame, video_desc_from_frame(frame.get()));
+                omt_frame_set_data(s->omt_video_frame, *frame);
 
-                omt_send(s->omt_send.get(), &s->omt_frame);
+                omt_send(s->omt_send.get(), &s->omt_video_frame);
 
                 lock.lock();
                 s->free_frames.push_back(std::move(frame));
@@ -101,8 +101,8 @@ void omt_disp_worker(state_vdisp_omt *s){
 void init_send(state_vdisp_omt *s){
         s->omt_send.reset(omt_send_create(s->sender_name.c_str(), s->quality));
         set_omt_sender_info(s->omt_send.get());
-        s->omt_frame.Type = OMTFrameType_Video;
-        s->omt_frame.Timestamp = -1;
+        s->omt_video_frame.Type = OMTFrameType_Video;
+        s->omt_video_frame.Timestamp = -1;
 }
 
 void *display_omt_init(module *parent, const char *fmt, unsigned int flags){

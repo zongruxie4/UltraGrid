@@ -386,23 +386,6 @@ static bool display_blend_reconfigure(void *state, struct video_desc desc)
         return true;
 }
 
-static void display_blend_put_audio_frame(void *state, const struct audio_frame *frame)
-{
-        UNUSED(state);
-        UNUSED(frame);
-}
-
-static bool display_blend_reconfigure_audio(void *state, int quant_samples, int channels,
-                int sample_rate)
-{
-        UNUSED(state);
-        UNUSED(quant_samples);
-        UNUSED(channels);
-        UNUSED(sample_rate);
-
-        return false;
-}
-
 static void display_blend_probe(struct device_info **available_cards, int *count, void (**deleter)(void *)) {
         UNUSED(deleter);
         *available_cards = nullptr;
@@ -418,8 +401,8 @@ static const struct video_display_info display_blend_info = {
         display_blend_putf,
         display_blend_reconfigure,
         display_blend_get_property,
-        display_blend_put_audio_frame,
-        display_blend_reconfigure_audio,
+        nullptr,
+        nullptr,
         DISPLAY_NO_GENERIC_FPS_INDICATOR,
 };
 

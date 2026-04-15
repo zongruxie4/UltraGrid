@@ -39,18 +39,20 @@ libraries for Linux (as does for macOS and Windows).
 
 Secrets
 -------
-- **ALTOOL_CREDENTIALS** - Apple developer credentials to be used with
-notarytool for macOS build (username:password:teamid) notarization in
-format "user:password" (app-specific password is strongly recommended)
 - **APPIMAGE\_KEY** - GPG exported (armored) private key to sign AppImage;
 - **APPLE\_KEY\_P12\_B64** - base64-encoded Apple signing key in P12
 (see [below](#generating-apple-keys-to-sign-the-image))
 currently unused (no signing as for now - see the commit 2e321f65)
 - **COVERITY\_TOKEN** - Coverity token to be used for build (Coverity CI only)
+- **NOTARYTOOL_CREDENTIALS** - Apple developer credentials to be used with
+notarytool for macOS build (username:password:teamid) notarization in
+format "user:password" (app-specific password is strongly recommended)
 - **SDK\_URL** - URL where are located the [Dependencies](#dependencies) assets
 (currently Deltacast only)
 
 **Note:** not all secrets are used by all workflows (see [Workflows](#workflows) for details)
+
+**Note2:** secret names are _case-insensitive_
 
 ### Generating Apple keys to sign the image
 
@@ -117,8 +119,8 @@ to release assets.
 * push to _other_ repositories (branch **master** or **v[0-9]+**) -
 creates build artifacts
 
-This worflow utilizes **ALTOOL\_CREDENTIALS**, **APPLE\_KEY\_P12\_B64**,
-**APPIMAGE\_KEY** (currently not used, see above), **SDK\_URL**.
+This worflow utilizes **APPLE\_KEY\_P12\_B64**, **APPIMAGE\_KEY**
+(currently not used, see above),  **NOTARYTOOL\_CREDENTIALS**,**SDK\_URL**.
 
 The OS-specific runners are split to 3 YAML files, that can be triggered
 separately by pushing to the respecitve branches - the upload rules are

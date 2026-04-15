@@ -21,8 +21,8 @@ jobs:
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       SDK_NONFREE_PATH: /private/var/tmp/sdks-nonfree
-      notarytool_credentials: ${{ secrets.notarytool_credentials }}
-      apple_key_p12_b64: ${{ secrets.apple_key_p12_b64 }}
+      notarytool_credentials: ${{ secrets.NOTARYTOOL_CREDENTIALS }}
+      apple_key_p12_b64: ${{ secrets.APPLE_KEY_P12_B64 }}
       SDK_URL: ${{ secrets.SDK_URL }}
 
     steps:

@@ -13,6 +13,7 @@ Table of contents
   * [ARM builds](#arm-builds)
   * [Coverity](#coverity)
   * [C/C++ CI](#cc-ci)
+  + [Semi-weekly tests](#semi-weekly-tests)
 
 Dependencies
 ------------
@@ -38,13 +39,16 @@ libraries for Linux (as does for macOS and Windows).
 
 Secrets
 -------
-- **NOTARYTOOL\_CREDENTIALS** - Apple developer credentials to be used with notarytool for macOS build (username:password:teamid)
-  notarization in format "user:password" (app-specific password is strongly recommended)
-- **APPLE\_KEY\_P12\_B64** - base64-encoded signing Apple key in P12 (see [below](#generating-apple-keys-to-sign-the-image))
-- **APPIMAGE\_KEY** - GPG exported (armored) private key to sign AppImage
-- **COVERITY\_TOKEN** - Coverity token to be used for build upload
-- **NDI\_REMOTE\_SSH\_KEY** - SSH key to upload NDI builds over SSH (see [Workflows](#workflows) for additional details)
+- **ALTOOL_CREDENTIALS** - Apple developer credentials to be used with
+notarytool for macOS build (username:password:teamid) notarization in
+format "user:password" (app-specific password is strongly recommended)
+- **APPIMAGE\_KEY** - GPG exported (armored) private key to sign AppImage;
+- **APPLE\_KEY\_P12\_B64** - base64-encoded Apple signing key in P12
+(see [below](#generating-apple-keys-to-sign-the-image))
+currently unused (no signing as for now - see the commit 2e321f65)
+- **COVERITY\_TOKEN** - Coverity token to be used for build (Coverity CI only)
 - **SDK\_URL** - URL where are located the [Dependencies](#dependencies) assets
+(currently Deltacast only)
 
 **Note:** not all secrets are used by all workflows (see [Workflows](#workflows) for details)
 
@@ -74,33 +78,59 @@ This section contains a procedure to get and process keys to be used as _APPLE\_
 
 Workflows
 --------
-Currently all workflows are triggered by push to the respective branch. There are 3 workflows:
+Currently workflows are triggered by push to the respective branch. Some of
+are triggered by a cron (schedule). Workflow dispatches available as well.
 
-### ARM builds 
+There are 4 main workflows and 3 OS-specific reusable workflows called
+by C/C++ CI:
+
+### ARM builds
+
+(file [.github/workflows/arm-build.yml](arm-build.yml))
+
 Creates _ARM AppImages_. Trigerred by push to branch **arm-build**. In _CESNET/UltraGrid_ repo creates a release
 asset, otherwise a build artifact. No secret are used.
 
+Trigerred also once a week by a schedule.
+
 ### Coverity
+
+(file [.github/workflows/coverity-scan.yml](coverity-scan.yml))
+
 Sends build for analysis to _Coverity_ service. Trigerred by push to **coverity\_scan** - requires
-**COVERITY\_TOKEN**, useful is also **SDK\_URL** to increase code coverage.
+**COVERITY\_TOKEN**, optionally also **SDK\_URL** to increase code coverage.
+
+Coverity workflow currently uses Linux runner only.
+
+Trigerred also 2 times per week by a schedule.
 
 ### C/C++ CI
+
+(file [.github/workflows/ccpp.yml](ccpp.yml))
+
 This is the basic workflow, has multiple modes depending on which branch is pushed to. Whether or not triggered
 from _official_ repository influences where will the build be uploaded:
 
-* push to _official_ repository (branches **master** or **release/\***) - triggers rebuild of release asset (_continuous_ for master) and uploads to
-  release assets.
-* push to _other_ repositories (branches **master** or **release/\***) - creates build artifacts
-* push to branch **ndi-build** - builds with NDI support - requires NDI SDKs to be present in **SDK\_URL**, otherwise the _NDI_ support won't be enabled.
-  - reads **NDI\_REMOTE\_SSH\_KEY**, if found, uploads the builds to predefined location (defined in [upload-ndi-build.sh](../scripts/upload-ndi-build.sh)).
-    For non-official repositiry you would also need to set environment variables **NDI\_REMOTE\_SSH** and
-    **NDI\_REMOTE\_SSH\_HOST\_KEY\_URL** to override defaults in the script - add following lines to [ccpp.yml](ccpp.yml):
+* push to _official_ repository (branch **master** or **v[0-9]+**) -
+triggers rebuild of release asset (_continuous_ for master) and uploads
+to release assets.
+* push to _other_ repositories (branch **master** or **v[0-9]+**) -
+creates build artifacts
 
-        env:
-          NDI_REMOTE_SSH: <user>@<host>:<path>
-          NDI_REMOTE_SSH_HOST_KEY_URL: https://<path_to_host_key>
-  - If the secret _NDI\_REMOTE\_SSH\_KEY_ is not defined, builds are uploaded as a build artifact.
+This worflow utilizes **ALTOOL\_CREDENTIALS**, **APPLE\_KEY\_P12\_B64**,
+**APPIMAGE\_KEY** (currently not used, see above), **SDK\_URL**.
 
+The OS-specific runners are split to 3 YAML files, that can be triggered
+separately by pushing to the respecitve branches - the upload rules are
+the above, which means that build artifact is created if pushed to the
+specific branch:
 
-This worflow utilizes **ALTOOL\_CREDENTIALS**, **APPLE\_KEY\_P12\_B64**, **APPIMAGE\_KEY**, **SDK\_URL** and **SSH\_KEY** (NDI only).
+- [**linux.yml**](linux.yml) - push to _linux-build_
+- [**macos.yml**](macos.yml) - push to _macos-build_
+- [**windows.yml**](windows.yml) - push to _windows-build_
 
+### Semi-weekly tests
+
+(file [.github/workflows/semi-weekly_tests.yml](semi-weekly_tests.yml))
+
+Some additional tests run twice a week in the main repo.

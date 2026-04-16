@@ -35,6 +35,7 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <algorithm>
 #include <cassert>
 #include <memory>
 
@@ -44,6 +45,8 @@
 #include "lib_common.h"
 #include "video_codec.h"
 #include "video_frame.h"
+#include "audio/types.h"
+#include "audio/utils.h"
 #include "utils/color_out.h"
 #include "utils/string_view_utils.hpp"
 
@@ -56,6 +59,9 @@ struct state_omt_cap{
         omt_receive_uniq omt_h;
 
         video_frame_uniq ug_frame;
+
+        audio_frame audio_f{};
+        std::vector<short> ug_audio_f_buf;
 
         std::string sender_addr = "localhost";
         int port = 6400;
@@ -122,10 +128,63 @@ void capture_omt_done(void *state){
         delete s;
 }
 
-video_frame *capture_omt_grab(void *state, audio_frame **/*audio*/){
+void float2S16(short *out , const float *in, int samples) {
+                for(int i = 0; i < samples; i++) {
+                float sample = in[i];
+                if(sample < -1.f) sample = -1.f;
+                if(sample > 1.f) sample = 1.f;
+                out[i] = INT16_MAX * sample;
+        }
+}
+
+audio_frame *omt_to_audio_frame(state_omt_cap *s, const OMTMediaFrame& omt_audio){
+        constexpr int S16_BPS = 2;
+        const auto ch_count = omt_audio.Channels;
+
+        s->ug_audio_f_buf.resize(omt_audio.SamplesPerChannel * ch_count);
+        s->audio_f.ch_count = ch_count;
+        s->audio_f.data = reinterpret_cast<char *>(s->ug_audio_f_buf.data());
+        s->audio_f.bps = S16_BPS;
+        s->audio_f.data_len = s->ug_audio_f_buf.size() * S16_BPS;
+        s->audio_f.max_size = s->ug_audio_f_buf.size() * S16_BPS;
+        s->audio_f.sample_rate = omt_audio.SampleRate;
+
+        int16_t *dst = s->ug_audio_f_buf.data();
+        auto src = static_cast<const float *>(omt_audio.Data);
+        auto samples_left = omt_audio.SamplesPerChannel;
+        while(samples_left > 0){
+                constexpr auto chunk_samples = 128;
+                const auto to_process = std::min(chunk_samples, samples_left);
+
+                for(int ch = 0; ch < ch_count; ch++){
+                        alignas(32) int16_t S16samples[chunk_samples];
+                        const float *ch_src = src + ch * omt_audio.SamplesPerChannel;
+
+                        float2S16(S16samples, ch_src, to_process);
+
+                        mux_channel(reinterpret_cast<char *>(dst),
+                                reinterpret_cast<const char *>(S16samples),
+                                S16_BPS, to_process * S16_BPS, ch_count, ch, 1.0);
+                }
+
+                dst += to_process * ch_count;
+                src += to_process;
+                samples_left -= to_process;
+        }
+
+        return &s->audio_f;
+}
+
+video_frame *capture_omt_grab(void *state, audio_frame **audio){
         auto s = static_cast<state_omt_cap *>(state);
 
-        const auto omt_frame = omt_receive(s->omt_h.get(), OMTFrameType_Video, 1000);
+        const auto omt_audio = omt_receive(s->omt_h.get(), OMTFrameType_Audio, 0);
+        if(omt_audio){
+                *audio = omt_to_audio_frame(s, *omt_audio);
+                log_msg(LOG_LEVEL_INFO, "got audio %d (%d)\n", omt_audio->SamplesPerChannel, (*audio)->data_len);
+        }
+
+        const auto omt_frame = omt_receive(s->omt_h.get(), OMTFrameType_Video, 100);
         if(!omt_frame){
                 return nullptr;
         }

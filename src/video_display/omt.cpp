@@ -110,8 +110,21 @@ void init_send(state_vdisp_omt *s){
         s->omt_video_frame.Timestamp = -1;
 }
 
+void show_help(){
+        color_printf("Open Media Transport\n");
+        color_printf("Usage\n");
+        color_printf(TERM_BOLD TERM_FG_RED "\t-d omt\n" TERM_RESET);
+        color_printf("\n");
+}
+
 void *display_omt_init(module */*parent*/, const char *fmt, unsigned int /*flags*/){
         auto s = std::make_unique<state_vdisp_omt>();
+
+        using namespace std::string_view_literals;
+        if(fmt == "help"sv){
+                show_help();
+                return INIT_NOERR;
+        }
 
         ug_register_omt_log_callback();
 

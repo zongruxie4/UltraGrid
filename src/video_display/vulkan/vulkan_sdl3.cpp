@@ -771,7 +771,7 @@ vulkan_sdl3_set_window_position(state_vulkan_sdl3            *s,
         return false;
 }
 
-void* display_vulkan_init(module* parent, const char* fmt, unsigned int flags) {
+void* display_vulkan_init(module* parent, const char* fmt, unsigned int /*flags*/) {
         sdl_set_log_level();
 
         auto s = std::make_unique<state_vulkan_sdl3>(parent);

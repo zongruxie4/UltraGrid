@@ -110,7 +110,7 @@ void init_send(state_vdisp_omt *s){
         s->omt_video_frame.Timestamp = -1;
 }
 
-void *display_omt_init(module *parent, const char *fmt, unsigned int flags){
+void *display_omt_init(module */*parent*/, const char *fmt, unsigned int /*flags*/){
         auto s = std::make_unique<state_vdisp_omt>();
 
         ug_register_omt_log_callback();

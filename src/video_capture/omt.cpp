@@ -38,6 +38,7 @@
 #include <algorithm>
 #include <cassert>
 #include <memory>
+#include <thread>
 
 #include "debug.h"
 #include "omt_common.hpp"
@@ -49,19 +50,54 @@
 #include "audio/utils.h"
 #include "utils/color_out.h"
 #include "utils/string_view_utils.hpp"
+#include "utils/thread.h"
 
 #define MOD_NAME "[omt] "
 
 namespace{
 using video_frame_uniq = std::unique_ptr<video_frame, deleter_from_fcn<vf_free>>;
 
+struct Audio_frame_data{
+        audio_frame f{};
+        std::unique_ptr<char[]> data;
+};
+
+template<typename T>
+class Double_buffer{
+public:
+        Double_buffer() = default;
+
+        T& front() noexcept{ return bufs[idx]; }
+        T& back() noexcept{ return bufs[idx ^ 1]; }
+
+        void swap(){
+                auto lk = lock();
+                idx ^= 1;
+        }
+
+        [[nodiscard]] std::scoped_lock<std::mutex> lock() { return std::scoped_lock(mutex); }
+private:
+        std::mutex mutex;
+        T bufs[2];
+        int idx = 0;
+};
+
 struct state_omt_cap{
+        ~state_omt_cap(){
+                should_exit = true;
+                if(audio_recv_thread.joinable()){
+                        audio_recv_thread.join();
+                }
+        }
+
         omt_receive_uniq omt_h;
 
         video_frame_uniq ug_frame;
 
-        audio_frame audio_f{};
-        std::vector<short> ug_audio_f_buf;
+        Double_buffer<Audio_frame_data> audio_f;
+
+        std::atomic<bool> should_exit = false;
+        std::thread audio_recv_thread;
 
         std::string sender_addr = "localhost";
         int port = 6400;
@@ -105,31 +141,21 @@ int parse_cfg(state_omt_cap& s, std::string_view cfg){
         return VIDCAP_INIT_OK;
 }
 
-int capture_omt_init(const vidcap_params *params, void **state){
-        auto s = std::make_unique<state_omt_cap>();
+void init_audio_frame(Audio_frame_data& f, const OMTMediaFrame& omt){
+        assert(omt.Type == OMTFrameType_Audio);
 
-        ug_register_omt_log_callback();
+        f.f.ch_count = omt.Channels;
+        f.f.bps = 2;
+        f.f.sample_rate = omt.SampleRate;
 
-        if(auto parse_ret = parse_cfg(*s, vidcap_params_get_fmt(params)); parse_ret != VIDCAP_INIT_OK){
-                return parse_ret;
-        }
-
-        std::string addr = "omt://" + s->sender_addr + ":" + std::to_string(s->port);
-
-        s->omt_h.reset(omt_receive_create(addr.c_str(), static_cast<OMTFrameType>(OMTFrameType_Audio | OMTFrameType_Video),
-                OMTPreferredVideoFormat_UYVY, OMTReceiveFlags_None));
-
-        *state = s.release();
-        return VIDCAP_INIT_OK;
-}
-
-void capture_omt_done(void *state){
-        auto s = static_cast<state_omt_cap *>(state);
-        delete s;
+        f.f.max_size = f.f.ch_count * f.f.bps * f.f.sample_rate;
+        f.data.reset(new char[f.f.max_size]);
+        f.f.data = f.data.get();
+        f.f.data_len = 0;
 }
 
 void float2S16(short *out , const float *in, int samples) {
-                for(int i = 0; i < samples; i++) {
+        for(int i = 0; i < samples; i++) {
                 float sample = in[i];
                 if(sample < -1.f) sample = -1.f;
                 if(sample > 1.f) sample = 1.f;
@@ -137,21 +163,19 @@ void float2S16(short *out , const float *in, int samples) {
         }
 }
 
-audio_frame *omt_to_audio_frame(state_omt_cap *s, const OMTMediaFrame& omt_audio){
+void audio_frame_append(Audio_frame_data& f, const OMTMediaFrame& omt_audio){
         constexpr int S16_BPS = 2;
         const auto ch_count = omt_audio.Channels;
 
-        s->ug_audio_f_buf.resize(omt_audio.SamplesPerChannel * ch_count);
-        s->audio_f.ch_count = ch_count;
-        s->audio_f.data = reinterpret_cast<char *>(s->ug_audio_f_buf.data());
-        s->audio_f.bps = S16_BPS;
-        s->audio_f.data_len = s->ug_audio_f_buf.size() * S16_BPS;
-        s->audio_f.max_size = s->ug_audio_f_buf.size() * S16_BPS;
-        s->audio_f.sample_rate = omt_audio.SampleRate;
-
-        int16_t *dst = s->ug_audio_f_buf.data();
+        auto dst = reinterpret_cast<int16_t *>(f.f.data + f.f.data_len);
         auto src = static_cast<const float *>(omt_audio.Data);
         auto samples_left = omt_audio.SamplesPerChannel;
+        const auto frame_capacity = (f.f.max_size - f.f.data_len) / f.f.bps / ch_count;
+        if(samples_left > frame_capacity){
+                log_msg(LOG_LEVEL_WARNING, MOD_NAME "Buffer overflow, dropping %d samples\n", samples_left - frame_capacity);
+                samples_left = frame_capacity;
+        }
+        f.f.data_len += samples_left * f.f.bps * ch_count;
         while(samples_left > 0){
                 constexpr auto chunk_samples = 128;
                 const auto to_process = std::min(chunk_samples, samples_left);
@@ -171,17 +195,63 @@ audio_frame *omt_to_audio_frame(state_omt_cap *s, const OMTMediaFrame& omt_audio
                 src += to_process;
                 samples_left -= to_process;
         }
+}
 
-        return &s->audio_f;
+void omt_cap_audio_worker(state_omt_cap *s){
+        set_thread_name(__func__);
+
+        while(!s->should_exit){
+                const auto omt_audio = omt_receive(s->omt_h.get(), OMTFrameType_Audio, 10);
+                if(!omt_audio)
+                        continue;
+
+                auto lk = s->audio_f.lock();
+                auto& f = s->audio_f.back();
+
+                if(!f.data
+                        || f.f.ch_count != omt_audio->Channels
+                        || f.f.sample_rate != omt_audio->SampleRate)
+                {
+                        init_audio_frame(f, *omt_audio);
+                }
+
+                audio_frame_append(f, *omt_audio);
+        }
+}
+
+int capture_omt_init(const vidcap_params *params, void **state){
+        auto s = std::make_unique<state_omt_cap>();
+
+        ug_register_omt_log_callback();
+
+        if(auto parse_ret = parse_cfg(*s, vidcap_params_get_fmt(params)); parse_ret != VIDCAP_INIT_OK){
+                return parse_ret;
+        }
+
+        std::string addr = "omt://" + s->sender_addr + ":" + std::to_string(s->port);
+
+        s->omt_h.reset(omt_receive_create(addr.c_str(), static_cast<OMTFrameType>(OMTFrameType_Audio | OMTFrameType_Video),
+                OMTPreferredVideoFormat_UYVY, OMTReceiveFlags_None));
+
+        s->audio_recv_thread = std::thread(omt_cap_audio_worker, s.get());
+
+        *state = s.release();
+        return VIDCAP_INIT_OK;
+}
+
+void capture_omt_done(void *state){
+        auto s = static_cast<state_omt_cap *>(state);
+        delete s;
 }
 
 video_frame *capture_omt_grab(void *state, audio_frame **audio){
         auto s = static_cast<state_omt_cap *>(state);
 
-        const auto omt_audio = omt_receive(s->omt_h.get(), OMTFrameType_Audio, 0);
-        if(omt_audio){
-                *audio = omt_to_audio_frame(s, *omt_audio);
-                log_msg(LOG_LEVEL_INFO, "got audio %d (%d)\n", omt_audio->SamplesPerChannel, (*audio)->data_len);
+        s->audio_f.front().f.data_len = 0;
+        s->audio_f.swap();
+
+        if(auto& audio_frame = s->audio_f.front(); audio_frame.f.data_len != 0){
+                *audio = &audio_frame.f;
         }
 
         const auto omt_frame = omt_receive(s->omt_h.get(), OMTFrameType_Video, 100);

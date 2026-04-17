@@ -54,6 +54,8 @@
 namespace{
 using frame_uniq = std::unique_ptr<video_frame, deleter_from_fcn<vf_free>>;
 
+constexpr auto MAX_QUEUED_FRAMES = 1;
+
 struct state_vdisp_omt{
         omt_send_uniq omt_send;
 
@@ -169,6 +171,23 @@ bool display_omt_putf(void *state, video_frame *frame, long long timeout_ns){
         auto f = frame_uniq(frame);
 
         std::unique_lock lock(s->mutex);
+
+        if(timeout_ns == PUTF_DISCARD){
+                s->free_frames.push_back(std::move(f));
+                return false;
+        }
+
+        if(timeout_ns == PUTF_BLOCKING){
+                s->free_frame_cv.wait(lock, [s]{return s->frame_queue.size() < MAX_QUEUED_FRAMES;});
+        } else if(timeout_ns != PUTF_NONBLOCK){
+                s->free_frame_cv.wait_for(lock, std::chrono::nanoseconds(timeout_ns), [s]{return s->frame_queue.size() < MAX_QUEUED_FRAMES;});
+        }
+
+        if(s->frame_queue.size() >= MAX_QUEUED_FRAMES){
+                s->free_frames.push_back(std::move(f));
+                return false;
+        }
+
         s->frame_queue.push(std::move(f));
         lock.unlock();
         s->video_frame_cv.notify_one();

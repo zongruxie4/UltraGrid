@@ -43,6 +43,7 @@
 #include <cassert>
 #include <cinttypes>
 #include <chrono>
+#include <map>                                    // for map
 #include <memory>
 #include <thread>
 #include <string>

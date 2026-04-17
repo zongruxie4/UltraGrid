@@ -2085,8 +2085,10 @@ static void configure_vaapi(AVCodecContext * /* codec_ctx */, struct setparam_pa
 
 static void configure_aom_av1(AVCodecContext *codec_ctx, struct setparam_param *param)
 {
-        auto && usage = get_map_val_or_default<string, string>(param->lavc_opts, "usage", "realtime");
-        check_av_opt_set<const char *>(codec_ctx->priv_data, "usage", usage.c_str());
+        auto it = param->lavc_opts.find("usage");
+        const char *usage =
+            it != param->lavc_opts.end() ? it->second.c_str() : "realtime";
+        check_av_opt_set<const char *>(codec_ctx->priv_data, "usage", usage);
         check_av_opt_set<const char *>(codec_ctx->priv_data, "tiles", "8x8");
 }
 

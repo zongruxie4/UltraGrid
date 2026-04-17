@@ -98,15 +98,6 @@ struct fourcc_s fourcc_to_string(uint32_t fourcc);
 #ifdef __cplusplus
 uint32_t parse_uint32(const char *value_str) noexcept(false);
 
-#include <map>
-template<typename key, typename T>
-inline T get_map_val_or_default(std::map<key, T> const& map, key const& k, T const& def) {
-        if (auto && it = map.find(k); it != map.end()) {
-                return it->second;
-        }
-        return def;
-}
-
 template<auto delete_fcn>
 struct deleter_from_fcn{ template<typename T> void operator()(T handle) const { delete_fcn(handle); }};
 
